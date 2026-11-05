@@ -1,0 +1,31 @@
+#!/bin/sh
+# Example UFW rules for backend host B. Review and edit before running.
+set -eu
+
+BOT_VPN_IP="${BOT_VPN_IP:-10.8.0.2}"
+ADMIN_SSH_IP="${ADMIN_SSH_IP:?Set ADMIN_SSH_IP to the administrator's actual source IP}"
+
+case "$ADMIN_SSH_IP" in
+  *[!0-9.]*|"") echo "ADMIN_SSH_IP must be an IPv4 address" >&2; exit 2 ;;
+esac
+case "$BOT_VPN_IP" in
+  *[!0-9.]*|"") echo "BOT_VPN_IP must be an IPv4 address" >&2; exit 2 ;;
+esac
+
+# Do not enable UFW until the SSH source above has been verified.
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow from "$BOT_VPN_IP" to any port 8000 proto tcp comment 'Telegram bot to Media Backend'
+ufw allow from "$BOT_VPN_IP" to any port 8080 proto tcp comment 'Telegram bot to LLM'
+ufw allow from "$ADMIN_SSH_IP" to any port 22 proto tcp comment 'Administrator SSH'
+
+# Optional WireGuard endpoint restriction. Set only when WireGuard is used.
+if [ -n "${BOT_WG_PUBLIC_IP:-}" ]; then
+  case "$BOT_WG_PUBLIC_IP" in
+    *[!0-9.]* ) echo "BOT_WG_PUBLIC_IP must be an IPv4 address" >&2; exit 2 ;;
+  esac
+  ufw allow from "$BOT_WG_PUBLIC_IP" to any port 51820 proto udp comment 'WireGuard peer A'
+fi
+
+ufw --force enable
+ufw status verbose

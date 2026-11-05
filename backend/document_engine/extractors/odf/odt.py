@@ -1,0 +1,27 @@
+"""Extract headings and paragraphs from OpenDocument Text files."""
+
+from odf import teletype
+from odf.text import H, P
+
+from backend.document_engine.extractors.base import (
+    ExtractContext,
+    add_chunk,
+    make_context,
+)
+
+
+def extract_odt(document: object, *, context: ExtractContext | None = None) -> str:
+    """Extract ODT headings and paragraphs, stopping as soon as the budget fills."""
+    ctx = make_context(context)
+    result: list[str] = []
+
+    for element_type in (H, P):
+        for element in document.getElementsByType(element_type):
+            ctx.check()
+            text = teletype.extractText(element).strip()
+            if text:
+                add_chunk(result, ctx, text)
+            if ctx.budget.exhausted:
+                return "\n".join(result)
+    ctx.check()
+    return "\n".join(result)
