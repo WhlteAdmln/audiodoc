@@ -1,0 +1,12 @@
+# /etc/wireguard/wg0.conf on machine A (Telegram bot).
+# Generate the private key on A; replace placeholders locally. Never share it.
+[Interface]
+Address = 10.8.0.2/24
+PrivateKey = <PRIVATE_KEY_OF_MACHINE_A>
+
+[Peer]
+# machine B (backend + LLM)
+PublicKey = <PUBLIC_KEY_OF_MACHINE_B>
+Endpoint = <PUBLIC_ENDPOINT_OF_MACHINE_B>:51820
+AllowedIPs = 10.8.0.1/32
+PersistentKeepalive = 25
