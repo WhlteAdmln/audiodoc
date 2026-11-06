@@ -4,6 +4,7 @@ import math
 import subprocess
 import tempfile
 import threading
+from contextlib import suppress
 
 MAX_SUBPROCESS_OUTPUT = 20 * 1024 * 1024
 MAX_STDERR_PREVIEW = 4096
@@ -66,10 +67,8 @@ def run_limited(
             """Kill the child process when the wall-clock timer expires."""
             if process.poll() is None:
                 timed_out.set()
-                try:
+                with suppress(OSError):
                     process.kill()
-                except OSError:
-                    pass
 
         timer = threading.Timer(timeout_value, on_timeout)
         timer.daemon = True
@@ -79,18 +78,14 @@ def run_limited(
         try:
             output = process.stdout.read(max_output + 1)
             if len(output) > max_output and process.poll() is None:
-                try:
+                with suppress(OSError):
                     process.kill()
-                except OSError:
-                    pass
             process.wait()
         finally:
             timer.cancel()
             if process.poll() is None:
-                try:
+                with suppress(OSError):
                     process.kill()
-                except OSError:
-                    pass
             process.wait()
             process.stdout.close()
 

@@ -2,10 +2,10 @@ import shutil
 
 import pytest
 
-pytestmark = pytest.mark.integration
-
 from backend.document_engine.extractors.pdf import extract_pdf
 from tests.builders import create_scanned_pdf
+
+pytestmark = pytest.mark.integration
 
 
 def test_pdf_text_layer_and_scanned_page_ocr(tmp_path):

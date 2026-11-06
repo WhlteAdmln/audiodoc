@@ -7,10 +7,10 @@ pytest.importorskip("striprtf")
 
 from fastapi.testclient import TestClient
 
-from backend.config import settings
-from backend.main import app
 import backend.main as main_module
 import backend.transcription.model as model_module
+from backend.config import settings
+from backend.main import app
 from backend.transcription.model import model_holder
 
 

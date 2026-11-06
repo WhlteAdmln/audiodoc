@@ -3,9 +3,9 @@
 from pathlib import Path
 
 from backend.document_engine.detection.formats import (
-    extension_map,
     IMAGE_EXTENSIONS,
     SUPPORTED_FORMATS,
+    extension_map,
 )
 from backend.document_engine.detection.signatures import (
     detect_djvu_signature,

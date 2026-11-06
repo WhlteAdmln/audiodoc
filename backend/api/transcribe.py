@@ -1,6 +1,7 @@
 """Whisper transcription endpoint."""
 
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
@@ -10,7 +11,7 @@ from backend.common.limited_upload import save_upload_limited
 from backend.config import settings
 from backend.errors.base import BackendError
 from backend.transcription.model import model_holder
-from backend.transcription.service import transcription_queue, transcribe_file
+from backend.transcription.service import transcribe_file, transcription_queue
 from backend.transcription.temp_files import temp_audio_file
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ router = APIRouter(
 
 
 @router.post("/transcribe", response_model=TranscribeResponse)
-async def transcribe(file: UploadFile = File(...)) -> dict[str, object]:
+async def transcribe(file: Annotated[UploadFile, File()]) -> dict[str, object]:
     """Save an audio upload and return its Whisper transcription.
 
     Args:

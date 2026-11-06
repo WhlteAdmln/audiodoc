@@ -8,8 +8,8 @@ import backend.document_engine.extractors.pdf as pdf_module
 from backend.common.deadline import Deadline
 from backend.common.text_budget import TextBudget
 from backend.document_engine.extractors.base import ExtractContext
-from backend.document_engine.limits import MAX_DOCUMENT_PAGES
 from backend.document_engine.extractors.pdf import extract_pdf
+from backend.document_engine.limits import MAX_DOCUMENT_PAGES
 from backend.errors.documents import DocumentRejectedError
 from tests.builders import create_pdf
 

@@ -1,7 +1,7 @@
 """Check Tesseract and the requested language data once per process."""
 
-from functools import lru_cache
 import shutil
+from functools import lru_cache
 
 import pytesseract
 
