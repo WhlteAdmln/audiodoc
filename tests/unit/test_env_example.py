@@ -4,7 +4,6 @@ import ast
 import re
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SETTINGS_PATH = PROJECT_ROOT / "backend" / "config" / "settings.py"
 ENV_EXAMPLE_PATH = PROJECT_ROOT / ".env.example"

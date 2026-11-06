@@ -4,10 +4,10 @@ import io
 import zipfile
 
 from backend.document_engine.limits import (
+    MAX_ARCHIVE_COMPRESSION_RATIO,
+    MAX_ARCHIVE_FILE_SIZE,
     MAX_ARCHIVE_FILES,
     MAX_ARCHIVE_UNPACKED_SIZE,
-    MAX_ARCHIVE_FILE_SIZE,
-    MAX_ARCHIVE_COMPRESSION_RATIO,
 )
 
 

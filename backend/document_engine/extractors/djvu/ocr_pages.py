@@ -16,8 +16,8 @@ from backend.document_engine.extractors.base import (
 )
 from backend.document_engine.limits import (
     DJVU_RENDER_MAX_SIZE,
-    MAX_DOCUMENT_PAGES,
     MAX_DJVU_PAGE_BYTES,
+    MAX_DOCUMENT_PAGES,
     SUBPROCESS_TIMEOUT,
 )
 from backend.document_engine.ocr import extract_image_text

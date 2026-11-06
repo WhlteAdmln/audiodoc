@@ -16,7 +16,8 @@ def test_run_limited_returns_stdout_and_bounded_stderr_preview():
         [
             sys.executable,
             "-c",
-            "import sys; sys.stdout.buffer.write(b'hello'); sys.stderr.write('diagnostic')",
+            "import sys; sys.stdout.buffer.write(b'hello'); "
+            "sys.stderr.write('diagnostic')",
         ],
         timeout=2,
         max_output=5,

@@ -1,14 +1,12 @@
 """Tests for row/column caps and extractor use of the shared TextBudget."""
 
-from io import BytesIO
-
-import backend.document_engine.extractors.xlsx as xlsx_module
 import backend.document_engine.extractors.odf.ods as ods_module
+import backend.document_engine.extractors.xlsx as xlsx_module
 from backend.common.deadline import Deadline
 from backend.common.text_budget import TextBudget
 from backend.document_engine.extractors.base import ExtractContext
-from backend.document_engine.extractors.xlsx import extract_xlsx
 from backend.document_engine.extractors.odf import extract_odf
+from backend.document_engine.extractors.xlsx import extract_xlsx
 from tests.builders import create_ods
 
 
