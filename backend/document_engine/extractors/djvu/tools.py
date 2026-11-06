@@ -1,7 +1,7 @@
 """Поиск внешних инструментов DjVuLibre."""
 
-from dataclasses import dataclass
 import shutil
+from dataclasses import dataclass
 
 from backend.errors.documents import DependencyMissingError
 

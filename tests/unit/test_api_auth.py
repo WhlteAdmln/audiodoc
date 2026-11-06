@@ -68,6 +68,7 @@ def test_document_route_requires_its_own_key(monkeypatch):
     pytest.importorskip("striprtf")
 
     from fastapi.testclient import TestClient
+
     from backend.config import settings
     from backend.main import app
 

@@ -4,8 +4,8 @@ import os
 import re
 import time
 import uuid
-from contextlib import contextmanager
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from backend.config import settings

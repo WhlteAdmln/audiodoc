@@ -1,7 +1,7 @@
 import pytest
 
-from backend.config.env import get_bool, get_float, get_int
 from backend.common.safe_log import log_safe
+from backend.config.env import get_bool, get_float, get_int
 
 
 def test_get_bool_accepts_common_spellings_and_default(monkeypatch):

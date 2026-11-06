@@ -14,11 +14,10 @@ pytestmark = pytest.mark.integration
 pytest.importorskip("ebooklib")
 pytest.importorskip("striprtf")
 
-from fastapi.testclient import TestClient
+from fastapi.testclient import TestClient  # noqa: E402
 
-from backend.main import app
-from backend.transcription.model import model_holder
-
+from backend.main import app  # noqa: E402
+from backend.transcription.model import model_holder  # noqa: E402
 
 client = TestClient(app)
 

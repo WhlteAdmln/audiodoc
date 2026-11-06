@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
@@ -11,11 +12,11 @@ from backend.common.limited_upload import read_upload_limited
 from backend.common.safe_log import log_safe
 from backend.config import settings
 from backend.document_engine import document_queue, process_document
-from backend.errors.base import BackendError
 from backend.document_engine.limits import (
     MAX_DOCUMENT_SIZE,
     MAX_EXTRACTED_TEXT_LENGTH,
 )
+from backend.errors.base import BackendError
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ router = APIRouter(
 
 @router.post("/process-document", response_model=DocumentResponse)
 async def process_document_endpoint(
-    file: UploadFile = File(...),
+    file: Annotated[UploadFile, File()],
     max_characters: int | None = Form(default=None, ge=1, le=MAX_EXTRACTED_TEXT_LENGTH),
 ) -> dict:
     """Extract text from a document through Document Engine."""

@@ -1,26 +1,24 @@
 """Unit tests for bounded DJVU text extraction and page rendering."""
 
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
 import backend.document_engine.extractors.djvu as djvu_module
 import backend.document_engine.extractors.djvu.ocr_pages as ocr_pages_module
 import backend.document_engine.extractors.djvu.text_layer as text_layer_module
+from backend.common.deadline import Deadline
+from backend.common.subprocess_runner import SubprocessTimeoutError
+from backend.common.text_budget import TextBudget
+from backend.document_engine.extractors.base import ExtractContext
 from backend.document_engine.extractors.djvu.ocr_pages import extract_ocr_pages
 from backend.document_engine.extractors.djvu.text_layer import extract_text_layer
 from backend.document_engine.extractors.djvu.tools import DjvuTools
-from backend.common.deadline import Deadline
-from backend.common.text_budget import TextBudget
-from backend.document_engine.extractors.base import ExtractContext
 from backend.document_engine.limits import (
     DJVU_RENDER_MAX_SIZE,
     MAX_DOCUMENT_PAGES,
-    MAX_DJVU_PAGE_BYTES,
     SUBPROCESS_TIMEOUT,
 )
-from backend.common.subprocess_runner import SubprocessTimeoutError
 from backend.errors.documents import (
     DependencyMissingError,
     DocumentRejectedError,

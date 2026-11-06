@@ -1,8 +1,7 @@
 """Smoke tests for the POSIX release installer CLI."""
 
-from pathlib import Path
 import subprocess
-
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 INSTALLER = PROJECT_ROOT / "install.sh"
