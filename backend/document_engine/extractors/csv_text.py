@@ -11,7 +11,7 @@ from backend.document_engine.extractors.base import (
 
 
 def extract_csv(data: bytes, *, context: ExtractContext | None = None) -> str:
-    """Extract CSV rows incrementally, stopping immediately when the budget fills."""
+    """Extract CSV rows until additional non-empty text exceeds the shared budget."""
     ctx = make_context(context)
     text = data.decode("utf-8-sig", errors="replace")
     try:
@@ -25,6 +25,6 @@ def extract_csv(data: bytes, *, context: ExtractContext | None = None) -> str:
         line = " | ".join(row).strip()
         if line:
             add_chunk(result, ctx, line)
-        if ctx.budget.exhausted:
+        if ctx.budget.truncated:
             break
     return "\n".join(result)

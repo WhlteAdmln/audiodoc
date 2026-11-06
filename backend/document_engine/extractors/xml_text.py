@@ -17,6 +17,6 @@ def extract_xml_text(data: bytes, *, context: ExtractContext | None = None) -> s
         ctx.check()
         if element.text and element.text.strip():
             add_chunk(result, ctx, element.text.strip())
-        if ctx.budget.exhausted:
+        if ctx.budget.truncated:
             break
     return "\n".join(result)

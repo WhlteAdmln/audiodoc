@@ -44,3 +44,13 @@ def test_text_budget_is_truncated_when_text_exceeds_limit_by_one():
     assert budget.used == 5
     assert budget.exhausted is True
     assert budget.truncated is True
+
+
+def test_text_budget_can_mark_source_as_incomplete_when_extraction_stops():
+    budget = TextBudget(5)
+    budget.add("12345")
+
+    budget.mark_truncated()
+
+    assert budget.exhausted is True
+    assert budget.truncated is True

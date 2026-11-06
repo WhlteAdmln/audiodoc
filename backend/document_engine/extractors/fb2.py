@@ -44,6 +44,6 @@ def extract_fb2(data: bytes, *, context: ExtractContext | None = None) -> str:
         for text in _iter_text_blocks(body):
             ctx.check()
             add_chunk(result, ctx, text)
-            if ctx.budget.exhausted:
+            if ctx.budget.truncated:
                 return "\n".join(result)
     return "\n".join(result)

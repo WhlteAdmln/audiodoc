@@ -11,6 +11,9 @@ import backend.document_engine.extractors.djvu.text_layer as text_layer_module
 from backend.document_engine.extractors.djvu.ocr_pages import extract_ocr_pages
 from backend.document_engine.extractors.djvu.text_layer import extract_text_layer
 from backend.document_engine.extractors.djvu.tools import DjvuTools
+from backend.common.deadline import Deadline
+from backend.common.text_budget import TextBudget
+from backend.document_engine.extractors.base import ExtractContext
 from backend.document_engine.limits import (
     DJVU_RENDER_MAX_SIZE,
     MAX_DOCUMENT_PAGES,
@@ -191,3 +194,70 @@ def test_ocr_pages_rejects_too_large_rendered_file(monkeypatch, tmp_path):
             "/usr/bin/djvused",
             "/usr/bin/ddjvu",
         )
+
+
+def test_ocr_pages_marks_remaining_pages_as_truncated_after_exact_fit(
+    monkeypatch, tmp_path
+):
+    document_path = tmp_path / "document.djvu"
+    document_path.write_bytes(b"DJVU-data")
+    calls = []
+
+    def fake_run(args, **_kwargs):
+        calls.append(args)
+        if args[0] == "/usr/bin/djvused":
+            return 0, b"2", b""
+        Path(args[-1]).write_bytes(b"TIFF-data")
+        return 0, b"", b""
+
+    monkeypatch.setattr(ocr_pages_module, "run_limited", fake_run)
+    monkeypatch.setattr(
+        ocr_pages_module, "extract_image_text", lambda *_args, **_kwargs: "abc"
+    )
+    page_text = "--- Страница 1 ---\nabc"
+    budget = TextBudget(len(page_text))
+    context = ExtractContext(budget=budget, deadline=Deadline(10))
+
+    assert (
+        extract_ocr_pages(
+            document_path,
+            tmp_path,
+            "/usr/bin/djvused",
+            "/usr/bin/ddjvu",
+            context=context,
+        )
+        == page_text
+    )
+    assert budget.truncated is True
+    assert len(calls) == 2  # page count + first page; page two is not rendered
+
+
+def test_ocr_pages_exact_fit_on_last_page_is_not_truncated(monkeypatch, tmp_path):
+    document_path = tmp_path / "document.djvu"
+    document_path.write_bytes(b"DJVU-data")
+
+    def fake_run(args, **_kwargs):
+        if args[0] == "/usr/bin/djvused":
+            return 0, b"1", b""
+        Path(args[-1]).write_bytes(b"TIFF-data")
+        return 0, b"", b""
+
+    monkeypatch.setattr(ocr_pages_module, "run_limited", fake_run)
+    monkeypatch.setattr(
+        ocr_pages_module, "extract_image_text", lambda *_args, **_kwargs: "abc"
+    )
+    page_text = "--- Страница 1 ---\nabc"
+    budget = TextBudget(len(page_text))
+    context = ExtractContext(budget=budget, deadline=Deadline(10))
+
+    assert (
+        extract_ocr_pages(
+            document_path,
+            tmp_path,
+            "/usr/bin/djvused",
+            "/usr/bin/ddjvu",
+            context=context,
+        )
+        == page_text
+    )
+    assert budget.truncated is False
