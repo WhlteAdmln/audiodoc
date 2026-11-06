@@ -24,8 +24,12 @@ class TextBudget:
 
     @property
     def truncated(self) -> bool:
-        """Whether a chunk was actually cut or declined because of the limit."""
+        """Whether extracted content was omitted because of an output limit."""
         return self._truncated
+
+    def mark_truncated(self) -> None:
+        """Mark output incomplete when extraction stops while source input remains."""
+        self._truncated = True
 
     def add(self, text: str, *, separator_length: int = 1) -> str:
         """Accept a chunk, returning its possibly truncated text.

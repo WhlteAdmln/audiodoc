@@ -2,6 +2,9 @@
 
 import pytest
 
+from backend.common.deadline import Deadline
+from backend.common.text_budget import TextBudget
+from backend.document_engine.extractors.base import ExtractContext
 from backend.document_engine.extractors.csv_text import extract_csv
 from backend.document_engine.extractors.html import extract_html
 from backend.document_engine.extractors.plain import extract_plain
@@ -56,3 +59,48 @@ def test_rtf_extractor_preserves_plain_text():
     from backend.document_engine.extractors.rtf import extract_rtf
 
     assert "RTF test" in extract_rtf(b"{\\rtf1 RTF test}")
+
+
+def test_csv_marks_truncation_when_another_row_follows_an_exact_fit(monkeypatch):
+    import backend.document_engine.extractors.csv_text as csv_module
+
+    monkeypatch.setattr(
+        csv_module.csv.Sniffer, "sniff", lambda *_args, **_kwargs: csv_module.csv.excel
+    )
+    budget = TextBudget(3)
+    context = ExtractContext(budget=budget, deadline=Deadline(10))
+
+    assert extract_csv(b"abc\ndef\n", context=context) == "abc"
+    assert budget.truncated is True
+
+
+def test_csv_exact_fit_at_end_of_file_is_not_truncated(monkeypatch):
+    import backend.document_engine.extractors.csv_text as csv_module
+
+    monkeypatch.setattr(
+        csv_module.csv.Sniffer, "sniff", lambda *_args, **_kwargs: csv_module.csv.excel
+    )
+    budget = TextBudget(3)
+    context = ExtractContext(budget=budget, deadline=Deadline(10))
+
+    assert extract_csv(b"abc\n", context=context) == "abc"
+    assert budget.truncated is False
+
+
+def test_xml_marks_truncation_when_another_text_node_follows_an_exact_fit():
+    budget = TextBudget(3)
+    context = ExtractContext(budget=budget, deadline=Deadline(10))
+
+    assert (
+        extract_xml_text(b"<root>abc<child>def</child></root>", context=context)
+        == "abc"
+    )
+    assert budget.truncated is True
+
+
+def test_xml_exact_fit_without_more_text_is_not_truncated():
+    budget = TextBudget(3)
+    context = ExtractContext(budget=budget, deadline=Deadline(10))
+
+    assert extract_xml_text(b"<root>abc</root>", context=context) == "abc"
+    assert budget.truncated is False

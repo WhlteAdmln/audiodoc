@@ -144,7 +144,7 @@ def test_recognize_pages_preserves_page_headers_and_timeout(monkeypatch):
 
 def test_ocr_package_keeps_extract_image_text_entry_point(monkeypatch):
     monkeypatch.setattr(
-        "backend.document_engine.ocr.tesseract.ensure_ready", lambda _: None
+        "backend.document_engine.ocr.ensure_ready", lambda _: None
     )
     monkeypatch.setattr(
         "backend.document_engine.ocr.recognize_pages",
