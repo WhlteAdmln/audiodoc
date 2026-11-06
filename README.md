@@ -27,6 +27,22 @@ sudo apt install -y python3 python3-venv python3-pip tesseract-ocr tesseract-ocr
 
 OCR requires Tesseract and the `rus`/`eng` language data. DJVU requires `djvutxt`, `djvused`, and `ddjvu`. Check them with authenticated `GET /ready`.
 
+## Release installer
+
+After the first GitHub Release is published, the installer can set up audiodoc, create two separate random API keys, optionally download the Whisper model, and prepare a bot configuration snippet. The installer does not enable or start its optional user systemd unit.
+
+Download the script first, inspect it, and then run it (do not pipe an unreviewed script directly into a shell):
+
+```bash
+curl -fsSLo install.sh https://raw.githubusercontent.com/WhlteAdmln/audiodoc/main/install.sh
+less install.sh
+sh install.sh --latest --systemd
+```
+
+Use `--nightly` for the newest published prerelease. The installer supports `--host`, `--port`, `--model`, `--device`, `--compute-type`, and `--no-model`; run `sh install.sh --help` for details. It binds to `127.0.0.1` by default. For a two-machine deployment, use the backend's private/VPN address and restrict its port to the bot host. For a production system service with a dedicated account and filesystem sandbox, follow [the deployment guide](deploy/README.md).
+
+The first stable or prerelease must exist before the corresponding release channel can be installed. `--latest` requires a stable GitHub Release; `--nightly` requires a published prerelease.
+
 ## Quick start
 
 From the project root:
@@ -123,6 +139,7 @@ Integration tests need Tesseract with the `rus` and `eng` language data, plus Dj
 
 - [Architecture (EN)](docs/architecture.md) · [Архитектура (RU)](docs/architecture.ru.md)
 - [HTTP API](docs/api.md)
+- [Telegram bot connection guide](docs/connecting-the-bot.md)
 - [Operations](docs/operations.md)
 - [Adding a format](docs/adding-a-format.md)
 - [Security checklist](docs/security-checklist.md)
