@@ -1,8 +1,8 @@
 """Bounded asynchronous admission queues for resource-intensive work."""
 
 import asyncio
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 
 
 class QueueFullError(RuntimeError):

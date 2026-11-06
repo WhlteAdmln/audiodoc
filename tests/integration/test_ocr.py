@@ -2,10 +2,10 @@ import shutil
 
 import pytest
 
-pytestmark = pytest.mark.integration
-
 from backend.document_engine.ocr import extract_image_text
 from tests.builders import create_ocr_image
+
+pytestmark = pytest.mark.integration
 
 
 def test_ocr_recognizes_text_from_image():

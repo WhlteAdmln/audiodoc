@@ -1,8 +1,8 @@
 """Extract DJVU text with bounded tools and page-by-page OCR fallback."""
 
 import logging
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 from backend.common.deadline import Deadline
 from backend.document_engine.extractors.base import ExtractContext, make_context

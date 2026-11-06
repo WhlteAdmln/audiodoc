@@ -6,11 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from backend.document_engine import process_document, process_document_sync
-from backend.document_engine import pipeline
-from backend.document_engine import runner
+from backend.document_engine import (
+    pipeline,
+    process_document_sync,
+    runner,
+)
 from backend.document_engine.extractors import REGISTRY
-
 
 EXPECTED_FORMATS = {
     "pdf",

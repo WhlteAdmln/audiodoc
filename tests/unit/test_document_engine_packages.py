@@ -14,9 +14,9 @@ from backend.document_engine.detection.formats import (
 from backend.document_engine.ocr import (
     extract_image_text,
 )
+from backend.document_engine.ocr import preprocessing as ocr_preprocessing
 from backend.document_engine.ocr import recognize as ocr_package_recognize
 from backend.document_engine.ocr import tesseract as ocr_tesseract
-from backend.document_engine.ocr import preprocessing as ocr_preprocessing
 from backend.document_engine.result import build_result, limit_text
 
 
@@ -143,9 +143,7 @@ def test_recognize_pages_preserves_page_headers_and_timeout(monkeypatch):
 
 
 def test_ocr_package_keeps_extract_image_text_entry_point(monkeypatch):
-    monkeypatch.setattr(
-        "backend.document_engine.ocr.ensure_ready", lambda _: None
-    )
+    monkeypatch.setattr("backend.document_engine.ocr.ensure_ready", lambda _: None)
     monkeypatch.setattr(
         "backend.document_engine.ocr.recognize_pages",
         lambda image, languages, **_kwargs: "Recognized text",

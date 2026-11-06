@@ -4,8 +4,8 @@
 в изолированном каталоге pytest (tmp_path).
 """
 
-from io import BytesIO
 import tempfile
+from io import BytesIO
 from pathlib import Path
 
 
@@ -79,14 +79,15 @@ def create_epub() -> bytes:
 def create_fb2() -> bytes:
     """Создаёт небольшую FictionBook 2-книгу для тестов."""
     return (
-        '<?xml version="1.0" encoding="utf-8"?>'
-        '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">'
-        "<description><title-info><book-title>FB2 test</book-title></title-info></description>"
-        "<body><section><title><p>FB2 test</p></title>"
-        "<p>Document engine works!</p>"
-        "<p>Text <emphasis>with emphasis</emphasis> preserved.</p>"
-        "</section></body></FictionBook>"
-    ).encode("utf-8")
+        b'<?xml version="1.0" encoding="utf-8"?>'
+        b'<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">'
+        b"<description><title-info><book-title>FB2 test</book-title>"
+        b"</title-info></description>"
+        b"<body><section><title><p>FB2 test</p></title>"
+        b"<p>Document engine works!</p>"
+        b"<p>Text <emphasis>with emphasis</emphasis> preserved.</p>"
+        b"</section></body></FictionBook>"
+    )
 
 
 def create_pdf() -> bytes:

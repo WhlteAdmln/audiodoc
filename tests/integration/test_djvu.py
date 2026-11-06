@@ -3,10 +3,10 @@ import subprocess
 
 import pytest
 
-pytestmark = pytest.mark.integration
-
 from backend.document_engine.extractors.djvu import extract_djvu
 from tests.builders import create_ocr_image
+
+pytestmark = pytest.mark.integration
 
 
 def test_scanned_djvu_is_processed_with_ocr(tmp_path):
@@ -25,8 +25,9 @@ def test_scanned_djvu_is_processed_with_ocr(tmp_path):
     if not {"rus", "eng"}.issubset(languages):
         pytest.skip("Tesseract language packs rus and eng are required")
 
-    from PIL import Image
     from io import BytesIO
+
+    from PIL import Image
 
     image = Image.open(BytesIO(create_ocr_image())).convert("RGB")
     ppm_path = tmp_path / "scanned.ppm"

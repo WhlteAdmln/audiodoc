@@ -7,7 +7,6 @@ pytest.importorskip("striprtf")
 
 from backend.document_engine import process_document_sync
 
-
 CASES = [
     (b"Hello! This is a TXT test.", "test.txt", "txt", "TXT test"),
     (
@@ -46,12 +45,15 @@ def test_text_formats(data, name, expected_format, expected_text, tmp_path):
 
 
 def test_fb2_extraction(tmp_path):
-    data = b"""<?xml version="1.0" encoding="UTF-8"?>
-    <FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
-        <description><title-info><book-title>Test Book</book-title></title-info></description>
-        <body><section><p>FB2 Test Chapter</p>
-        <p>Document engine works!</p></section></body>
-    </FictionBook>"""
+    data = (
+        b'<?xml version="1.0" encoding="UTF-8"?>\n'
+        b'    <FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">\n'
+        b"        <description><title-info><book-title>"
+        b"Test Book</book-title></title-info></description>\n"
+        b"        <body><section><p>FB2 Test Chapter</p>\n"
+        b"        <p>Document engine works!</p></section></body>\n"
+        b"    </FictionBook>"
+    )
     path = tmp_path / "test.fb2"
     path.write_bytes(data)
 
