@@ -1,0 +1,25 @@
+.DS_Store
+
+# Secrets and local configuration
+.env
+
+# Python environments and caches
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Test and coverage reports
+.coverage
+coverage.xml
+htmlcov/
+junit.xml
+
+# Runtime data
+tmp/
+models/
+*.log
+
+# Build artifacts
+dist/
