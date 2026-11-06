@@ -1,16 +1,16 @@
 [Unit]
-Description=Media Backend (Whisper + Document Engine)
+Description=audiodoc (Whisper + Document Engine)
 After=network-online.target wg-quick@wg0.service
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=mediabackend
-Group=mediabackend
-WorkingDirectory=/opt/media-backend
-EnvironmentFile=/opt/media-backend/.env
+User=audiodoc
+Group=audiodoc
+WorkingDirectory=/opt/audiodoc
+EnvironmentFile=/opt/audiodoc/.env
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/opt/media-backend/venv/bin/uvicorn app:app --host 10.8.0.1 --port 8000 --no-server-header
+ExecStart=/opt/audiodoc/venv/bin/uvicorn app:app --host 10.8.0.1 --port 8000 --no-server-header
 Restart=on-failure
 RestartSec=5
 UMask=0077
@@ -27,7 +27,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/media-backend/tmp
+ReadWritePaths=/opt/audiodoc/tmp
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true

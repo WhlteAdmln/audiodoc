@@ -1,6 +1,8 @@
-# Media Backend
+# audiodoc
 
-Отдельный FastAPI-бэкенд для Telegram-бота. Сервис принимает голосовые сообщения для Whisper и документы для Document Engine. Бот остаётся HTTP-клиентом: обработка аудио и документов не переносится в бот. Анимации и видео в этом проекте не обрабатываются.
+Бэкенд для Telegram-бота: распознавание аудио через Whisper и извлечение текста из документов.
+
+Отдельный FastAPI-сервис для Telegram-бота. Он предоставляет `/transcribe` для распознавания аудио Whisper и `/process-document` для извлечения текста Document Engine. Бот остаётся HTTP-клиентом; изображения, анимации и видео обрабатываются на стороне бота.
 
 ## Возможности
 
@@ -14,6 +16,8 @@
 
 ## Требования
 
+Требуется Python 3.11 или новее.
+
 Пример для Debian/Ubuntu (названия пакетов зависят от выпуска ОС):
 
 ```bash
@@ -25,7 +29,7 @@ sudo apt install -y python3 python3-venv python3-pip tesseract-ocr tesseract-ocr
 
 ## Быстрый запуск
 
-Из каталога `whisper-server/`:
+Из корневого каталога проекта:
 
 ```bash
 python3 -m venv .venv
@@ -84,7 +88,7 @@ curl -i \
 | `WHISPER_API_KEY` | пусто | Отдельный Bearer-ключ `/transcribe`; пустое значение допустимо только при локальном bypass |
 | `DOCUMENT_API_KEY` | пусто | Отдельный Bearer-ключ `/process-document` и `/ready` |
 | `ALLOW_UNAUTHENTICATED` | `false` | Локальный обход авторизации; не включать на сервере |
-| `BACKEND_TEMP_DIR` | `whisper-server/tmp` | Приватный каталог временных аудиофайлов |
+| `BACKEND_TEMP_DIR` | `tmp/` в корне проекта | Приватный каталог временных файлов |
 | `MAX_AUDIO_SIZE` | `26214400` | Максимум байтов аудиофайла (25 МиБ) |
 | `MAX_AUDIO_DURATION` | `600` | Максимальная длительность аудио в секундах |
 | `MAX_CONCURRENT_TRANSCRIPTIONS` | `1` | Число активных распознаваний |
@@ -113,7 +117,7 @@ python -m pytest -q
 python -m pytest -q -m integration
 ```
 
-Integration-тестам нужны системные `tesseract`/языки, DjVuLibre и доступная локальная модель Whisper. Смотрите `docs/operations.md`.
+Интеграционные тесты требуют Tesseract с языками `rus` и `eng`, а также DjVuLibre. Для Whisper используется подставная модель: настоящая модель не скачивается и не загружается. Перед тестами установите Python-зависимости из `requirements-lock.txt`. См. `docs/operations.md`.
 
 ## Документация
 
@@ -122,6 +126,6 @@ Integration-тестам нужны системные `tesseract`/языки, D
 - [Эксплуатация](docs/operations.md)
 - [Добавление формата](docs/adding-a-format.md)
 - [Чек-лист безопасности](docs/security-checklist.md)
-- [Итоговый аудит и приёмка](docs/final-acceptance.md)
+- [Чек-лист приёмки развёртывания (исторический)](docs/history/final-acceptance.md)
 - [Примеры развёртывания](deploy/README.md)
-- [Журнал рефакторинга](REFACTORING_LOG.md)
+- [История рефакторинга](docs/history/REFACTORING_LOG.md)

@@ -8,37 +8,39 @@ These files are **templates**, not drop-in production configuration. They follow
 
 Replace all example addresses, external endpoints, paths, usernames, resource limits, certificate paths, and allowed SSH source addresses before applying anything. No private key, API key, bot token, or other real secret is included in these examples.
 
+If a live host still uses the former service/account/directory names, do not rename them just by copying these examples. Read the migration guidance in [`docs/operations.md`](../docs/operations.md#migrating-from-previous-deployment-names) first.
+
 ## 1. Dedicated service account and filesystem
 
-Example assumes the code and virtual environment are installed under `/opt/media-backend`, owned by root, with group-readable access for the `mediabackend` service:
+Example assumes the code and virtual environment are installed under `/opt/audiodoc`, owned by root, with group-readable access for the `audiodoc` service:
 
 ```bash
-sudo useradd --system --home /opt/media-backend --shell /usr/sbin/nologin mediabackend
-sudo mkdir -p /opt/media-backend/tmp
+sudo useradd --system --home /opt/audiodoc --shell /usr/sbin/nologin audiodoc
+sudo mkdir -p /opt/audiodoc/tmp
 # Copy the reviewed code, venv, model directory, and protected .env first.
-sudo chown -R root:mediabackend /opt/media-backend
-sudo chmod -R g-w,o-rwx /opt/media-backend
-sudo chown mediabackend:mediabackend /opt/media-backend/tmp
-sudo chmod 700 /opt/media-backend/tmp
-sudo chown root:mediabackend /opt/media-backend/.env
-sudo chmod 640 /opt/media-backend/.env
+sudo chown -R root:audiodoc /opt/audiodoc
+sudo chmod -R g-w,o-rwx /opt/audiodoc
+sudo chown audiodoc:audiodoc /opt/audiodoc/tmp
+sudo chmod 700 /opt/audiodoc/tmp
+sudo chown root:audiodoc /opt/audiodoc/.env
+sudo chmod 640 /opt/audiodoc/.env
 ```
 
 The service account can read code, the virtual environment, model files, and `.env`, but cannot modify them. It can write only to `tmp/`. Check these assumptions after copying files; recursive ownership and mode commands can affect more files than intended when run from the wrong path.
 
 ## 2. systemd service
 
-1. Copy `media-backend.service.example` to `/etc/systemd/system/media-backend.service`.
+1. Copy `audiodoc.service.example` to `/etc/systemd/system/audiodoc.service`.
 2. Change `WorkingDirectory`, `EnvironmentFile`, `ExecStart`, private IP, `MemoryHigh`, `MemoryMax`, and `CPUQuota` to match your host.
-3. Confirm the model path is readable and the temporary directory is writable by `mediabackend`.
+3. Confirm the model path is readable and the temporary directory is writable by `audiodoc`.
 4. Enable it:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now media-backend
-systemctl status media-backend
-sudo journalctl -u media-backend -n 100 --no-pager
-systemd-analyze security media-backend.service
+sudo systemctl enable --now audiodoc
+systemctl status audiodoc
+sudo journalctl -u audiodoc -n 100 --no-pager
+systemd-analyze security audiodoc.service
 ```
 
 The sample intentionally blocks service network egress except the private subnet and loopback. It assumes Whisper is local (`WHISPER_OFFLINE=true`) and runtime dependencies are installed. `IPAddressDeny`/`IPAddressAllow` require a compatible Linux/systemd/cgroup environment; verify that the properties are active. If Whisper uses an NVIDIA GPU, the default device sandbox may need deliberate adjustment (`PrivateDevices=false` and a narrow `DeviceAllow=` for the required GPU devices); review the security impact and your driver requirements first.
@@ -87,19 +89,19 @@ Use `nginx.conf.example` only when choosing TLS termination instead of WireGuard
 After installing a trusted release, create a baseline outside the writable service tree:
 
 ```bash
-cd /opt/media-backend
-sudo find backend app.py -type f -name '*.py' -exec sha256sum {} + | sudo tee /root/media-backend.baseline.sha256 >/dev/null
+cd /opt/audiodoc
+sudo find backend app.py -type f -name '*.py' -exec sha256sum {} + | sudo tee /root/audiodoc.baseline.sha256 >/dev/null
 ```
 
 Check it periodically:
 
 ```bash
-cd /opt/media-backend
-sudo sha256sum -c --quiet /root/media-backend.baseline.sha256
+cd /opt/audiodoc
+sudo sha256sum -c --quiet /root/audiodoc.baseline.sha256
 ```
 
 Recreate the baseline only after a reviewed deployment or update. Do not overwrite it automatically on a failed integrity check.
 
 ## 7. Secret handling
 
-Use different randomly generated keys for Whisper and documents. Never put private keys or application keys into these example files, archives, command-line options, or logs. For the backend `.env`, use mode `640` with `root:mediabackend` in this service template; use `600` when only the owning service/admin account needs access. See `docs/operations.md` and `docs/security-checklist.md` before production activation.
+Use different randomly generated keys for Whisper and documents. Never put private keys or application keys into these example files, archives, command-line options, or logs. For the backend `.env`, use mode `640` with `root:audiodoc` in this service template; use `600` when only the owning service/admin account needs access. See `docs/operations.md` and `docs/security-checklist.md` before production activation.

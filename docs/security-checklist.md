@@ -13,17 +13,17 @@ Complete this checklist on the actual machines A (bot) and B (backend/LLM). The 
 | 7 | Each service has a different key | Compare protected `.env` files on A and B without displaying values | Keys differ |
 | 8 | Environment file permissions are restricted | `stat -c '%a %U %n' .env` on A and B | `600` or service-group `640` |
 | 9 | Secrets are absent from command-line arguments | `ps aux \| grep -E 'api-key\|uvicorn\|llama'` | No API key/token values |
-| 10 | Backend runs without root | `ps -o user= -C uvicorn` | Dedicated `mediabackend` account |
-| 11 | Service cannot modify backend code | `sudo -u mediabackend touch /opt/media-backend/app.py` | `Permission denied` |
-| 12 | Backend has no unrestricted internet egress | `sudo -u mediabackend curl -m 3 https://example.org` or inspect `IPAddressDeny` | No connection |
+| 10 | Backend runs without root | `ps -o user= -C uvicorn` | Dedicated `audiodoc` account |
+| 11 | Service cannot modify backend code | `sudo -u audiodoc touch /opt/audiodoc/app.py` | `Permission denied` |
+| 12 | Backend has no unrestricted internet egress | `sudo -u audiodoc curl -m 3 https://example.org` or inspect `IPAddressDeny` | No connection |
 | 13 | Whisper loads without network | Disconnect external network on B and restart service | Service starts; `/health` returns `loaded: true` |
-| 14 | Resource limits are active | `systemctl show media-backend -p MemoryMax -p CPUQuotaPerSecUSec` | Values are set |
-| 15 | systemd sandbox reviewed | `systemd-analyze security media-backend.service` | Findings reviewed and accepted |
+| 14 | Resource limits are active | `systemctl show audiodoc -p MemoryMax -p CPUQuotaPerSecUSec` | Values are set |
+| 15 | systemd sandbox reviewed | `systemd-analyze security audiodoc.service` | Findings reviewed and accepted |
 | 16 | API docs are disabled | `curl -i http://10.8.0.1:8000/docs` with `ENABLE_DOCS=false` | `404` |
-| 17 | Logs contain no secrets or user content | Inspect `journalctl -u media-backend`; search for `Bearer`, tokens, and a test phrase | No secret or uploaded content |
+| 17 | Logs contain no secrets or user content | Inspect `journalctl -u audiodoc`; search for `Bearer`, tokens, and a test phrase | No secret or uploaded content |
 | 18 | Oversized upload is rejected | Upload a file exceeding the configured limit | Fast `413` |
 | 19 | Queue overload returns 503 | Send 10 document requests concurrently | Excess work is rejected with `503`, service stays responsive |
-| 20 | Code integrity baseline matches | `sha256sum -c --quiet /root/media-backend.baseline.sha256` | No output / exit code 0 |
+| 20 | Code integrity baseline matches | `sha256sum -c --quiet /root/audiodoc.baseline.sha256` | No output / exit code 0 |
 | 21 | Data and backups are encrypted | Review LUKS and backup encryption configuration | Encryption enabled |
 | 22 | Host clocks are synchronized | `timedatectl status` on A and B | `System clock synchronized: yes` |
 | 23 | Bot allow-list policy is restrictive | Inspect bot `.env`: `ALLOW_ALL_USERS=false`, `ALLOWED_USERS` populated | Only intended users have access |

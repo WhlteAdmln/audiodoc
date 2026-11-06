@@ -1,4 +1,4 @@
-# API Media Backend
+# audiodoc HTTP API
 
 Base URL is `http://HOST:PORT` inside a trusted private network or VPN, or an HTTPS URL in front of a TLS proxy. Processing endpoints require their dedicated `Authorization: Bearer <key>` header. Do not reuse the same secret for both endpoints.
 
@@ -6,7 +6,7 @@ The Telegram bot sends `POST` requests as `multipart/form-data`. The uploaded fi
 
 ## `GET /health`
 
-Unauthenticated liveness endpoint. It reports the configured Whisper model name and whether the model has loaded.
+Unauthenticated liveness endpoint. It reports the configured model identifier and whether the model has loaded. When `WHISPER_MODEL_PATH` is set, `model` is the local model directory name; otherwise it is `WHISPER_MODEL_SIZE`.
 
 Example response:
 
