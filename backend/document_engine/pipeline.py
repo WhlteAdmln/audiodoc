@@ -102,7 +102,7 @@ def process_document_sync(
             ) from error
 
         context.check()
-        return build_result(filetype, text, truncated=context.budget.exhausted)
+        return build_result(filetype, text, truncated=context.budget.truncated)
 
     except DeadlineExceededError as error:
         raise ProcessingTimeoutError() from error

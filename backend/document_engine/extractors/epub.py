@@ -32,6 +32,6 @@ def extract_epub(data: bytes, *, context: ExtractContext | None = None) -> str:
         text = soup.get_text(separator="\n", strip=True)
         if text:
             add_chunk(result, ctx, text, separator_length=2)
-        if ctx.budget.exhausted:
+        if ctx.budget.truncated:
             break
     return "\n\n".join(result)

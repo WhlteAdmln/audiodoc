@@ -92,15 +92,13 @@ def extract_ocr_pages(
     context: ExtractContext | None = None,
     deadline: Deadline | None = None,
 ) -> str:
-    """Render each DJVU page at a capped size and stop at the shared text budget."""
+    """Render DJVU pages within the budget and mark unprocessed pages as omitted."""
     ctx = make_context(context, deadline=deadline)
     page_count = _get_page_count(file_path, djvused, context=ctx)
     result: list[str] = []
 
     for page_number in range(1, page_count + 1):
         ctx.check()
-        if ctx.budget.exhausted:
-            break
 
         image_path = temp_path / f"page_{page_number}.tiff"
         logger.info("Rendering DJVU page %s/%s for OCR", page_number, page_count)
@@ -144,7 +142,12 @@ def extract_ocr_pages(
         finally:
             image_path.unlink(missing_ok=True)
 
+        if ctx.budget.truncated:
+            break
         if ctx.budget.exhausted:
+            # Do not render and OCR more pages just to probe beyond the limit.
+            if page_number < page_count:
+                ctx.budget.mark_truncated()
             break
 
     return "\n\n".join(result)

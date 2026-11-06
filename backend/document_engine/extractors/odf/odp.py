@@ -12,14 +12,14 @@ from backend.document_engine.extractors.base import (
 
 
 def extract_odp(document: object, *, context: ExtractContext | None = None) -> str:
-    """Extract ODP slide headings and paragraphs until the budget is exhausted."""
+    """Extract ODP text until additional content exceeds the shared budget."""
     ctx = make_context(context)
     result: list[str] = []
 
     for index, page in enumerate(document.getElementsByType(Page)):
         ctx.check()
         add_chunk(result, ctx, f"--- Слайд {index + 1} ---")
-        if ctx.budget.exhausted:
+        if ctx.budget.truncated:
             break
 
         for element_type in (P, H):
@@ -28,11 +28,11 @@ def extract_odp(document: object, *, context: ExtractContext | None = None) -> s
                 text = teletype.extractText(paragraph).strip()
                 if text:
                     add_chunk(result, ctx, text)
-                if ctx.budget.exhausted:
+                if ctx.budget.truncated:
                     break
-            if ctx.budget.exhausted:
+            if ctx.budget.truncated:
                 break
-        if ctx.budget.exhausted:
+        if ctx.budget.truncated:
             break
 
     ctx.check()

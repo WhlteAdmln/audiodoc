@@ -1,4 +1,4 @@
-"""Extract headings and paragraphs from OpenDocument Text files."""
+"""Extract ODT headings and paragraphs within the shared character budget."""
 
 from odf import teletype
 from odf.text import H, P
@@ -21,7 +21,7 @@ def extract_odt(document: object, *, context: ExtractContext | None = None) -> s
             text = teletype.extractText(element).strip()
             if text:
                 add_chunk(result, ctx, text)
-            if ctx.budget.exhausted:
+            if ctx.budget.truncated:
                 return "\n".join(result)
     ctx.check()
     return "\n".join(result)

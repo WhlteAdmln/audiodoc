@@ -1,5 +1,12 @@
 """Изолированные тесты экстракторов DOCX, XLSX и PPTX (этап A4)."""
 
+from io import BytesIO
+
+from docx import Document
+
+from backend.common.deadline import Deadline
+from backend.common.text_budget import TextBudget
+from backend.document_engine.extractors.base import ExtractContext
 from backend.document_engine.extractors.docx import extract_docx
 from backend.document_engine.extractors.pptx import extract_pptx
 from backend.document_engine.extractors.xlsx import extract_xlsx
@@ -31,3 +38,30 @@ def test_pptx_extracts_slide_heading_and_text():
     assert "--- Слайд 1 ---" in text
     assert "PPTX test" in text
     assert "Document engine works!" in text
+
+
+def test_docx_marks_truncation_when_another_paragraph_follows_an_exact_fit():
+    document = Document()
+    document.add_paragraph("abc")
+    document.add_paragraph("def")
+    output = BytesIO()
+    document.save(output)
+
+    budget = TextBudget(3)
+    context = ExtractContext(budget=budget, deadline=Deadline(10))
+
+    assert extract_docx(output.getvalue(), context=context) == "abc"
+    assert budget.truncated is True
+
+
+def test_docx_exact_fit_at_end_of_document_is_not_truncated():
+    document = Document()
+    document.add_paragraph("abc")
+    output = BytesIO()
+    document.save(output)
+
+    budget = TextBudget(3)
+    context = ExtractContext(budget=budget, deadline=Deadline(10))
+
+    assert extract_docx(output.getvalue(), context=context) == "abc"
+    assert budget.truncated is False

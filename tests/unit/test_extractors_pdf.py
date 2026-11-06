@@ -5,6 +5,9 @@ from types import SimpleNamespace
 import pytest
 
 import backend.document_engine.extractors.pdf as pdf_module
+from backend.common.deadline import Deadline
+from backend.common.text_budget import TextBudget
+from backend.document_engine.extractors.base import ExtractContext
 from backend.document_engine.limits import MAX_DOCUMENT_PAGES
 from backend.document_engine.extractors.pdf import extract_pdf
 from backend.errors.documents import DocumentRejectedError
@@ -94,3 +97,25 @@ def test_pdf_rejects_page_that_cannot_fit_even_at_minimum_dpi():
     page.rect = SimpleNamespace(width=1000 * 72, height=1000 * 72)
     with pytest.raises(DocumentRejectedError, match="слишком велика"):
         pdf_module._render_dpi(page)
+
+
+def test_pdf_marks_output_incomplete_when_pages_remain_after_exact_fit(monkeypatch):
+    document = _FakeDocument([_FakePage("abc"), _FakePage("def")])
+    monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
+    first_page_text = "--- Страница 1 ---\nabc"
+    budget = TextBudget(len(first_page_text))
+    context = ExtractContext(budget=budget, deadline=Deadline(10))
+
+    assert extract_pdf(b"fake-pdf", context=context) == first_page_text
+    assert budget.truncated is True
+
+
+def test_pdf_exact_fit_on_last_page_is_not_truncated(monkeypatch):
+    document = _FakeDocument([_FakePage("abc")])
+    monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
+    first_page_text = "--- Страница 1 ---\nabc"
+    budget = TextBudget(len(first_page_text))
+    context = ExtractContext(budget=budget, deadline=Deadline(10))
+
+    assert extract_pdf(b"fake-pdf", context=context) == first_page_text
+    assert budget.truncated is False
