@@ -1,0 +1,110 @@
+name: Manual release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without the leading v (for example, 0.1.0)"
+        required: true
+        type: string
+      publish:
+        description: "Publish immediately instead of creating a draft release"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Validate release request
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Releases must be created from the main branch." >&2
+            exit 1
+          fi
+
+          if [[ ! "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid version: use semantic versioning without a leading v (for example, 0.1.0 or 0.2.0-rc.1)." >&2
+            exit 1
+          fi
+
+          tag="v${RELEASE_VERSION}"
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            echo "Tag ${tag} already exists; refusing to overwrite it." >&2
+            exit 1
+          fi
+
+          echo "Validated release ${tag} from ${GITHUB_SHA}."
+
+      - name: Build release archive
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: bash scripts/build_release.sh "$RELEASE_VERSION"
+
+      - name: Verify release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          archives=(dist/*.zip)
+          if [[ ${#archives[@]} -ne 1 ]]; then
+            echo "Expected exactly one ZIP archive in dist/, found ${#archives[@]}." >&2
+            exit 1
+          fi
+          test -s dist/SHA256SUMS
+          if ! sha256sum --check --status dist/SHA256SUMS 2>/dev/null; then
+            if ! (cd dist && sha256sum --check --status SHA256SUMS 2>/dev/null); then
+              echo "SHA256SUMS does not validate the release archive." >&2
+              exit 1
+            fi
+          fi
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          PUBLISH: ${{ inputs.publish }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="v${RELEASE_VERSION}"
+          shopt -s nullglob
+          archives=(dist/*.zip)
+          release_args=(
+            "$tag"
+            "${archives[0]}"
+            "dist/SHA256SUMS"
+            --title "audiodoc ${RELEASE_VERSION}"
+            --generate-notes
+            --target "$GITHUB_SHA"
+          )
+
+          if [[ "$RELEASE_VERSION" == *-* ]]; then
+            release_args+=(--prerelease)
+          fi
+          if [[ "$PUBLISH" != "true" ]]; then
+            release_args+=(--draft)
+          fi
+
+          gh release create "${release_args[@]}"
