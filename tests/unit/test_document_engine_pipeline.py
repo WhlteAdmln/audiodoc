@@ -148,6 +148,28 @@ def test_pipeline_applies_client_character_hint_and_marks_truncation():
     }
 
 
+def test_pipeline_exact_budget_is_not_truncated():
+    result = process_document_sync(b"12345", "note.txt", max_characters=5)
+
+    assert result == {
+        "format": "txt",
+        "text": "12345",
+        "characters": 5,
+        "truncated": False,
+    }
+
+
+def test_pipeline_truncates_one_character_over_budget():
+    result = process_document_sync(b"123456", "note.txt", max_characters=5)
+
+    assert result == {
+        "format": "txt",
+        "text": "12345",
+        "characters": 5,
+        "truncated": True,
+    }
+
+
 def test_pipeline_rejects_invalid_character_hint():
     from backend.errors.documents import DocumentRejectedError
 
