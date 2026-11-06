@@ -1,6 +1,8 @@
-# Media Backend
+# audiodoc
 
-A standalone FastAPI backend for a Telegram bot. It receives audio for Whisper transcription and documents for text extraction by Document Engine. The bot remains an HTTP client; audio and document processing are not moved into the bot. Animation and video processing remain outside this service.
+Backend for a Telegram bot: Whisper audio transcription and text extraction from documents.
+
+A standalone FastAPI service for a Telegram bot. It exposes `/transcribe` for Whisper audio recognition and `/process-document` for Document Engine text extraction. The bot remains an HTTP client; image, animation, and video processing stay on the bot side.
 
 ## Features
 
@@ -14,6 +16,8 @@ Legacy Office formats (`.doc`, `.xls`, `.ppt`) and standalone images are unsuppo
 
 ## Requirements
 
+Python 3.11 or newer is required.
+
 Example Debian/Ubuntu system packages:
 
 ```bash
@@ -25,7 +29,7 @@ OCR requires Tesseract and the `rus`/`eng` language data. DJVU requires `djvutxt
 
 ## Quick start
 
-From the `whisper-server/` directory:
+From the project root:
 
 ```bash
 python3 -m venv .venv
@@ -84,7 +88,7 @@ The `.env.example` file lists all environment-backed settings and their defaults
 | `WHISPER_API_KEY` | empty | Dedicated Bearer key for `/transcribe`; empty only with local auth bypass |
 | `DOCUMENT_API_KEY` | empty | Dedicated Bearer key for `/process-document` and `/ready` |
 | `ALLOW_UNAUTHENTICATED` | `false` | Local development bypass; never enable on a production server |
-| `BACKEND_TEMP_DIR` | `whisper-server/tmp` | Private temporary audio directory |
+| `BACKEND_TEMP_DIR` | `tmp/` in the project root | Private temporary-file directory |
 | `MAX_AUDIO_SIZE` | `26214400` | Maximum audio upload size in bytes (25 MiB) |
 | `MAX_AUDIO_DURATION` | `600` | Maximum audio duration in seconds |
 | `MAX_CONCURRENT_TRANSCRIPTIONS` | `1` | Active transcription workers |
@@ -113,7 +117,7 @@ python -m pytest -q
 python -m pytest -q -m integration
 ```
 
-Integration tests need Tesseract and language data, DjVuLibre, and a usable local Whisper model. See `docs/operations.md`.
+Integration tests need Tesseract with the `rus` and `eng` language data, plus DjVuLibre. They use a fake Whisper model; no real Whisper model is downloaded or loaded. Install the Python dependencies from `requirements-lock.txt` before running them. See `docs/operations.md`.
 
 ## Documentation
 
@@ -122,6 +126,6 @@ Integration tests need Tesseract and language data, DjVuLibre, and a usable loca
 - [Operations](docs/operations.md)
 - [Adding a format](docs/adding-a-format.md)
 - [Security checklist](docs/security-checklist.md)
-- [Final acceptance audit](docs/final-acceptance.md)
+- [Deployment acceptance checklist (historical)](docs/history/final-acceptance.md)
 - [Deployment examples](deploy/README.md)
-- [Refactoring log](REFACTORING_LOG.md)
+- [Refactoring history](docs/history/REFACTORING_LOG.md)

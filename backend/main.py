@@ -8,7 +8,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load the project .env before importing settings or modules that use them.
+# Resolve the dotenv path before importing backend.config: its package initializer
+# eagerly imports Settings, so importing config.paths here would load settings too early.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env", override=False)
 
@@ -57,7 +58,7 @@ def create_app() -> FastAPI:
         A configured FastAPI application using the backend lifespan handler.
     """
     app = FastAPI(
-        title="Media Backend",
+        title="audiodoc",
         lifespan=lifespan,
         docs_url="/docs" if settings.ENABLE_DOCS else None,
         redoc_url=None,

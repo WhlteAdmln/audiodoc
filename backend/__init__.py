@@ -1,1 +1,1 @@
-"""Media Backend application and processing packages."""
+"""audiodoc application and processing packages."""
