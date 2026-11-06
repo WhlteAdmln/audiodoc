@@ -40,7 +40,7 @@ def extract_ods(document: object, *, context: ExtractContext | None = None) -> s
     for table in document.getElementsByType(Table):
         ctx.check()
         add_chunk(result, ctx, f"--- Лист: {table.getAttribute('name')} ---")
-        if ctx.budget.exhausted:
+        if ctx.budget.truncated:
             break
 
         for row_number, row in enumerate(
@@ -56,9 +56,9 @@ def extract_ods(document: object, *, context: ExtractContext | None = None) -> s
             line = " | ".join(cell_text)
             if line.strip():
                 add_chunk(result, ctx, line)
-            if row_number >= MAX_SHEET_ROWS or ctx.budget.exhausted:
+            if row_number >= MAX_SHEET_ROWS or ctx.budget.truncated:
                 break
-        if ctx.budget.exhausted:
+        if ctx.budget.truncated:
             break
 
     ctx.check()

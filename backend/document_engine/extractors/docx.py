@@ -22,7 +22,7 @@ def extract_docx(data: bytes, *, context: ExtractContext | None = None) -> str:
         text = paragraph.text.strip()
         if text:
             add_chunk(result, ctx, text)
-        if ctx.budget.exhausted:
+        if ctx.budget.truncated:
             return "\n".join(result)
 
     for table in document.tables:
@@ -32,6 +32,6 @@ def extract_docx(data: bytes, *, context: ExtractContext | None = None) -> str:
             line = " | ".join(cells)
             if line.strip():
                 add_chunk(result, ctx, line)
-            if ctx.budget.exhausted:
+            if ctx.budget.truncated:
                 return "\n".join(result)
     return "\n".join(result)

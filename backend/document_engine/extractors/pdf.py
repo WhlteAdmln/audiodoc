@@ -1,4 +1,4 @@
-"""Extract text from PDF pages and OCR pages at a pixel-safe rendering DPI."""
+"""Extract PDF text within the budget and mark unprocessed pages as omitted."""
 
 import logging
 import math
@@ -62,9 +62,6 @@ def extract_pdf(
 
         for index, page in enumerate(document):
             ctx.check()
-            if ctx.budget.exhausted:
-                break
-
             text = page.get_text("text").strip()
             ctx.check()
             if not text:
@@ -86,7 +83,13 @@ def extract_pdf(
                     f"--- Страница {index + 1} ---\n{text}",
                     separator_length=2,
                 )
+            if ctx.budget.truncated:
+                break
             if ctx.budget.exhausted:
+                # Remaining pages are left unread rather than OCRed only to
+                # discover whether they contain text beyond the client limit.
+                if index + 1 < document.page_count:
+                    ctx.budget.mark_truncated()
                 break
 
     return "\n\n".join(result)

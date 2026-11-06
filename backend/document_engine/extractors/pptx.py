@@ -20,7 +20,7 @@ def extract_pptx(data: bytes, *, context: ExtractContext | None = None) -> str:
     for index, slide in enumerate(presentation.slides):
         ctx.check()
         add_chunk(result, ctx, f"--- Слайд {index + 1} ---")
-        if ctx.budget.exhausted:
+        if ctx.budget.truncated:
             break
 
         for shape in slide.shapes:
@@ -29,17 +29,17 @@ def extract_pptx(data: bytes, *, context: ExtractContext | None = None) -> str:
                 text = shape.text.strip()
                 if text:
                     add_chunk(result, ctx, text)
-            if shape.has_table and not ctx.budget.exhausted:
+            if shape.has_table and not ctx.budget.truncated:
                 for row in shape.table.rows:
                     ctx.check()
                     line = " | ".join(cell.text.strip() for cell in row.cells)
                     if line:
                         add_chunk(result, ctx, line)
-                    if ctx.budget.exhausted:
+                    if ctx.budget.truncated:
                         break
-            if ctx.budget.exhausted:
+            if ctx.budget.truncated:
                 break
-        if ctx.budget.exhausted:
+        if ctx.budget.truncated:
             break
 
     ctx.check()
