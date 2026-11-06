@@ -17,7 +17,7 @@ from backend.document_engine.limits import (
     MAX_EXTRACTED_TEXT_LENGTH,
 )
 
-logger = logging.getLogger("whisper-server")
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     dependencies=[Depends(require_key(lambda: settings.DOCUMENT_API_KEY))]

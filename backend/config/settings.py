@@ -9,7 +9,7 @@ from backend.config.paths import PROJECT_ROOT
 class Settings:
     """Environment-backed defaults for Whisper, HTTP access, and resource limits."""
 
-    # Whisper settings previously hard-coded in app.py.
+    # Whisper model and inference settings.
     WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "small")
     WHISPER_CPU_THREADS = get_int("WHISPER_CPU_THREADS", "6")
     WHISPER_LANGUAGE = os.getenv("WHISPER_LANGUAGE", "ru")
@@ -22,7 +22,7 @@ class Settings:
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
     TEMP_DIR = os.getenv("BACKEND_TEMP_DIR", str(PROJECT_ROOT / "tmp"))
 
-    # Security and resource limits introduced in delivery 1.
+    # Authentication and resource limits.
     WHISPER_API_KEY = os.getenv("WHISPER_API_KEY", "").strip()
     DOCUMENT_API_KEY = os.getenv("DOCUMENT_API_KEY", "").strip()
     ALLOW_UNAUTHENTICATED = get_bool("ALLOW_UNAUTHENTICATED", False)

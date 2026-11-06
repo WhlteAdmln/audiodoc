@@ -1,4 +1,4 @@
-"""Filesystem paths rooted at the whisper-server project directory."""
+"""Filesystem paths rooted at the audiodoc project directory."""
 
 from pathlib import Path
 
