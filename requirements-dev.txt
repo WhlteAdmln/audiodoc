@@ -12,4 +12,5 @@ pip-audit==2.10.1
 # Used by scripts/check_lock.py
 packaging==26.3
 
-# Starlette's TestClient uses httpx2; it is pinned via requirements-lock.txt.
+# Starlette TestClient dependency (optional in Starlette).
+httpx2==2.16.0
