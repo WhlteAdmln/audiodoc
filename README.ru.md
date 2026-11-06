@@ -27,6 +27,22 @@ sudo apt install -y python3 python3-venv python3-pip tesseract-ocr tesseract-ocr
 
 Для OCR нужны `tesseract` и языки `rus`, `eng`. Для DJVU нужны `djvutxt`, `djvused` и `ddjvu`. Их наличие можно проверить через `GET /ready`.
 
+## Установщик релиза
+
+После публикации первого GitHub Release установщик сможет установить audiodoc, создать два разных случайных API-ключа, при необходимости скачать модель Whisper и подготовить файл настроек для бота. Опциональный пользовательский systemd-юнит создаётся, но не включается и не запускается автоматически.
+
+Сначала скачайте скрипт, просмотрите его и только затем запускайте (не передавайте непроверенный удалённый скрипт напрямую в shell):
+
+```bash
+curl -fsSLo install.sh https://raw.githubusercontent.com/WhlteAdmln/audiodoc/main/install.sh
+less install.sh
+sh install.sh --latest --systemd
+```
+
+Для последней опубликованной предварительной версии используйте `--nightly`. Доступны параметры `--host`, `--port`, `--model`, `--device`, `--compute-type` и `--no-model`; подробности — в `sh install.sh --help`. По умолчанию сервис слушает только `127.0.0.1`. Для двух машин укажите приватный/VPN-адрес бэкенда и разрешите подключение к его порту только с машины бота. Для production-сервиса с отдельным системным пользователем и ограничениями systemd следуйте [руководству по развёртыванию](deploy/README.md).
+
+Сначала нужно опубликовать GitHub Release соответствующего канала. `--latest` требует стабильный релиз, а `--nightly` — опубликованный prerelease.
+
 ## Быстрый запуск
 
 Из корневого каталога проекта:
@@ -123,6 +139,7 @@ python -m pytest -q -m integration
 
 - [Архитектура (EN)](docs/architecture.md) · [Архитектура (RU)](docs/architecture.ru.md)
 - [HTTP API](docs/api.md)
+- [Подключение Telegram-бота](docs/connecting-the-bot.ru.md)
 - [Эксплуатация](docs/operations.md)
 - [Добавление формата](docs/adding-a-format.md)
 - [Чек-лист безопасности](docs/security-checklist.md)
