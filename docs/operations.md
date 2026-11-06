@@ -51,7 +51,15 @@ chmod 600 .env
 
 For the sample systemd setup where `.env` is readable by the service group and not writable by the service user, use the ownership/mode described in `deploy/README.md` (`root:audiodoc`, mode `640`). The application sets `umask(077)` and creates its configured temp directory with restrictive permissions. The temp directory should be writable only by the service account (`chmod 700`).
 
-Never put a secret directly in an `ExecStart` command-line argument. Use `EnvironmentFile=`. Do not include `.env`, user documents, audio, database files, or production logs in an archive. Before running a release installer, download it and inspect the complete script and its checksum/source first. Piping an unreviewed remote script directly into a shell makes that review impossible.
+Never put a secret directly in an `ExecStart` command-line argument. Use `EnvironmentFile=`. Do not include `.env`, user documents, audio, database files, or production logs in a release archive. The optional `install.sh` is intended for a regular (non-root) user and creates a per-user systemd unit only when requested; it does not enable or start that unit. Before running it, download the script from the official repository, inspect the complete file and verify that it comes from the expected project revision. For example:
+
+```bash
+curl -fsSLo install.sh https://raw.githubusercontent.com/WhlteAdmln/audiodoc/main/install.sh
+less install.sh
+sh install.sh --help
+```
+
+Do not pipe an unreviewed remote script directly into a shell. The installer can verify a published `SHA256SUMS` entry for the release archive when one is attached to the GitHub Release; if the release has no checksum asset (or only GitHub's generated source ZIP), it reports that independent archive verification was unavailable. For production hardening with a dedicated system account and system-wide systemd unit, use `deploy/README.md` instead.
 
 ## 3. Whisper model and offline startup
 
