@@ -43,7 +43,7 @@ jobs:
             exit 1
           fi
 
-          if [[ ! "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+          if [[ ! "$RELEASE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
             echo "Invalid version: use semantic versioning without a leading v (for example, 0.1.0 or 0.2.0-rc.1)." >&2
             exit 1
           fi
@@ -52,6 +52,12 @@ jobs:
           if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
             echo "Tag ${tag} already exists; refusing to overwrite it." >&2
             exit 1
+          else
+            status=$?
+            if [[ "$status" -ne 2 ]]; then
+              echo "Unable to check whether tag ${tag} already exists (git ls-remote exited with ${status})." >&2
+              exit "$status"
+            fi
           fi
 
           echo "Validated release ${tag} from ${GITHUB_SHA}."
@@ -100,7 +106,8 @@ jobs:
             --target "$GITHUB_SHA"
           )
 
-          if [[ "$RELEASE_VERSION" == *-* ]]; then
+          version_without_build="${RELEASE_VERSION%%+*}"
+          if [[ "$version_without_build" == *-* ]]; then
             release_args+=(--prerelease)
           fi
           if [[ "$PUBLISH" != "true" ]]; then
