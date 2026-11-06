@@ -13,7 +13,7 @@ from backend.transcription.model import model_holder
 from backend.transcription.service import transcription_queue, transcribe_file
 from backend.transcription.temp_files import temp_audio_file
 
-logger = logging.getLogger("whisper-server")
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     dependencies=[Depends(require_key(lambda: settings.WHISPER_API_KEY))]

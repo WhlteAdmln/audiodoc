@@ -21,6 +21,7 @@ class FakeModel:
 
 def test_health_route_reports_model_state_without_starting_lifespan(monkeypatch):
     monkeypatch.setattr(settings, "WHISPER_MODEL_SIZE", "small-test")
+    monkeypatch.setattr(settings, "WHISPER_MODEL_PATH", "")
     monkeypatch.setattr(model_holder, "_model", None)
 
     response = TestClient(app).get("/health")
@@ -33,7 +34,20 @@ def test_health_route_reports_model_state_without_starting_lifespan(monkeypatch)
     }
 
 
+def test_health_route_reports_local_model_directory_name(monkeypatch):
+    monkeypatch.setattr(
+        settings, "WHISPER_MODEL_PATH", "/srv/audiodoc/models/custom-whisper"
+    )
+    monkeypatch.setattr(model_holder, "_model", None)
+
+    response = TestClient(app).get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["model"] == "custom-whisper"
+
+
 def test_app_registers_all_expected_routes():
+    assert app.title == "audiodoc"
     # FastAPI/Starlette may expose included routers as internal wrapper
     # objects in app.routes. OpenAPI is the public, version-stable view of
     # the routes registered on the application.

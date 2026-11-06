@@ -1,8 +1,8 @@
-# Media Backend Architecture
+# audiodoc Architecture
 
 ## 1. Purpose and request flow
 
-Media Backend is a separate FastAPI service used by the Telegram bot. It accepts audio for Whisper transcription and office/document files for text extraction. The bot remains an HTTP client; animation, image, and video processing remain on the bot side.
+audiodoc is a separate FastAPI service used by the Telegram bot. It accepts audio for Whisper transcription and office/document files for text extraction. The bot remains an HTTP client; animation, image, and video processing remain on the bot side.
 
 Document flow:
 
@@ -70,7 +70,7 @@ Extractors receive an `ExtractContext` with a shared character budget, monotonic
 
 ## 7. Logging and request correlation
 
-The root logger uses a consistent format with the request ID. The request ID is generated or validated by middleware and is echoed to the caller. `SecretsFilter` is attached to root handlers so messages from this project and third-party libraries pass through redaction. Do not log uploaded content, extracted text, transcripts, authorization headers, or uncleaned filenames. Under systemd, logs are available through `journalctl -u media-backend`.
+The root logger uses a consistent format with the request ID. The request ID is generated or validated by middleware and is echoed to the caller. `SecretsFilter` is attached to root handlers so messages from this project and third-party libraries pass through redaction. Do not log uploaded content, extracted text, transcripts, authorization headers, or uncleaned filenames. Under systemd, logs are available through `journalctl -u audiodoc`.
 
 ## 8. Dependencies and package layout
 
@@ -83,7 +83,7 @@ The root logger uses a consistent format with the request ID. The request ID is 
 - `tests/`: contract, unit and integration checks.
 
 ```text
-whisper-server/
+audiodoc/
 ├── app.py
 ├── backend/
 │   ├── api/

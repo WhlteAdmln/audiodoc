@@ -1,6 +1,6 @@
 # Example snippet intended for nginx http{} context (map) and server{}.
 # Replace the hostname, source address, and certificate paths.
-map $http_x_request_id $media_backend_request_id {
+map $http_x_request_id $audiodoc_request_id {
     default $http_x_request_id;
     ""      $request_id;
 }
@@ -9,8 +9,8 @@ server {
     listen 443 ssl;
     server_name backend.example.internal;
 
-    ssl_certificate     /etc/ssl/media-backend/fullchain.pem;
-    ssl_certificate_key /etc/ssl/media-backend/privkey.pem;
+    ssl_certificate     /etc/ssl/audiodoc/fullchain.pem;
+    ssl_certificate_key /etc/ssl/audiodoc/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
     # Replace with the bot host's real egress/VPN source address.
@@ -29,6 +29,6 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header X-Request-ID $media_backend_request_id;
+        proxy_set_header X-Request-ID $audiodoc_request_id;
     }
 }

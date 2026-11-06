@@ -15,7 +15,7 @@ esac
 # Do not enable UFW until the SSH source above has been verified.
 ufw default deny incoming
 ufw default allow outgoing
-ufw allow from "$BOT_VPN_IP" to any port 8000 proto tcp comment 'Telegram bot to Media Backend'
+ufw allow from "$BOT_VPN_IP" to any port 8000 proto tcp comment 'Telegram bot to audiodoc'
 ufw allow from "$BOT_VPN_IP" to any port 8080 proto tcp comment 'Telegram bot to LLM'
 ufw allow from "$ADMIN_SSH_IP" to any port 22 proto tcp comment 'Administrator SSH'
 
