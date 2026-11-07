@@ -2,6 +2,7 @@
 
 import asyncio
 from pathlib import Path
+from typing import Any
 
 from backend.common.work_queue import WorkQueue
 from backend.config import settings
@@ -16,7 +17,7 @@ transcription_queue = WorkQueue(
 )
 
 
-def _transcribe_sync(path: Path) -> dict:
+def _transcribe_sync(path: Path) -> dict[str, Any]:
     try:
         model = model_holder.get()
     except RuntimeError as error:
@@ -40,7 +41,7 @@ def _transcribe_sync(path: Path) -> dict:
     return {"text": text, "language": info.language, "duration": duration}
 
 
-async def _run_transcription(path: Path) -> dict:
+async def _run_transcription(path: Path) -> dict[str, Any]:
     """Run the non-cancellable model thread while retaining its worker slot."""
     worker = asyncio.create_task(asyncio.to_thread(_transcribe_sync, path))
     try:
@@ -60,7 +61,7 @@ async def transcribe_file(
     path: Path,
     *,
     _slot_acquired: bool = False,
-) -> dict:
+) -> dict[str, Any]:
     """Recognize audio outside the event loop using the bounded work queue.
 
     ``_slot_acquired`` is reserved for the HTTP layer, which admits the request

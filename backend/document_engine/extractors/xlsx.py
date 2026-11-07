@@ -22,7 +22,7 @@ def extract_xlsx(data: bytes, *, context: ExtractContext | None = None) -> str:
         for sheet in workbook.worksheets:
             ctx.check()
             add_chunk(result, ctx, f"--- Лист: {sheet.title} ---")
-            if ctx.budget.truncated:
+            if ctx.budget.is_truncated():
                 break
 
             rows = sheet.iter_rows(
@@ -37,9 +37,9 @@ def extract_xlsx(data: bytes, *, context: ExtractContext | None = None) -> str:
                 ).strip()
                 if line:
                     add_chunk(result, ctx, line)
-                if row_number >= MAX_SHEET_ROWS or ctx.budget.truncated:
+                if row_number >= MAX_SHEET_ROWS or ctx.budget.is_truncated():
                     break
-            if ctx.budget.truncated:
+            if ctx.budget.is_truncated():
                 break
     finally:
         workbook.close()

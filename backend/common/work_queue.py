@@ -26,7 +26,7 @@ class WorkQueue:
         error_factory: Callable[[], Exception] = QueueFullError,
     ) -> None:
         """Create a queue with active slots, waiting positions, and error factory."""
-        if isinstance(workers, bool) or not isinstance(workers, int) or workers <= 0:
+        if isinstance(workers, bool) or not _is_integer(workers) or workers <= 0:
             raise ValueError("workers must be a positive integer")
         self._validate_max_waiting(max_waiting)
         if not callable(error_factory):
@@ -43,7 +43,7 @@ class WorkQueue:
     def _validate_max_waiting(max_waiting: int) -> None:
         if (
             isinstance(max_waiting, bool)
-            or not isinstance(max_waiting, int)
+            or not _is_integer(max_waiting)
             or max_waiting < 0
         ):
             raise ValueError("max_waiting must be a non-negative integer")
@@ -87,3 +87,7 @@ class WorkQueue:
             if acquired:
                 self._active -= 1
                 self._semaphore.release()
+
+
+def _is_integer(value: object) -> bool:
+    return isinstance(value, int)

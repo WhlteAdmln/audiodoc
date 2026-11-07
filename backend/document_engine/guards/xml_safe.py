@@ -1,14 +1,19 @@
 """Parse untrusted XML while rejecting DTD and entity declarations."""
 
-from xml.etree.ElementTree import Element
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
 
 from defusedxml import ElementTree as SafeElementTree
 from defusedxml.common import DefusedXmlException
 
 from backend.errors.documents import DocumentRejectedError
 
+if TYPE_CHECKING:
+    from xml.etree.ElementTree import Element
 
-def parse_xml(data: bytes) -> Element:
+
+def parse_xml(data: bytes) -> Element[str]:
     """Parse XML bytes with DTD and external entity processing disabled.
 
     Args:
@@ -21,8 +26,11 @@ def parse_xml(data: bytes) -> Element:
         DocumentRejectedError: If DTD/entities are present or XML is malformed.
     """
     try:
-        return SafeElementTree.fromstring(
-            data, forbid_dtd=True, forbid_entities=True, forbid_external=True
+        return cast(
+            "Element[str]",
+            SafeElementTree.fromstring(
+                data, forbid_dtd=True, forbid_entities=True, forbid_external=True
+            ),
         )
     except DefusedXmlException as error:
         raise DocumentRejectedError("XML содержит запрещённые конструкции") from error

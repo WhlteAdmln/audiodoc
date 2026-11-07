@@ -10,7 +10,7 @@ class TextBudget:
 
     def __init__(self, limit: int) -> None:
         """Create a budget with a positive maximum number of output characters."""
-        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+        if isinstance(limit, bool) or not _is_integer(limit) or limit < 1:
             raise ValueError("limit must be a positive integer")
         self.limit = limit
         self.used = 0
@@ -47,7 +47,7 @@ class TextBudget:
             raise TypeError("text must be a string")
         if (
             isinstance(separator_length, bool)
-            or not isinstance(separator_length, int)
+            or not _is_integer(separator_length)
             or separator_length < 0
         ):
             raise ValueError("separator_length must be a non-negative integer")
@@ -70,3 +70,11 @@ class TextBudget:
         if len(piece) < len(text):
             self._truncated = True
         return piece
+
+    def is_truncated(self) -> bool:
+        """Return the current truncation state."""
+        return self._truncated
+
+
+def _is_integer(value: object) -> bool:
+    return isinstance(value, int)

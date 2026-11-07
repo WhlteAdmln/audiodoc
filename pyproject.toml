@@ -158,6 +158,37 @@ max-branches = 12
 "tests/unit/test_xml_safe.py" = ["CPY001", "INP001"]
 "tests/unit/test_zip_guard.py" = ["CPY001", "INP001"]
 
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-expr"]
+
+# defusedxml does not provide type information.
+[[tool.mypy.overrides]]
+module = ["defusedxml", "defusedxml.*"]
+ignore_missing_imports = true
+
+# openpyxl does not provide type information.
+[[tool.mypy.overrides]]
+module = ["openpyxl", "openpyxl.*"]
+ignore_missing_imports = true
+
+# odfpy does not provide type information.
+[[tool.mypy.overrides]]
+module = ["odf", "odf.*"]
+ignore_missing_imports = true
+
+# pytesseract does not provide type information.
+[[tool.mypy.overrides]]
+module = ["pytesseract", "pytesseract.*"]
+ignore_missing_imports = true
+
+# faster-whisper does not provide type information.
+[[tool.mypy.overrides]]
+module = ["faster_whisper", "faster_whisper.*"]
+ignore_missing_imports = true
+
 [tool.coverage.run]
 branch = true
 source = ["backend"]

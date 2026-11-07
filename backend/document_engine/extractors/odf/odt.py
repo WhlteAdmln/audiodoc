@@ -7,6 +7,7 @@ from backend.document_engine.extractors.base import (
     ExtractContext,
     add_chunk,
     make_context,
+    odf_elements,
 )
 
 
@@ -16,12 +17,12 @@ def extract_odt(document: object, *, context: ExtractContext | None = None) -> s
     result: list[str] = []
 
     for element_type in (H, P):
-        for element in document.getElementsByType(element_type):
+        for element in odf_elements(document, element_type):
             ctx.check()
             text = teletype.extractText(element).strip()
             if text:
                 add_chunk(result, ctx, text)
-            if ctx.budget.truncated:
+            if ctx.budget.is_truncated():
                 return "\n".join(result)
     ctx.check()
     return "\n".join(result)

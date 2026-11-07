@@ -1,6 +1,7 @@
 """Translate backend and unexpected exceptions into safe HTTP responses."""
 
 import logging
+from typing import cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -12,13 +13,14 @@ logger = logging.getLogger(__name__)
 
 async def handle_backend_error(
     _request: Request,
-    error: BackendError,
+    error: Exception,
 ) -> JSONResponse:
     """Return the public error message, status code, and optional headers."""
+    backend_error = cast("BackendError", error)
     return JSONResponse(
-        {"detail": error.public_message},
-        status_code=error.status_code,
-        headers=error.headers,
+        {"detail": backend_error.public_message},
+        status_code=backend_error.status_code,
+        headers=backend_error.headers,
     )
 
 

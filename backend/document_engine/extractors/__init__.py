@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 
+from backend.common.deadline import Deadline
 from backend.document_engine.extractors.base import ExtractContext
 from backend.document_engine.extractors.csv_text import extract_csv
 from backend.document_engine.extractors.djvu import extract_djvu
@@ -27,7 +28,7 @@ def _odf(kind: str) -> Extractor:
         data: bytes,
         *,
         context: ExtractContext | None = None,
-        deadline=None,
+        deadline: Deadline | None = None,
     ) -> str:
         """Dispatch this adapted extractor to the selected ODF format."""
         return extract_odf(data, kind, context=context, deadline=deadline)

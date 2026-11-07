@@ -21,7 +21,7 @@ fix:
 	$(PYTHON) -m ruff format .
 
 types:
-	@echo "Type checking is not configured yet."
+	$(PYTHON) -m mypy backend
 
 test:
 	$(PYTHON) -m pytest -q -rs -o addopts='' -m "not integration" \

@@ -9,6 +9,8 @@ from backend.document_engine.extractors.base import (
     ExtractContext,
     add_chunk,
     make_context,
+    odf_attribute,
+    odf_elements,
 )
 from backend.document_engine.limits import MAX_SHEET_COLUMNS, MAX_SHEET_ROWS
 
@@ -37,10 +39,10 @@ def extract_ods(document: object, *, context: ExtractContext | None = None) -> s
     ctx = make_context(context)
     result: list[str] = []
 
-    for table in document.getElementsByType(Table):
+    for table in odf_elements(document, Table):
         ctx.check()
-        add_chunk(result, ctx, f"--- Лист: {table.getAttribute('name')} ---")
-        if ctx.budget.truncated:
+        add_chunk(result, ctx, f"--- Лист: {odf_attribute(table, 'name')} ---")
+        if ctx.budget.is_truncated():
             break
 
         for row_number, row in enumerate(
@@ -56,9 +58,9 @@ def extract_ods(document: object, *, context: ExtractContext | None = None) -> s
             line = " | ".join(cell_text)
             if line.strip():
                 add_chunk(result, ctx, line)
-            if row_number >= MAX_SHEET_ROWS or ctx.budget.truncated:
+            if row_number >= MAX_SHEET_ROWS or ctx.budget.is_truncated():
                 break
-        if ctx.budget.truncated:
+        if ctx.budget.is_truncated():
             break
 
     ctx.check()

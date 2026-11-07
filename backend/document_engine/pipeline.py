@@ -13,7 +13,7 @@ from backend.document_engine.limits import (
     MAX_DOCUMENT_SIZE,
     MAX_EXTRACTED_TEXT_LENGTH,
 )
-from backend.document_engine.result import build_result
+from backend.document_engine.result import DocumentResult, build_result
 from backend.errors.base import BackendError
 from backend.errors.documents import (
     DocumentRejectedError,
@@ -32,7 +32,7 @@ def process_document_sync(
     filename: str,
     max_characters: int | None = None,
     deadline: Deadline | None = None,
-) -> dict:
+) -> DocumentResult:
     """Validate a document, extract within a shared budget, and create its result.
 
     Args:
@@ -50,7 +50,7 @@ def process_document_sync(
     if max_characters is not None:
         if (
             isinstance(max_characters, bool)
-            or not isinstance(max_characters, int)
+            or not _is_integer(max_characters)
             or not 1 <= max_characters <= MAX_EXTRACTED_TEXT_LENGTH
         ):
             raise DocumentRejectedError("Некорректный лимит длины текста")
@@ -106,3 +106,7 @@ def process_document_sync(
 
     except DeadlineExceededError as error:
         raise ProcessingTimeoutError() from error
+
+
+def _is_integer(value: object) -> bool:
+    return isinstance(value, int)

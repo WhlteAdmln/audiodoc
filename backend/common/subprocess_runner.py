@@ -45,11 +45,7 @@ def run_limited(
     timeout_value = float(timeout)
     if not math.isfinite(timeout_value) or timeout_value <= 0:
         raise ValueError("timeout must be a finite positive number")
-    if (
-        isinstance(max_output, bool)
-        or not isinstance(max_output, int)
-        or max_output < 0
-    ):
+    if isinstance(max_output, bool) or not _is_integer(max_output) or max_output < 0:
         raise ValueError("max_output must be a non-negative integer")
 
     timed_out = threading.Event()
@@ -97,3 +93,7 @@ def run_limited(
         stderr_file.seek(0)
         stderr_preview = stderr_file.read(MAX_STDERR_PREVIEW)
         return int(process.returncode or 0), output, stderr_preview
+
+
+def _is_integer(value: object) -> bool:
+    return isinstance(value, int)

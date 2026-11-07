@@ -8,6 +8,7 @@ from backend.document_engine.extractors.base import (
     ExtractContext,
     add_chunk,
     make_context,
+    odf_elements,
 )
 
 
@@ -16,23 +17,23 @@ def extract_odp(document: object, *, context: ExtractContext | None = None) -> s
     ctx = make_context(context)
     result: list[str] = []
 
-    for index, page in enumerate(document.getElementsByType(Page)):
+    for index, page in enumerate(odf_elements(document, Page)):
         ctx.check()
         add_chunk(result, ctx, f"--- Слайд {index + 1} ---")
-        if ctx.budget.truncated:
+        if ctx.budget.is_truncated():
             break
 
         for element_type in (P, H):
-            for paragraph in page.getElementsByType(element_type):
+            for paragraph in odf_elements(page, element_type):
                 ctx.check()
                 text = teletype.extractText(paragraph).strip()
                 if text:
                     add_chunk(result, ctx, text)
-                if ctx.budget.truncated:
+                if ctx.budget.is_truncated():
                     break
-            if ctx.budget.truncated:
+            if ctx.budget.is_truncated():
                 break
-        if ctx.budget.truncated:
+        if ctx.budget.is_truncated():
             break
 
     ctx.check()

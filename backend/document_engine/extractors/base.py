@@ -1,6 +1,9 @@
 """Shared extraction context and helpers for bounded document extractors."""
 
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from operator import attrgetter
+from typing import cast
 
 from backend.common.deadline import Deadline
 from backend.common.text_budget import TextBudget
@@ -8,6 +11,21 @@ from backend.document_engine.limits import (
     DOCUMENT_PROCESSING_TIMEOUT,
     MAX_EXTRACTED_TEXT_LENGTH,
 )
+
+
+def odf_elements(document: object, element_type: object) -> Iterable[object]:
+    """Return ODF elements without depending on the library's missing stubs."""
+    getter = cast(
+        "Callable[[object], Iterable[object]]",
+        attrgetter("getElementsByType")(document),
+    )
+    return getter(element_type)
+
+
+def odf_attribute(element: object, name: str) -> object:
+    """Read an ODF attribute without depending on the library's missing stubs."""
+    getter = cast("Callable[[str], object]", attrgetter("getAttribute")(element))
+    return getter(name)
 
 
 @dataclass

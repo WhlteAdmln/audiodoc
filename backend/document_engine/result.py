@@ -1,6 +1,17 @@
 """Build stable document responses and retain the extraction truncation flag."""
 
+from typing import TypedDict
+
 from backend.document_engine.limits import MAX_EXTRACTED_TEXT_LENGTH
+
+
+class DocumentResult(TypedDict):
+    """Public document extraction response."""
+
+    format: str
+    text: str
+    characters: int
+    truncated: bool
 
 
 def limit_text(text: str) -> str:
@@ -10,7 +21,9 @@ def limit_text(text: str) -> str:
     return text
 
 
-def build_result(filetype: str, text: str, *, truncated: bool = False) -> dict:
+def build_result(
+    filetype: str, text: str, *, truncated: bool = False
+) -> DocumentResult:
     """Create the public document result, including whether extraction was cut."""
     text = limit_text(text.strip())
     return {

@@ -16,6 +16,7 @@ from backend.document_engine.limits import (
     MAX_DOCUMENT_SIZE,
     MAX_EXTRACTED_TEXT_LENGTH,
 )
+from backend.document_engine.result import DocumentResult
 from backend.errors.base import BackendError
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ router = APIRouter(
 async def process_document_endpoint(
     file: Annotated[UploadFile, File()],
     max_characters: int | None = Form(default=None, ge=1, le=MAX_EXTRACTED_TEXT_LENGTH),
-) -> dict:
+) -> DocumentResult:
     """Extract text from a document through Document Engine."""
     filename = Path(file.filename or "document").name
 

@@ -2,6 +2,7 @@
 
 import logging
 import math
+from typing import Any, Protocol, cast
 
 import pymupdf
 
@@ -23,10 +24,20 @@ from backend.errors.documents import DocumentRejectedError
 logger = logging.getLogger(__name__)
 
 
+class _PageRect(Protocol):
+    width: float
+    height: float
+
+
+class _PageWithRect(Protocol):
+    rect: _PageRect
+
+
 def _render_dpi(page: object) -> int:
     """Choose the highest OCR DPI whose rendered page stays under the pixel cap."""
-    width_inches = float(page.rect.width) / 72.0
-    height_inches = float(page.rect.height) / 72.0
+    page_rect = cast("_PageWithRect", page).rect
+    width_inches = float(page_rect.width) / 72.0
+    height_inches = float(page_rect.height) / 72.0
     if (
         not math.isfinite(width_inches)
         or not math.isfinite(height_inches)
@@ -55,8 +66,9 @@ def extract_pdf(
     """Extract PDF text while bounding OCR resolution, pages, time, and output."""
     ctx = make_context(context, deadline=deadline)
     result: list[str] = []
+    open_document = cast("Any", pymupdf.open)
 
-    with pymupdf.open(stream=data, filetype="pdf") as document:
+    with open_document(stream=data, filetype="pdf") as document:
         if document.page_count > MAX_DOCUMENT_PAGES:
             raise DocumentRejectedError("В PDF слишком много страниц")
 
