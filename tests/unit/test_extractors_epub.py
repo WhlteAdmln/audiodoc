@@ -5,8 +5,8 @@ import pytest
 pytest.importorskip("ebooklib")
 pytest.importorskip("bs4")
 
-from backend.document_engine.extractors.epub import extract_epub  # noqa: E402
-from tests.builders import create_epub  # noqa: E402
+from backend.document_engine.extractors.epub import extract_epub
+from tests.builders import create_epub
 
 
 def test_epub_extracts_chapter_content_and_skips_navigation():
