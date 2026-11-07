@@ -4,7 +4,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
-class _RequestBodyTooLarge(Exception):
+class _RequestBodyTooLargeError(Exception):
     pass
 
 
@@ -49,12 +49,12 @@ class BodySizeLimitMiddleware:
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
                 if received > self.max_body_size:
-                    raise _RequestBodyTooLarge
+                    raise _RequestBodyTooLargeError
             return message
 
         try:
             await self.app(scope, limited_receive, tracked_send)
-        except _RequestBodyTooLarge:
+        except _RequestBodyTooLargeError:
             # If the downstream application already started a response, it cannot
             # be replaced safely. Multipart handlers read the body before replying.
             if response_started:
