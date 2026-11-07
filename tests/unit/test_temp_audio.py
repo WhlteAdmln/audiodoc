@@ -12,9 +12,9 @@ def test_temp_audio_file_is_private_and_removed(monkeypatch, tmp_path):
         assert path.parent == tmp_path / "private"
         assert path.suffix == ".ogg"
         assert path.exists()
-        assert os.stat(path.parent).st_mode & 0o777 == 0o700
+        assert path.parent.stat().st_mode & 0o777 == 0o700
         if os.name == "posix":
-            assert os.stat(path).st_mode & 0o777 == 0o600
+            assert path.stat().st_mode & 0o777 == 0o600
     assert not path.exists()
 
 

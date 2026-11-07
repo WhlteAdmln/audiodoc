@@ -31,7 +31,7 @@ def ensure_temp_dir() -> Path:
     """
     TEMP_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
     # Tighten permissions if the directory already existed with broader access.
-    os.chmod(TEMP_DIR, 0o700)
+    TEMP_DIR.chmod(0o700)
     return TEMP_DIR
 
 
