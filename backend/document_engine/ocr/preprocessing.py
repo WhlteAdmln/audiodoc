@@ -39,7 +39,7 @@ def _prepare_image(image: Image.Image) -> Image.Image:
     else:
         image = image.convert("RGB")
 
-    # Переводим в оттенки серого.
+    # Convert the image to grayscale.
     image = ImageOps.grayscale(image)
 
     # Улучшаем контраст.
