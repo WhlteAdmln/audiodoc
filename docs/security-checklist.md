@@ -3,7 +3,7 @@
 Complete this checklist on the actual machines A (bot) and B (backend/LLM). The addresses below are examples from the deployment plan (`10.8.0.1` for B, `10.8.0.2` for A); replace them with the real private/VPN addresses. Do not enable a firewall until the administrator's SSH source has an explicit allow rule. Start on a test machine.
 
 | # | Check | How to verify | Expected |
-|---:|---|---|---|
+| ---: | --- | --- | --- |
 | 1 | Services bind only to private addresses | B: `ss -tlnp \| grep -E ':8000\|:8080'` | `10.8.0.1` or `127.0.0.1`; not `0.0.0.0` or `*` |
 | 2 | Other machines cannot reach service ports | From a third machine: `curl -m 3 http://10.8.0.1:8000/health` | No connection |
 | 3 | Firewall is enabled and restrictive | B: `sudo ufw status verbose` | Incoming denied except bot/admin/VPN allowances |

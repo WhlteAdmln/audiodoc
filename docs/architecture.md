@@ -29,7 +29,7 @@ During lifespan startup the service sets `umask(077)`, verifies that the API key
 ## 3. HTTP layer
 
 | Method and path | Purpose | Authentication |
-|---|---|---|
+| --- | --- | --- |
 | `GET /health` | Liveness and Whisper model state | None |
 | `GET /ready` | Tesseract, OCR languages, DjVuLibre and model diagnostics | `DOCUMENT_API_KEY` |
 | `POST /transcribe` | Audio transcription | `WHISPER_API_KEY` |

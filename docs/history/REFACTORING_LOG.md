@@ -1,9 +1,9 @@
-> Исторический документ. На момент описанных работ проект назывался `whisper-server`, затем `Media Backend`; актуальное имя проекта — `audiodoc`. Содержание ниже сохранено как запись истории и не является текущей инструкцией по развёртыванию.
-
 # Журнал рефакторинга
 
+> Исторический документ. На момент описанных работ проект назывался `whisper-server`, затем `Media Backend`; актуальное имя проекта — `audiodoc`. Содержание ниже сохранено как запись истории и не является текущей инструкцией по развёртыванию.
+
 | № | Название | Статус | Кратко | Открытые вопросы |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | 0 | Приёмка и страховка | принято | Созданы `tests/`, pytest-конфигурация, контрактные и integration-тесты; исправление `00-r2` принято пользователем (30 passed, 4 integration passed) | нет |
 | 1 | Срочная защита (в старой структуре) | принято | Bearer-аутентификация, лимиты HTTP и аудиозагрузки, потоковый Whisper с пределом параллельности и длительности, приватные временные файлы, ограниченное чтение ZIP `mimetype`; пользователь подтвердил 49 passed и 5 integration passed | Настройка ключей и сетевых мер D.1/D.2 остаётся эксплуатационной задачей пользователя |
 | 2 | Каркас проекта | принято | Создан пакет `backend/`; перенесены Document Engine, API, загрузки и Whisper; добавлены `config/`, `errors/`, `common/`; пользователь подтвердил 54 passed и 5 integration passed, Whisper small загружена, `/health` отвечает 200 | нет |
@@ -22,8 +22,8 @@
 | 15 | Документация, развёртывание и журналы (часть C + выбранные D) | принято | README RU/EN, API/operations/architecture/security docs, deploy templates, `/ready`, X-Request-ID и SecretsFilter; пользователь подтвердил 161 passed, 5 integration passed, `/ready` 200 с native tools и Whisper загруженной | Применить и проверить инфраструктурные шаблоны на тестовой машине |
 | 16 | Финальная приёмка | готово, ожидает проверки | Сверка B.0 и D.8, обновлённый аудит, исправлен недостижимый обработчик BackendError и удалены неиспользуемые записи из lock-файла | Остались эксплуатационные пункты D.8; см. `docs/final-acceptance.md` |
 
-
 ## Принятые решения
+
 - HTTP-контракт с ботом сохраняется: `POST /transcribe`, `POST /process-document`, multipart-поле `file` и прежние поля JSON-ответов.
 - Самостоятельные изображения (PNG/JPEG/GIF и другие) не относятся к Document Engine: детектор возвращает `None`, обработчик документа отклоняет их.
 - Интеграционные проверки OCR, PDF OCR, DJVU и HTTP-распознавания вынесены под маркер `integration`.
@@ -42,6 +42,7 @@
 - Импорты рабочих модулей и тестов используют единый префикс `backend.*`; точка запуска `uvicorn app:app` и импорт `from app import app` сохранены.
 
 ## Известные отклонения от плана
+
 - Модули аутентификации и HTTP-лимитов из поставки 1 перенесены сразу в `backend/api/`, ограниченные операции с загрузками — в `backend/common/`, а Whisper и временные файлы — в `backend/transcription/`. Это сохраняет изменения безопасности до последующего структурного разбиения API и Document Engine.
 - `backend/common/` содержит `text_budget.py`, `deadline.py`, `subprocess_runner.py`, `logging_setup.py`, `work_queue.py`, `request_id.py`, `log_filters.py` и другие небольшие общие инструменты; фильтры логов и X-Request-ID реализованы в поставке 15.
 - В `backend/errors/` добавлены классы из A1, а также `AudioTooLongError` и `ModelNotReadyError`, ранее находившиеся в сервисе Whisper.
@@ -50,24 +51,27 @@
 - Сетевые меры D.1/D.2 (приватный адрес, VPN/TLS, файрвол, фактическая установка и ротация секретов) не выполняются из архива; это действия пользователя на машинах A и B.
 
 ## Проверки поставки 1 (принята пользователем)
+
 - `python -m pytest -q` → пользователь сообщил: 49 passed, 5 deselected.
 - `python -m pytest -q -m integration` → пользователь сообщил: 5 passed, 49 deselected.
 - Ручной запрос `POST /process-document` с действующим Bearer-ключом → HTTP 200 и прежняя структура ответа.
 
 ## Проверки поставки 2
+
 - `python -m pytest -q` → 35 passed, 7 skipped, 1 deselected.
 - `python -m pytest -q -m integration` → 1 passed, 6 skipped, 36 deselected.
 - `python -m compileall -q app.py backend tests` → успешно.
 - Проверка наличия целевой структуры, отсутствия прежних корневых модулей и старых импортов → успешно.
 
-
 ## Проверки поставки 2 (принята пользователем)
+
 - `python -m pytest -q` → пользователь сообщил: 54 passed, 5 deselected.
 - `python -m pytest -q -m integration` → пользователь сообщил: 5 passed, 54 deselected.
 - Запуск Uvicorn → Whisper small загружена; `/health` → `{"status":"ok","model":"small","loaded":true}`.
 - Импорт `backend.document_engine.detector` → OK на проверочной машине пользователя (позднее модуль перенесён в `backend.document_engine.detection`).
 
 ## Проверки поставки 3
+
 - `python -m pytest -q` → 46 passed, 7 skipped, 1 deselected.
 - `python -m pytest -q -m integration` → 1 passed, 6 skipped, 47 deselected.
 - `python -m compileall -q app.py backend tests` → успешно.
@@ -76,14 +80,15 @@
 - Проверка централизованных констант `MAX_IMAGE_PIXELS` и `OCR_PAGE_TIMEOUT` → определения остались только в `limits.py`.
 - Реальный запуск приложения/Whisper в среде ассистента не выполнялся: здесь отсутствуют `faster-whisper`, `EbookLib` и `striprtf`; пользователь сможет повторить проверку после распаковки архива.
 
-
 ## Проверки поставки 3 (принята пользователем)
+
 - `python -m pytest -q` → пользователь сообщил: 65 passed, 5 deselected.
 - `python -m pytest -q -m integration` → пользователь сообщил: 5 passed, 65 deselected.
 - Импорты `detection`, `ocr`, `guards` → OK на машине пользователя.
 - Запуск Uvicorn → успешно.
 
 ## Проверки поставки 4
+
 - `python -m pytest -q` → 52 passed, 8 skipped, 1 deselected.
 - `python -m pytest -q -m integration` → 1 passed, 6 skipped, 54 deselected.
 - `python -m compileall -q app.py backend tests` → успешно.
@@ -93,8 +98,8 @@
 - Изменения поведения не планировались; преобразование результатов продолжает использовать `build_result`.
 - Полный end-to-end прогон RTF через установленную библиотеку `striprtf` не выполнен в среде ассистента.
 
-
 ## Проверки поставки 5
+
 - `python -m pytest -q` → 55 passed, 8 skipped, 1 deselected.
 - `python -m pytest -q -m integration` → 1 passed, 6 skipped, 57 deselected.
 - `python -m compileall -q app.py backend tests` → успешно.
@@ -105,11 +110,13 @@
 - Поведение и сигнатуры извлечения не менялись: `(data: bytes) -> str`.
 
 ## Проверки поставки 5 (принята пользователем)
+
 - `python -m pytest -q` → пользователь сообщил: 75 passed, 5 deselected.
 - `python -m pytest -q -m integration` → пользователь сообщил: 5 passed, 75 deselected.
 - Запуск Uvicorn → Whisper small загружена; сервер завершён штатно.
 
 ## Проверки поставки 6
+
 - `python -m pytest -q` → 59 passed, 8 skipped, 1 deselected.
 - `python -m pytest -q -m integration` → 1 passed, 6 skipped, 61 deselected.
 - `python -m compileall -q app.py backend tests` → успешно.
@@ -119,8 +126,8 @@
 - Основной набор пропускает интеграционные сценарии и тесты, требующие `ebooklib`/`striprtf`, отсутствующих в среде ассистента. ODF-библиотека `odfpy` доступна, отдельные тесты трёх форматов выполнены.
 - Изменения поведения не планировались; тексты и порядок элементов совпали с предыдущей реализацией на тестовых документах.
 
-
 ## Проверки поставки 7
+
 - `python -m pytest -q` → 62 passed, 9 skipped, 1 deselected.
 - `python -m pytest -q -m integration` → 1 passed, 7 skipped, 64 deselected.
 - `python -m compileall -q app.py backend tests` → успешно.
@@ -131,8 +138,8 @@
 - Сигнатуры новых экстракторов сохранены: `(data: bytes) -> str`; используемый `limit_text` оставлен без изменений, включая добавление маркера обрезки.
 - Изменений поведения не планировалось. Реальное чтение EPUB через EbookLib и общий end-to-end тест EPUB требуется подтвердить в среде пользователя.
 
-
 ## Проверки поставки 8
+
 - `python -m compileall -q app.py backend tests` → успешно.
 - `python -m pytest -q` → 73 passed, 7 skipped, 3 deselected.
 - `python -m pytest -q -m integration` → 2 passed, 6 skipped, 75 deselected; интеграционный тест сканированного PDF с реальным Tesseract выполнен.
@@ -145,12 +152,13 @@
 - Интеграционный DJVU-тест пропущен: в среде ассистента отсутствуют `c44`, `djvutxt`, `djvused` и `ddjvu`.
 - Изменения HTTP-контракта и внешнего поведения не планировались.
 
-
 ## Проверки поставки 8 (принята пользователем)
+
 - `python -m pytest -q` → пользователь сообщил: 95 passed, 5 deselected.
 - `python -m pytest -q -m integration` → пользователь сообщил: 5 passed, 95 deselected.
 
 ## Проверки поставки 9
+
 - `python -m compileall -q app.py backend tests` → успешно.
 - Обычный `python -m pytest -q` в среде ассистента не собрал тесты: отсутствуют `EbookLib` и `striprtf`, а новый публичный пакет согласно A5 импортирует единый реестр экстракторов, включая эти зависимости.
 - Контрольный pytest с кратковременными import-only заглушками только для отсутствующих `EbookLib` и `striprtf` (после импорта `backend.document_engine` заглушки удалены, поэтому format-specific тесты корректно пропускаются): 80 passed, 7 skipped, 3 deselected.
@@ -165,6 +173,7 @@
 ## Поставка 10 — Whisper и HTTP-слой (A6 + A7)
 
 ### Что сделано
+
 - Создан `backend/transcription/model.py` с `ModelHolder` (`load()`, `get()`, `is_loaded`) и единственным экземпляром `model_holder`.
 - Управление моделью удалено из `app.py`; модель загружается в lifespan при запуске, а тяжёлая инициализация выполняется через `asyncio.to_thread`.
 - `backend/transcription/service.py` переведён на публичную сигнатуру `transcribe_file(path)`. Сохранены параметры языка/beam/VAD, проверка длительности, ограничение параллельности и выполнение Whisper в рабочем потоке (меры B.3 из предыдущей поставки).
@@ -176,6 +185,7 @@
 - Обновлены тесты: service использует model_holder, HTTP-тесты подменяют его модель, добавлены проверки ModelHolder и схем API.
 
 ### Проверки в среде ассистента
+
 - `python -m compileall -q app.py backend tests` → успешно.
 - Unit-набор с временными import-only заглушками EbookLib/striprtf исключительно для загрузки общего реестра (заглушки удалены до запуска pytest; зависящие от библиотек тесты пропускаются) → 84 passed, 8 skipped, 3 deselected.
 - Integration-набор в том же режиме → 2 passed, 7 skipped, 86 deselected.
@@ -185,17 +195,19 @@
 - `@app.on_event` в исходниках больше не используется.
 
 ### Ограничения проверки
+
 - В среде ассистента отсутствуют реальные `faster-whisper`, `EbookLib`, `striprtf`; настоящую модель Whisper и реальные EPUB/RTF-парсеры здесь не запускал. HTTP- и lifespan-smoke выполнены с тестовыми заглушками, не включёнными в архив.
 - Пользовательская проверка с настоящей моделью, `.env` и установленными зависимостями требуется после распаковки.
 
 ### Изменения поведения
+
 - HTTP-пути и JSON-поля не изменены.
 - Жизненный цикл изменён штатно: модель больше не загружается через deprecated `@app.on_event`, а создаётся через FastAPI lifespan. Проверка ключей и подготовка temp storage происходят при старте приложения.
 - `backend/api/__init__.py` импортирует router-модули внутри `register_routes()`, чтобы импортировать вспомогательные `backend.api.auth`/`middleware` независимо от сборки всего HTTP-приложения.
 - Импорт `WhisperModel` отложен до `_build_model()`/старта сервиса, чтобы вспомогательные модули можно было импортировать в окружении без установленной модели; при реальном старте библиотека по-прежнему обязательна.
 
-
 ## Исправление поставки 10 — r2
+
 - По traceback пользователя `tests/unit/test_api_lifespan.py::test_app_registers_all_expected_routes` падал с `AttributeError: '_IncludedRouter' object has no attribute 'path'` на используемой версии FastAPI/Starlette.
 - Исправлен только тест регистрации маршрутов: вместо обхода внутренних объектов `app.routes` проверяется публичная OpenAPI-схема `app.openapi()["paths"]`, включая методы `GET /health`, `POST /transcribe` и `POST /process-document`. Производственный код и HTTP-контракт не менялись.
 - Изменённые файлы r2: `tests/unit/test_api_lifespan.py`, `REFACTORING_LOG.md`.
@@ -206,6 +218,7 @@
 - Повторная проверка пользователем выполнена: 109 passed, 5 integration passed; Uvicorn и загрузка Whisper small успешны. Исправление r2 принято.
 
 ## Поставка 10 (A6 + A7) — принята пользователем
+
 - Пользователь сообщил: `python -m pytest -q` → 109 passed, 5 deselected.
 - Пользователь сообщил: `python -m pytest -q -m integration` → 5 passed, 109 deselected.
 - Uvicorn запущен; Whisper small успешно загружена; `/health` → `{"status":"ok","model":"small","loaded":true}`; сервер завершён штатно.
@@ -213,7 +226,8 @@
 
 ## Поставка 11 — финальная чистка (A8)
 
-### Что сделано
+### Что сделано — Поставка 11
+
 - Удалён `backend/document_engine/processor.py` — временный совместимый shim после завершения A5/A7.
 - Удалены импорт и проверка shim из `tests/unit/test_document_engine_pipeline.py`; добавлена проверка отсутствия файла.
 - Обновлён комментарий `tests/unit/test_extractors_text.py`: причина пропуска связанных с EPUB/RTF тестов теперь описывает импорт общего публичного реестра, а не уже удалённый `processor.py`.
@@ -225,7 +239,8 @@
 - Исправлена аннотация `check_security_settings` на публичный тип `Settings` из `backend.config`. При этом сохранены реэкспорты `Settings`/`settings` из `backend/config/__init__.py` и публичных классов из `backend/errors/__init__.py`.
 - Обновлён журнал поставок; статус поставки 10 изменён на «принято» по результатам пользователя.
 
-### Проверки в среде ассистента
+### Проверки в среде ассистента — Поставка 11
+
 - `python -m compileall -q app.py backend tests` → успешно.
 - Unit-набор с кратковременными import-only заглушками `EbookLib` и `striprtf` исключительно для импорта общего реестра (заглушки удаляются до запуска pytest; тесты реальных отсутствующих парсеров пропускаются) → 90 passed, 8 skipped, 3 deselected.
 - Integration-набор в том же режиме → 2 passed, 7 skipped, 92 deselected.
@@ -234,16 +249,16 @@
 - Проверено отсутствие `backend/document_engine/processor.py`, корневых `test_*.py`, `test_documents/` и `uploads/`; проверено наличие обеих architecture-документаций.
 
 ### Ограничения и отклонения
+
 - В исходном архиве delivery-10-r2 не было корневых `test_*.py`, `test_documents/` или `uploads/`, поэтому фактически удалён только shim `processor.py`; отсутствие прочих старых элементов подтверждено проверкой.
 - Настоящие `EbookLib` и `striprtf` в среде ассистента отсутствуют. Тесты зависящих от них парсеров пропускались; пользовательская среда с полным `requirements-lock.txt` остаётся эталоном этих проверок.
 - Полный пакет документации C.2 и файлы развёртывания не создавались преждевременно: по таблице поставок плана они входят в отдельную поставку документации.
 - Изменения поведения HTTP API и извлечения документов не вносились.
 
-
-
 ## Поставка 12 — очереди и сроки (B.4 + B.13)
 
-### Что сделано
+### Что сделано — Поставка 12
+
 - Реализован `Deadline` на `time.monotonic()` с методами `remaining()` и `check()`; единый 180-секундный срок создаётся при старте обработки документа после получения рабочего слота.
 - `process_document_sync(data, filename, max_characters=None, deadline=None)` принимает общий deadline. Проверки добавлены перед/после ключевых этапов pipeline и в циклы PDF, DJVU/OCR, XLSX, PPTX, ODT/ODS/ODP. Для OCR timeout одной страницы ограничен также остатком общего срока.
 - Реализован `run_limited()` для внешних программ: запуск списком аргументов без shell, ограничение stdout, timeout с принудительным завершением процесса, stderr во временном файле и ограниченный preview. Перевод текущих вызовов DJVU на этот runner относится к шагу B.9.
@@ -255,23 +270,27 @@
 - Добавлены тесты deadline, subprocess runner, WorkQueue, HTTP заголовка `Retry-After` и отклонения до прикладного чтения/копирования upload.
 
 ### Файлы
+
 - Созданы: `backend/common/work_queue.py`, `backend/api/error_handlers.py`, `tests/unit/test_deadline.py`, `tests/unit/test_subprocess_runner.py`, `tests/unit/test_work_queue.py`, `tests/unit/test_api_work_queue.py`.
 - Изменены: `.env.example`, `backend/common/deadline.py`, `backend/common/subprocess_runner.py`, `backend/config/settings.py`, `backend/document_engine/__init__.py`, `backend/document_engine/pipeline.py`, `backend/document_engine/runner.py`, `backend/document_engine/extractors/__init__.py`, PDF/DJVU/XLSX/PPTX/ODF extractors, OCR package, `backend/errors/base.py`, `backend/errors/__init__.py`, `backend/transcription/service.py`, API `documents.py`/`transcribe.py`, `backend/main.py`, связанные unit-тесты и этот журнал.
 - Удалённые файлы: нет. Перемещения: нет.
 
-### Изменения поведения
+### Изменения поведения — Поставка 12
+
 - Одновременная обработка по-прежнему ограничена существующими worker-лимитами, но очередь ожидания теперь конечная. При её заполнении API сразу отвечает `503` с `Retry-After: 30`, без чтения upload в коде приложения и без копирования в аудиохранилище.
 - Обработка документов теперь ограничена общим дедлайном 180 секунд; истечение срока даёт HTTP 504 с безопасным текстом.
 - HTTP-маршруты, multipart-поле `file` и поля JSON-ответов не изменены.
 
-### Проверки в среде ассистента
+### Проверки в среде ассистента — Поставка 12
+
 - `python -m compileall -q app.py backend tests` → успешно.
 - Unit-набор с временными import-only заглушками EbookLib/striprtf только для загрузки общего реестра (заглушки удалены до pytest) → 103 passed, 8 skipped, 3 deselected.
 - Integration-набор в том же режиме → 2 passed, 7 skipped, 105 deselected.
 - Новые тесты: общая очередь, предел рабочих/ожидающих задач, 503/`Retry-After`, раннее отклонение документа и аудио, deadline, принудительное завершение timed-out subprocess и ограничение stdout → успешно.
 - Архитектурные тесты границ импортов → успешно: `common` не импортирует `errors`; используемые исключения очередей/deadline/subprocess нейтральны, а преобразование к `BackendError` выполняется на уровне application/service.
 
-### Ограничения и отклонения
+### Ограничения и отклонения — Поставка 12
+
 - В среде ассистента отсутствуют `faster-whisper`, `EbookLib` и `striprtf`; поэтому настоящая загрузка Whisper и end-to-end парсинг EPUB/RTF не запускались. Tesseract установлен, но средства DjVuLibre отсутствуют; 7 интеграционных тестов пропущены средой.
 - В отличие от примеров B.4/B.13, `common` не импортирует `backend.errors`: это сохранило принятую в поставке 11 границу архитектуры (`errors`, `common`, `config` независимы друг от друга). `DeadlineExceededError`, `QueueFullError` и ошибки `run_limited` — нейтральные исключения; pipeline/application слой переводит их в безопасные ошибки API. WorkQueue получает `ServerBusyError` фабрикой исключений.
 - Вместо неатомарной проверки `is_full()` отдельно от чтения файла API входит в `async with queue.slot()` перед чтением/копированием upload. Это атомарно резервирует место и исключает гонку между предварительной проверкой и фактическим помещением задачи в очередь.
@@ -279,18 +298,20 @@
 - `max_characters` добавлен в сигнатуру синхронного pipeline как совместимый параметр для B.7; реальное ограничение текста будет реализовано в поставке лимитов документов.
 
 ### Что проверить пользователю
+
 1. `python -m pytest -q` и `python -m pytest -q -m integration` в окружении с полным `requirements-lock.txt`.
 2. Отправить одновременно 10 документов; ожидаются максимум 2 активных, 4 ожидающих, остальные — HTTP 503 с `Retry-After: 30`.
 3. Подтвердить, что `/health` отвечает во время обработки; аналогично проверить переполнение очереди транскрибации (1 активная + 4 ожидающих по умолчанию).
 4. На тестовом документе/подставном экстракторе установить дедлайн в прошлом и проверить HTTP 504; обычные PDF/Office/ODF документы должны продолжать обрабатываться.
 
-
 ## Проверки поставки 12 (принята пользователем)
+
 - `python -m pytest -q` → пользователь сообщил: 128 passed, 5 deselected.
 - `python -m pytest -q -m integration` → пользователь сообщил: 5 passed, 128 deselected.
 - Запуск Uvicorn → Whisper small загружена; `/health` → 200.
 
 ## Проверки поставки 13 (в среде ассистента)
+
 - `python -m compileall -q app.py backend tests` → успешно.
 - Основной набор через bootstrap-скрипт, временно подменяющий отсутствующие optional-пакеты только для первичного импорта → 118 passed, 8 skipped, 3 deselected.
 - Integration через тот же bootstrap → 2 passed, 7 skipped, 120 deselected; сканированный PDF/OCR прошёл, DJVU пропущен из-за отсутствующих `c44`, `djvutxt`, `djvused`, `ddjvu`.
@@ -299,7 +320,8 @@
 
 ## Поставка 13 — лимиты документов (B.5 + B.7 + B.8 + B.9)
 
-### Что сделано
+### Что сделано — Поставка 13
+
 - PDF: добавлен расчёт `_render_dpi(page)`, который выбирает максимально возможное разрешение до рендера в пределах `MAX_IMAGE_PIXELS`; если страница не помещается в лимит даже при `PDF_OCR_MIN_DPI`, документ отклоняется.
 - Добавлены `TextBudget` и `ExtractContext`. Все экстракторы получают общий бюджет и дедлайн; повторный `sum(map(len, result))` удалён. Бюджет учитывает разделители между фрагментами, поэтому итоговый `text` не превышает лимит.
 - Добавлены ограничения таблиц: XLSX/ODS — максимум 100 000 строк и 256 столбцов; XLSX открывается в read-only режиме и ограничивает диапазон `iter_rows`, ODS перебирает строки и ячейки лениво.
@@ -308,30 +330,35 @@
 - OCR проверяет `width * height` до `image.copy()`. `ensure_ready(languages)` кэширует успешные проверки Tesseract и языковых данных (`lru_cache(maxsize=8)`); отсутствующие бинарник/языки возвращают безопасную `DependencyMissingError` (503).
 - DJVU: все вызовы `djvutxt`, `djvused`, `ddjvu` используют `run_limited`; вывод `djvutxt` ограничен `MAX_EXTRACTED_TEXT_LENGTH * 4`, timeout учитывает остаток общего deadline; добавлены ограничение рендера `-size=3500x3500` и проверка TIFF-файла до OCR (`MAX_DJVU_PAGE_BYTES=100 MiB`). `stderr` сохраняется только в серверный лог, клиент получает безопасные сообщения.
 
-### Файлы
+### Файлы — Поставка 13
+
 - Созданы: `backend/document_engine/extractors/base.py`, `tests/unit/test_api_character_budget.py`, `tests/unit/test_extraction_budget_limits.py`, `tests/unit/test_ocr_limits.py`, `tests/unit/test_text_budget.py`.
 - Изменены: `REFACTORING_LOG.md`, `backend/api/documents.py`, `backend/api/schemas.py`, `backend/common/text_budget.py`, реестр и экстракторы `backend/document_engine/extractors/` (включая PDF, DJVU, Office, ODF и текстовые форматы), `backend/document_engine/limits.py`, OCR-модули, `backend/document_engine/pipeline.py`, `backend/document_engine/result.py`, а также связанные тесты API, pipeline и экстракторов.
 - Удалённые файлы: нет. Перемещения: нет.
 
-### Изменения поведения
+### Изменения поведения — Поставка 13
+
 - Добавлено необязательное поле запроса `max_characters`; при его отсутствии прежнее поведение запроса сохраняется с серверным лимитом.
 - В JSON результата добавлено поле `truncated` (по умолчанию `false` для совместимости схемы); `characters` соответствует фактической длине возвращённого текста.
 - Страницы PDF с чрезмерными размерами отклоняются до рендера; большие кадры OCR отклоняются до копирования; OCR-проверки Tesseract/языков кэшируются.
 - DJVU-команды ограничены по времени и выводу; чрезмерный TIFF отклоняется до чтения в память.
 
-### Проверки в среде ассистента
+### Проверки в среде ассистента — Поставка 13
+
 - `python -m compileall -q app.py backend tests` → успешно.
 - Полный unit-набор через bootstrap-скрипт: временные import-only заглушки `EbookLib`/`striprtf` используются только для первичного импорта общего реестра и удаляются до старта pytest → 118 passed, 8 skipped, 3 deselected.
 - Полный integration-набор в том же режиме → 2 passed, 7 skipped, 120 deselected. PDF/OCR integration passed.
 - Дополнительные тесты проверяют PDF DPI, `TextBudget`, `max_characters`, `truncated`, ограничения XLSX/ODS, проверку размеров и кэш OCR, лимиты DJVU stdout/TIFF и параметры рендера.
 - Проверено: в DJVU-пакете не осталось `subprocess.run`, `capture_output=True` или утечки `stderr[:500]`; в экстракторах нет `sum(map(len, ...))`.
 
-### Ограничения и отклонения
+### Ограничения и отклонения — Поставка 13
+
 - В среде ассистента отсутствуют `EbookLib`, `striprtf` и утилиты DjVuLibre (`c44`, `djvutxt`, `djvused`, `ddjvu`), поэтому связанные парсерные тесты пропущены, а реальная интеграция DJVU не выполнена. Настоящий faster-whisper в этой среде также не загружался. Пользовательская среда с полным lock-файлом остаётся эталоном.
 - Для ODS введён ленивый обход узлов таблицы вместо предварительного создания полного списка строк; это необходимо, чтобы лимиты строк/столбцов применялись до материализации большого диапазона.
 - Маркер текста `…[truncated]` в результате не добавляется: он сам мог бы превысить заданный клиентом максимум. Факт обрезки сообщается отдельным полем `truncated`.
 
-### Что проверить пользователю
+### Что проверить пользователю — Поставка 13
+
 1. Запустить `python -m pytest -q` и `python -m pytest -q -m integration` в полном рабочем окружении.
 2. Отправить длинный текстовый документ с `max_characters=500`; проверить `characters <= 500` и `truncated=true`. Повторить тот же запрос без поля и подтвердить совместимость старого клиента.
 3. Проверить сканированный PDF обычного размера и большой тестовый PDF; проверить XLSX/ODS с большими и разреженными диапазонами.
@@ -340,14 +367,15 @@
 
 Статус: готово в среде ассистента; ожидает проверки пользователя.
 
-
 ## Поставка 13 (принята пользователем)
+
 - `python -m pytest -q` → пользователь сообщил: 143 passed, 5 deselected.
 - `python -m pytest -q -m integration` → пользователь сообщил: 5 passed, 143 deselected.
 
 ## Поставка 14 — XML, ошибки и зависимости (B.10 + B.11 + B.12)
 
-### Что сделано
+### Что сделано — Поставка 14
+
 - Создан `backend/document_engine/guards/xml_safe.py` на базе `defusedxml.ElementTree`. Парсер явно запрещает DTD, сущности и внешние сущности; синтаксически некорректный XML преобразуется в безопасный `DocumentRejectedError`.
 - `extractors/fb2.py` и `extractors/xml_text.py` переведены на общий безопасный XML-парсер.
 - В pipeline собственные ошибки пустого/слишком большого/неподдерживаемого документа переведены в типизированные ошибки `BackendError`. Ошибки проверки ZIP нормализуются до общего безопасного отказа; непредвиденные исключения экстракторов логируются с кодом формата и возвращают общий `DocumentRejectedError` без текста библиотеки.
@@ -358,12 +386,14 @@
 - WhisperModel получает путь модели (либо `WHISPER_MODEL_SIZE`), выбранные `device`/`compute_type`/`cpu_threads` и `local_files_only=WHISPER_OFFLINE`.
 - Из `requirements.txt` удалены неиспользуемые `aiohttp` и `pypdf`; добавлен `defusedxml`; версии библиотек чтения пользовательских файлов ограничены интервалом до следующей мажорной версии по значениям из lock-файла. Из `requirements-lock.txt` удалены неиспользуемые `pymupdf4llm` и `pymupdf_layout`.
 
-### Файлы
+### Файлы — Поставка 14
+
 - Созданы: `backend/document_engine/guards/xml_safe.py`, `tests/unit/test_xml_safe.py`, `tests/unit/test_api_errors.py`, `tests/unit/test_api_docs_visibility.py`, `tests/unit/test_whisper_model_settings.py`.
 - Изменены: `.env.example`, `REFACTORING_LOG.md`, `requirements.txt`, `requirements-lock.txt`, `backend/api/documents.py`, `backend/api/error_handlers.py`, `backend/config/settings.py`, `backend/main.py`, `backend/transcription/model.py`, `backend/document_engine/pipeline.py`, `backend/document_engine/extractors/fb2.py`, `backend/document_engine/extractors/xml_text.py`, PDF/OCR проверки собственных ошибок и связанные unit-тесты.
 - Удалённые файлы: нет. Перемещения: нет.
 
-### Изменения поведения
+### Изменения поведения — Поставка 14
+
 - FB2/XML с DTD или entity declarations отклоняются; некорректный XML не раскрывает низкоуровневые parser errors.
 - Клиент получает только заранее определённые сообщения ошибок; неожиданные исключения возвращают HTTP 500 с `Internal server error`, а ошибка чтения/разбора документа — общий безопасный отказ 400.
 - Имя файла нормализуется перед логированием; переносы строк не могут создать поддельные log records.
@@ -371,7 +401,8 @@
 - Устройство/тип вычислений Whisper и путь модели вынесены в настройки; `WHISPER_OFFLINE=true` запрещает скачивание модели из Hugging Face и позволяет использовать локальную модель или кэш.
 - Форматы успешных HTTP-ответов и маршруты не изменились.
 
-### Проверки в среде ассистента
+### Проверки в среде ассистента — Поставка 14
+
 - `python -m compileall -q app.py backend tests` → успешно.
 - Unit-набор через bootstrap временных import-only заглушек `EbookLib`/`striprtf` только при первоначальном импорте реестра (заглушки удаляются до pytest) → 129 passed, 8 skipped, 3 deselected.
 - Integration-набор в том же режиме → 2 passed, 7 skipped, 131 deselected.
@@ -380,12 +411,14 @@
 - Тесты B.12: `/docs` и `/openapi.json` выключены/включаются настройкой; фабрика Whisper передаёт устройство, compute type, локальный путь и offline flag.
 - Статическая проверка зависимостей: `aiohttp`/`pypdf` отсутствуют в `requirements.txt`; `defusedxml` присутствует в requirements и lock; `pymupdf4llm`/`pymupdf_layout` отсутствуют в lock.
 
-### Ограничения и отклонения
+### Ограничения и отклонения — Поставка 14
+
 - В среде ассистента отсутствуют `EbookLib`, `striprtf`, `faster-whisper` и DjVuLibre; соответствующие тесты пропускались. Настоящую загрузку Whisper (в том числе в офлайн-режиме) здесь не запускал; проверено только то, какие аргументы передаются в `WhisperModel`.
 - Реальная проверка отключения сетевого скачивания модели должна быть выполнена пользователем на сервере с локальной моделью и `WHISPER_OFFLINE=true`.
 - В multipart-тесте Starlette сам экранирует LF в имени файла как `%0A`; дополнительная очистка `log_safe()` оставлена как защита для любых других путей логирования.
 
-### Что проверить пользователю
+### Что проверить пользователю — Поставка 14
+
 1. `python -m pytest -q` и `python -m pytest -q -m integration` в полном окружении.
 2. Отправить XML и FB2 с `DOCTYPE`/`ENTITY`: ожидается отказ 400 без парсерных подробностей. Обычные XML/FB2 должны обрабатываться.
 3. Отправить повреждённый DOCX/ZIP и документ с некорректным содержимым: тело ответа должно содержать только безопасное описание ошибки.
@@ -393,13 +426,15 @@
 5. Проверить, что `/docs` и `/openapi.json` возвращают 404 по умолчанию; `ENABLE_DOCS=true` использовать только в доверенной среде разработки.
 
 ## Поставка 14 (принята пользователем)
+
 - Пользователь подтвердил: `python -m pytest -q` → 154 passed, 5 deselected; `python -m pytest -q -m integration` → 5 passed, 154 deselected.
 - Uvicorn загрузил Whisper `small`; `/docs` и `/openapi.json` вернули `404`; сервер завершился штатно.
 - Каталог проверки подтверждён: `/home/zelensky/whisper-server-delivery-14/whisper-server`.
 
 ## Поставка 15 — документация, развёртывание и журналы (часть C + D.1.3, D.1.4, D.2.2 п. 5, D.3.1, D.5.2)
 
-### Что сделано
+### Что сделано — Поставка 15
+
 - Добавлены `README.md` (английский) и `README.ru.md` (русский): назначение, поддерживаемые форматы, установка системных программ и Python-зависимостей, быстрый старт, все переменные окружения с default values, проверка curl, тесты и ссылки на документацию.
 - Переписаны оба файла архитектуры: потоки запросов, startup/lifespan, HTTP-слой, Whisper/offline, Document Engine, ограничения и границы безопасности, Request ID/SecretsFilter, дерево проекта.
 - Добавлены `docs/api.md` (контракт Telegram-клиента и новые поля/заголовки), `docs/operations.md` (установка, права, локальная модель Whisper, `/health`, `/ready`, журнал, troubleshooting, обновления, rollback), `docs/adding-a-format.md` (рецепт из 5 шагов) и `docs/security-checklist.md` (24 пункта D.8).
@@ -410,30 +445,35 @@
 - Добавлены примеры `systemd`, UFW, nginx HTTPS и WireGuard для обеих машин в `deploy/`, все адреса/ключи/сертификаты — placeholders; добавлено руководство по применению.
 - По C.1 добавлены docstrings для оставшихся публичных функций и внутренних ASGI/filter helper-методов, которые были без описаний.
 
-### Файлы
+### Файлы — Поставка 15
+
 - Созданы: `README.md`, `README.ru.md`, `docs/api.md`, `docs/operations.md`, `docs/adding-a-format.md`, `docs/security-checklist.md`, `deploy/README.md`, `deploy/media-backend.service.example`, `deploy/ufw-rules.sh.example`, `deploy/nginx.conf.example`, `deploy/wireguard-backend.conf.example`, `deploy/wireguard-bot.conf.example`, `backend/api/ready.py`, `backend/common/request_id.py`, `backend/common/log_filters.py`, `tests/unit/test_api_ready.py`, `tests/unit/test_request_id_logging.py`.
 - Изменены: `docs/architecture.md`, `docs/architecture.ru.md`, `backend/api/__init__.py`, `backend/main.py`, `backend/common/logging_setup.py`, `backend/api/auth.py`, `backend/api/middleware.py`, `backend/common/subprocess_runner.py`, `backend/document_engine/extractors/__init__.py`, `tests/unit/test_api_lifespan.py`, `REFACTORING_LOG.md`.
 - Удалённые файлы: нет. Перемещения: нет. Архив бота не изменялся.
 
-### Изменения поведения
+### Изменения поведения — Поставка 15
+
 - Добавлен диагностический `/ready` с отдельной авторизацией Document API key; `/health` и существующие POST-маршруты не изменены.
 - В ответы добавляется `X-Request-ID`; принимаемый ID валидируется, некорректный заменяется UUID.
 - Логи получают request ID; настроенные ключи и token-like/Bearer values редактируются до вывода в root handlers.
 - Конфигурация, обработка документов, формат успешных ответов и авторизация прежних endpoints остаются совместимыми с ботом.
 
-### Проверки в среде ассистента
+### Проверки в среде ассистента — Поставка 15
+
 - `python -m compileall -q app.py backend tests` → успешно.
 - Unit-набор через внешний bootstrap с временными import-only stub для отсутствующих в среде `EbookLib` и `striprtf` (stubs удалены до pytest) → 136 passed, 8 skipped, 3 deselected.
 - Integration-набор тем же способом → 2 passed, 7 skipped, 138 deselected.
 - Новые unit-тесты проверяют авторизацию/содержимое `/ready`, отсутствующие native tools, принятие/замену `X-Request-ID`, присвоение ID в log records, редактирование секретов и traceback, подключение logging filters.
 - TestClient smoke с подменённым `model_holder.load` (в среде нет `faster-whisper`) → `/ready` 200 с `DOCUMENT_API_KEY`, валидный ID возвращён в `X-Request-ID`, `/health` 200, `/docs` и `/openapi.json` 404.
 
-### Ограничения и отклонения
+### Ограничения и отклонения — Поставка 15
+
 - В окружении ассистента отсутствуют `EbookLib`, `striprtf` и утилиты DjVuLibre. Связанные тесты пропущены; реальную EPUB/RTF/DJVU-интеграцию здесь не запускал. Bootstrap используется только для импорта общего реестра во время сбора тестов; его модули не входят в проект и удаляются до pytest.
 - `systemd`, UFW, nginx и WireGuard templates не применялись на реальном сервере. Адреса, пути, ресурсы, сертификаты и SSH allow-list должны быть заменены и проверены владельцем инфраструктуры.
 - `/ready` реализует диагностику по пункту C.5; она не меняет статус HTTP на 503 при отсутствующем parser tool, а возвращает диагностические boolean/list поля, как задано в плане.
 
-### Что проверить пользователю
+### Что проверить пользователю — Поставка 15
+
 1. Запустить `python -m pytest -q` и `python -m pytest -q -m integration` в полном окружении.
 2. Проверить `/ready` без ключа (401 при заданном `DOCUMENT_API_KEY`) и с ключом; сверить поля `tesseract`, `languages`, `djvulibre`, `model_loaded`.
 3. Послать валидный `X-Request-ID` и проверить такой же ответный заголовок; затем передать недопустимый ID и проверить, что backend возвращает новый UUID. По ID найти строки в серверном логе.
@@ -444,7 +484,8 @@
 
 ## Поставка 16 — финальная приёмка (аудит B.0, контрактов и D.8)
 
-### Что сделано
+### Что сделано — Поставка 16
+
 - Повторно сверены все 18 находок BE-01…BE-18 из B.0 с кодом `backend/`, тестами и deployment templates.
 - Обновлена таблица поставок: поставки 14 и 15 отмечены принятыми на основании сообщений пользователя; поставка 16 ожидает его финальной проверки.
 - В `backend/api/documents.py` удалён недостижимый `except BackendError`: теперь типизированные ошибки документа действительно попадают в warning-лог с очищенным именем файла и затем передаются стандартному HTTP error handler.
@@ -453,7 +494,8 @@
 - Создан `docs/final-acceptance.md`: матрица BE-01…BE-18 и отдельная оценка каждого из 24 пунктов D.8 с разделением подтверждённых, покрытых тестами и открытых инфраструктурных проверок.
 - Обновлён раздел принятых решений/отклонений: `request_id.py` и `log_filters.py` реализованы в поставке 15, а не оставлены на последующий этап.
 
-### Проверки в среде ассистента
+### Проверки в среде ассистента — Поставка 16
+
 - `python -m compileall -q app.py backend tests` → успешно.
 - Unit pytest через внешний import-only bootstrap для отсутствующих `EbookLib`/`striprtf` → 137 passed, 8 skipped, 3 deselected.
 - Integration pytest тем же способом → 2 passed, 7 skipped, 139 deselected.
@@ -463,12 +505,14 @@
 - Проверка файлов и архива: все ожидаемые README/docs/deploy examples присутствуют; `.env`, кэши и временные файлы исключены при упаковке.
 
 ### Проверки пользователя, учтённые при финальном аудите
+
 - Поставка 14: 154 passed, 5 deselected; 5 integration passed; Whisper small загрузилась; `/docs` и `/openapi.json` вернули 404; каталог `delivery-14` подтверждён.
 - Поставка 15: 161 passed, 5 deselected; 5 integration passed; `/ready` с ключом вернул 200 и показал `tesseract=true`, `languages=[eng, osd, rus]`, `djvulibre=true`, `model_loaded=true`; запуск/остановка Uvicorn успешны.
 - В логах запуска Whisper был запрос к `huggingface.co`; поэтому D.8.13 (модель без сети при `WHISPER_OFFLINE=true`) не отмечается выполненным.
 - Пользователь подтвердил `/docs` и `/openapi.json` → 404. Фактическая сеть, systemd, права файлов, egress, шифрование дисков и bot allow-list не проверялись в этой поставке.
 
 ### Открытые эксплуатационные пункты
+
 - D.8.1–4, 7–15, 17–24 остаются полностью или частично пользовательскими проверками на A/B; D.8.16 подтверждён пользователем.
 - D.8.5–6 подтверждены кодом/автотестами и проверкой ключа у `/ready`; повторить exact `POST /process-document` 401/200 на машине B перед production.
 - Пункты D.8.17–19 имеют соответствующее покрытие тестами, но требуют проверки реального journald, oversized upload и нагрузочного запуска 10 документов.
@@ -476,6 +520,7 @@
 - BE-18: приватная сеть, VPN/TLS, UFW и фактическая изоляция портов не могут быть подтверждены архивом.
 
 ### Итог
+
 Кодовая часть и артефакты плана собраны; HTTP-контракт с ботом сохранён. Финальная эксплуатационная готовность не сертифицирована до закрытия оставшихся пунктов D.8. Подробная матрица находится в `docs/final-acceptance.md`.
 
 Статус: готово, ожидает финального подтверждения пользователя.

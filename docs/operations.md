@@ -122,7 +122,7 @@ curl -i http://127.0.0.1:8000/ready \
 Interpretation:
 
 | Field | If false or incomplete | What to check |
-|---|---|---|
+| --- | --- | --- |
 | `tesseract` | Executable not found | Install `tesseract-ocr`; verify the service PATH |
 | `languages` | One or more OCR languages absent | Install `tesseract-ocr-rus` and/or `tesseract-ocr-eng`; run `tesseract --list-langs` as the service user |
 | `djvulibre` | One or more programs absent | Install `djvulibre-bin`; check `djvutxt`, `djvused`, `ddjvu` on PATH |
@@ -146,7 +146,7 @@ For persistent journal storage, review `/etc/systemd/journald.conf` and consider
 ## 7. Troubleshooting
 
 | Symptom / HTTP status | Likely cause | Action |
-|---|---|---|
+| --- | --- | --- |
 | Startup fails with missing-key message | One or both API keys are empty | Set distinct `WHISPER_API_KEY` and `DOCUMENT_API_KEY`; keep bypass disabled |
 | `401 Unauthorized` | Key missing, incorrect, or sent to the wrong endpoint | Verify the matching bot/backend key pair and Bearer header; do not paste the key into logs |
 | `400` for a document | Corrupt, unsupported, or prohibited input | Try a valid supported file; do not disable archive/XML guards |

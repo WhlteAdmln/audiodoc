@@ -29,7 +29,7 @@ audiodoc — отдельный FastAPI-сервис для Telegram-бота. �
 ## 3. HTTP-слой
 
 | Метод и путь | Назначение | Авторизация |
-|---|---|---|
+| --- | --- | --- |
 | `GET /health` | Liveness и состояние загрузки Whisper | Не требуется |
 | `GET /ready` | Tesseract, языки OCR, DjVuLibre и состояние модели | `DOCUMENT_API_KEY` |
 | `POST /transcribe` | Распознавание аудио | `WHISPER_API_KEY` |

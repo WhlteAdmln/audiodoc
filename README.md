@@ -100,7 +100,7 @@ For the bot, configure the complete `/transcribe` and `/process-document` paths 
 The `.env.example` file lists all environment-backed settings and their defaults.
 
 | Variable | Default | Purpose |
-|---|---:|---|
+| --- | ---: | --- |
 | `WHISPER_API_KEY` | empty | Dedicated Bearer key for `/transcribe`; empty only with local auth bypass |
 | `DOCUMENT_API_KEY` | empty | Dedicated Bearer key for `/process-document` and `/ready` |
 | `ALLOW_UNAUTHENTICATED` | `false` | Local development bypass; never enable on a production server |

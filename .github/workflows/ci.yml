@@ -21,8 +21,10 @@ jobs:
     name: Lint & format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
@@ -33,15 +35,9 @@ jobs:
       - name: Install development dependencies
         run: python -m pip install -r requirements-dev.txt
       - name: Check formatting and lint
-        run: |
-          ruff check .
-          ruff format --check .
+        run: pre-commit run --all-files
       - name: Check requirements and lock file
         run: python scripts/check_lock.py
-      - name: Install ShellCheck
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck
-      - name: Check installer
-        run: shellcheck --shell=sh install.sh
 
   test:
     name: Tests (py${{ matrix.python-version }}, ${{ matrix.deps }})
@@ -65,8 +61,10 @@ jobs:
             deps: latest
             experimental: true
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -100,7 +98,7 @@ jobs:
       - name: Write coverage summary
         if: matrix.deps == 'lock' && matrix.python-version == '3.12'
         run: python -m coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always() && matrix.deps == 'lock' && matrix.python-version == '3.12'
         with:
           name: coverage-report
@@ -115,8 +113,10 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
@@ -148,8 +148,10 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: ${{ github.event_name == 'pull_request' }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install pip-audit
@@ -162,10 +164,12 @@ jobs:
     needs: [test, integration]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Build archive and checksum
         run: bash scripts/build_release.sh "ci-${GITHUB_SHA::7}"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-archive
           path: dist/

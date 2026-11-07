@@ -25,7 +25,7 @@ The bot must be able to reach the full endpoint URLs. It does not append `/trans
 ## 2. Settings correspondence
 
 | Purpose | `bot-obormot` | `audiodoc` | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Transcription URL | `WHISPER_API_URL` | Uvicorn host/port | Full URL, including `/transcribe` |
 | Document URL | `DOCUMENT_API_URL` | Uvicorn host/port | Full URL, including `/process-document` |
 | Transcription key | `WHISPER_API_KEY` | `WHISPER_API_KEY` | Values must match |
@@ -40,7 +40,7 @@ The bot must be able to reach the full endpoint URLs. It does not append `/trans
 ## 3. Effective limits
 
 | Limit | Bot | audiodoc | Effective behavior |
-|---|---:|---:|---|
+| --- | ---: | ---: | --- |
 | Uploaded file size | 20 MiB | Audio 25 MiB; document 50 MiB | The bot's 20 MiB limit is stricter for both upload types |
 | Audio duration | 300 s | 600 s | The bot rejects audio over 5 minutes before sending it |
 | Text passed to the LLM | 12,288 characters | Up to 2,000,000 characters by default | The bot asks audiodoc for at most 11,264 characters, reserving 1,024 for labels, filename, and caption |
@@ -139,14 +139,14 @@ export WHISPER_API_KEY='your-whisper-key'
 curl -fsS http://10.8.0.1:8000/health
 ```
 
-2. Document dependencies, document key required. Expect booleans and installed language codes:
+1. Document dependencies, document key required. Expect booleans and installed language codes:
 
 ```bash
 curl -fsS http://10.8.0.1:8000/ready \
   -H "Authorization: Bearer ${DOCUMENT_API_KEY}"
 ```
 
-3. Document extraction. Expect `format`, `text`, `characters`, and `truncated`:
+1. Document extraction. Expect `format`, `text`, `characters`, and `truncated`:
 
 ```bash
 echo 'Example document text.' > /tmp/audiodoc-sample.txt
@@ -157,7 +157,7 @@ curl -fsS \
   http://10.8.0.1:8000/process-document
 ```
 
-4. Transcription. Use a short valid `.ogg` file and expect `text`, `language`, and `duration`:
+1. Transcription. Use a short valid `.ogg` file and expect `text`, `language`, and `duration`:
 
 ```bash
 curl -fsS \
@@ -181,7 +181,7 @@ Do not combine the Whisper and document keys; they protect different endpoints.
 ## 7. Troubleshooting
 
 | Symptom | Likely cause | What to check |
-|---|---|---|
+| --- | --- | --- |
 | Bot cannot connect to the service | Wrong host/port, service stopped, firewall blocks traffic, or Uvicorn listens only on loopback | Call `/health` from machine A; inspect `ss -tlnp` and UFW rules on B |
 | HTTP `404` | URL is missing the endpoint path | Include `/transcribe` or `/process-document` in the bot URL |
 | HTTP `401` | Key mismatch or wrong key group | Compare the bot's Whisper key with `WHISPER_API_KEY`, and its document key with `DOCUMENT_API_KEY` without sharing secret values |

@@ -48,7 +48,7 @@ Response `200`:
 ```
 
 | Status | Meaning |
-|---:|---|
+| ---: | --- |
 | 400 | Audio is unreadable or exceeds `MAX_AUDIO_DURATION` |
 | 401 | Missing or invalid Whisper key |
 | 413 | Upload exceeds `MAX_AUDIO_SIZE` or request-body limit |
@@ -87,7 +87,7 @@ Response `200`:
 `format`, `text`, and `characters` are the required fields the bot validates. `truncated` is an additional boolean field; existing clients may ignore it. `characters` is the length of the returned text.
 
 | Status | Meaning |
-|---:|---|
+| ---: | --- |
 | 400 | Empty, corrupt, prohibited XML, or unsupported document |
 | 401 | Missing or invalid document key |
 | 413 | Document upload exceeds 50 MiB or request-body limit |

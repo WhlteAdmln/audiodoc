@@ -165,7 +165,7 @@ cpu | cuda) ;;
 *) die "--device must be cpu or cuda." ;;
 esac
 case "$MODEL" in
-	tiny | tiny.en | base | base.en | small | small.en | medium | medium.en | \
+tiny | tiny.en | base | base.en | small | small.en | medium | medium.en | \
 	large | large-v1 | large-v2 | large-v3 | large-v3-turbo | turbo | \
 	distil-small.en | distil-medium.en | distil-large-v2 | distil-large-v3) ;;
 *) die "Unsupported Whisper model name: $MODEL. See --help and faster-whisper model names." ;;
@@ -409,7 +409,8 @@ if [ "$HTTP_CODE" != "200" ]; then
 	die "GitHub Releases API returned HTTP $HTTP_CODE. Check repository access and GITHUB_TOKEN if this is a private repository."
 fi
 
-RELEASE_TAG=$("$PYTHON_BIN" - "$CHANNEL" "$API_JSON" <<'PY'
+RELEASE_TAG=$(
+	"$PYTHON_BIN" - "$CHANNEL" "$API_JSON" <<'PY'
 import json
 import sys
 
@@ -580,7 +581,8 @@ PY
 EXTRACT_DIR="$TMP_DIR/extracted"
 mkdir -p "$EXTRACT_DIR"
 unzip -q "$ZIP_FILE" -d "$EXTRACT_DIR" || die "Could not extract release ZIP."
-SOURCE_DIR=$("$PYTHON_BIN" - "$EXTRACT_DIR" <<'PY'
+SOURCE_DIR=$(
+	"$PYTHON_BIN" - "$EXTRACT_DIR" <<'PY'
 import sys
 from pathlib import Path
 
@@ -632,7 +634,8 @@ if [ "$DOWNLOAD_MODEL" -eq 1 ]; then
 	fi
 	MODEL_OUTPUT_DIR="$INSTALL_DIR/models/$MODEL"
 	mkdir -p "$MODEL_OUTPUT_DIR"
-	MODEL_PATH=$(cd "$INSTALL_DIR" && "$INSTALL_DIR/.venv/bin/python" - "$MODEL" "$MODEL_OUTPUT_DIR" <<'PY'
+	MODEL_PATH=$(
+		cd "$INSTALL_DIR" && "$INSTALL_DIR/.venv/bin/python" - "$MODEL" "$MODEL_OUTPUT_DIR" <<'PY'
 import sys
 from pathlib import Path
 from faster_whisper.utils import download_model
@@ -644,7 +647,7 @@ if not path.is_dir():
     raise SystemExit("faster-whisper did not produce a model directory")
 print(path)
 PY
-) || die "Whisper model download failed. Check network access, available disk space, and model name."
+	) || die "Whisper model download failed. Check network access, available disk space, and model name."
 	[ -n "$MODEL_PATH" ] || die "Whisper model download returned an empty path."
 fi
 
