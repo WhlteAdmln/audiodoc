@@ -29,7 +29,9 @@ router = APIRouter(
 @router.post("/process-document", response_model=DocumentResponse)
 async def process_document_endpoint(
     file: Annotated[UploadFile, File()],
-    max_characters: int | None = Form(default=None, ge=1, le=MAX_EXTRACTED_TEXT_LENGTH),
+    max_characters: Annotated[
+        int | None, Form(ge=1, le=MAX_EXTRACTED_TEXT_LENGTH)
+    ] = None,
 ) -> DocumentResult:
     """Extract text from a document through Document Engine."""
     filename = Path(file.filename or "document").name
