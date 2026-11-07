@@ -125,10 +125,10 @@ def main() -> int:
     errors = check_lock(args.requirements, args.lock)
     if errors:
         for error in errors:
-            print(f"ERROR: {error}", file=sys.stderr)
+            sys.stderr.write(f"ERROR: {error}\n")
         return 1
 
-    print(f"Lock is consistent: {args.requirements} -> {args.lock}")
+    sys.stdout.write(f"Lock is consistent: {args.requirements} -> {args.lock}\n")
     return 0
 
 
