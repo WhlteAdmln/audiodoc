@@ -7,6 +7,14 @@ import backend.document_engine.ocr.tesseract as tesseract_module
 from backend.errors.documents import DocumentRejectedError
 
 
+class _UnexpectedImageCopyError(AssertionError):
+    """Raised when OCR copies an oversized image frame."""
+
+    def __init__(self) -> None:
+        """Initialize the test assertion error."""
+        super().__init__("copy must not be called for oversized frames")
+
+
 class _OversizedImage:
     n_frames = 1
     width = 100
@@ -16,7 +24,7 @@ class _OversizedImage:
         return None
 
     def copy(self):
-        raise AssertionError("copy must not be called for oversized frames")
+        raise _UnexpectedImageCopyError
 
 
 def test_ocr_rejects_oversized_frame_before_copy(monkeypatch):

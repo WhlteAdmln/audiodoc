@@ -13,6 +13,18 @@ if TYPE_CHECKING:
     from xml.etree.ElementTree import Element
 
 
+class _ForbiddenXmlConstructsError(DocumentRejectedError):
+    """Raised when XML contains forbidden declarations."""
+
+    public_message = "XML содержит запрещённые конструкции"
+
+
+class _MalformedXmlDocumentError(DocumentRejectedError):
+    """Raised when an XML document cannot be parsed."""
+
+    public_message = "Некорректный XML-документ"
+
+
 def parse_xml(data: bytes) -> Element[str]:
     """Parse XML bytes with DTD and external entity processing disabled.
 
@@ -31,8 +43,8 @@ def parse_xml(data: bytes) -> Element[str]:
             data, forbid_dtd=True, forbid_entities=True, forbid_external=True
         )
     except DefusedXmlException as error:
-        raise DocumentRejectedError("XML содержит запрещённые конструкции") from error
+        raise _ForbiddenXmlConstructsError from error
     except Exception as error:
         # ElementTree parse errors and parser-level failures must not escape
         # with implementation details; the caller only needs a safe rejection.
-        raise DocumentRejectedError("Некорректный XML-документ") from error
+        raise _MalformedXmlDocumentError from error

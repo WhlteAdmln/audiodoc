@@ -27,6 +27,33 @@ logger = logging.getLogger(__name__)
 ZIP_FORMATS = {"docx", "xlsx", "pptx", "epub", "odt", "ods", "odp"}
 
 
+class _InvalidTextLimitError(DocumentRejectedError):
+    """Raised when the requested extraction text limit is invalid."""
+
+    public_message = "Некорректный лимит длины текста"
+
+
+class _EmptyDocumentError(DocumentRejectedError):
+    """Raised when the uploaded document is empty."""
+
+    public_message = "Документ пуст"
+
+
+class _InvalidDocumentArchiveError(DocumentRejectedError):
+    """Raised when a document contains an invalid archive."""
+
+    public_message = "Документ содержит повреждённый или недопустимый архив"
+
+
+class _DocumentExtractionFailedError(DocumentRejectedError):
+    """Raised when an extractor cannot read a document."""
+
+    public_message = (
+        "\u041d\u0435 удалось прочитать документ: файл повреждён или имеет "
+        "неподдерживаемую структуру"
+    )
+
+
 def process_document_sync(
     data: bytes,
     filename: str,
@@ -81,7 +108,7 @@ def _get_text_limit(max_characters: int | None) -> int:
             or not _is_integer(max_characters)
             or not 1 <= max_characters <= MAX_EXTRACTED_TEXT_LENGTH
         ):
-            raise DocumentRejectedError("Некорректный лимит длины текста")
+            raise _InvalidTextLimitError
         return min(MAX_EXTRACTED_TEXT_LENGTH, max_characters)
     return MAX_EXTRACTED_TEXT_LENGTH
 
@@ -89,7 +116,7 @@ def _get_text_limit(max_characters: int | None) -> int:
 def _validate_document_input(data: bytes, context: ExtractContext) -> None:
     context.check()
     if not data:
-        raise DocumentRejectedError("Документ пуст")
+        raise _EmptyDocumentError
     if len(data) > MAX_DOCUMENT_SIZE:
         raise PayloadTooLargeError
 
@@ -99,9 +126,7 @@ def _validate_zip_document(data: bytes, filetype: str) -> None:
         try:
             validate_zip_archive(data)
         except ValueError as error:
-            raise DocumentRejectedError(
-                "Документ содержит повреждённый или недопустимый архив"
-            ) from error
+            raise _InvalidDocumentArchiveError from error
 
 
 def _extract_document_text(
@@ -119,10 +144,7 @@ def _extract_document_text(
         raise
     except Exception as error:
         logger.exception("Document extractor failed: format=%s", filetype)
-        raise DocumentRejectedError(
-            "\u041d\u0435 удалось прочитать документ: файл повреждён или имеет "
-            "неподдерживаемую структуру"
-        ) from error
+        raise _DocumentExtractionFailedError from error
 
 
 def _is_integer(value: object) -> bool:

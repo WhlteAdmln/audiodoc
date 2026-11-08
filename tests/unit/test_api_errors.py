@@ -10,6 +10,14 @@ from backend.api.error_handlers import register_error_handlers
 from backend.errors.documents import DocumentRejectedError
 
 
+class _UnexpectedServerError(RuntimeError):
+    """Raised to exercise the sanitized unexpected-error handler."""
+
+    def __init__(self) -> None:
+        """Initialize the test exception with its private detail."""
+        super().__init__("private /srv/backend/secret.txt")
+
+
 def test_unexpected_exception_returns_generic_message_without_details(caplog):
     app = FastAPI()
     register_error_handlers(app)
@@ -17,7 +25,7 @@ def test_unexpected_exception_returns_generic_message_without_details(caplog):
 
     @router.get("/explode")
     async def explode():
-        raise RuntimeError("private /srv/backend/secret.txt")
+        raise _UnexpectedServerError
 
     app.include_router(router)
     caplog.set_level(logging.ERROR)
@@ -67,7 +75,7 @@ def test_typed_document_rejection_is_logged_without_raw_filename(caplog, monkeyp
     documents = import_module("backend.api.documents")
 
     async def reject_document(*_args, **_kwargs):
-        raise DocumentRejectedError("Документ не может быть обработан")
+        raise DocumentRejectedError
 
     monkeypatch.setattr(documents, "process_document", reject_document)
     app = FastAPI()

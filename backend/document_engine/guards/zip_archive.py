@@ -11,10 +11,34 @@ from backend.document_engine.limits import (
 )
 
 
+class _InvalidZipContainerError(ValueError):
+    """Raised when the input is not a valid ZIP container."""
+
+    def __init__(self) -> None:
+        """Initialize the validation error."""
+        super().__init__("Некорректный ZIP-контейнер")
+
+
+class _CorruptZipArchiveError(ValueError):
+    """Raised when the ZIP archive is corrupted."""
+
+    def __init__(self) -> None:
+        """Initialize the validation error."""
+        super().__init__("Повреждён ZIP-архив")
+
+
+class _ArchiveUnpackedSizeLimitError(ValueError):
+    """Raised when the total unpacked archive size exceeds its limit."""
+
+    def __init__(self) -> None:
+        """Initialize the validation error."""
+        super().__init__("Превышен общий лимит распакованного размера архива")
+
+
 def validate_zip_archive(data: bytes) -> None:
     """Проверяет ZIP-архив на чрезмерный размер и подозрительное сжатие."""
     if not zipfile.is_zipfile(io.BytesIO(data)):
-        raise ValueError("Некорректный ZIP-контейнер")
+        raise _InvalidZipContainerError
 
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
@@ -27,7 +51,7 @@ def validate_zip_archive(data: bytes) -> None:
                 raise ValueError(message)
 
     except zipfile.BadZipFile as error:
-        raise ValueError("Повреждён ZIP-архив") from error
+        raise _CorruptZipArchiveError from error
 
 
 def _validate_archive_entries(archive: zipfile.ZipFile) -> None:
@@ -54,7 +78,7 @@ def _validate_archive_entry(
 
     new_total_size = total_unpacked_size + item.file_size
     if new_total_size > MAX_ARCHIVE_UNPACKED_SIZE:
-        raise ValueError("Превышен общий лимит распакованного размера архива")
+        raise _ArchiveUnpackedSizeLimitError
 
     if item.file_size > 0:
         if item.compress_size == 0:

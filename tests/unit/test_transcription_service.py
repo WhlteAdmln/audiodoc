@@ -11,6 +11,14 @@ from backend.errors.transcription import AudioTooLongError, ModelNotReadyError
 from backend.transcription.model import model_holder
 
 
+class _UnexpectedSegmentIterationError(AssertionError):
+    """Raised when the test consumes segments for overlong audio."""
+
+    def __init__(self) -> None:
+        """Initialize the test assertion error."""
+        super().__init__("segments must not be consumed")
+
+
 class FakeModel:
     def __init__(self, duration=1.5):
         self.duration = duration
@@ -44,7 +52,7 @@ def test_transcribe_file_rejects_audio_over_duration_before_iterating_segments(
     class TooLongModel:
         def transcribe(self, path, **kwargs):
             def segments():
-                raise AssertionError("segments must not be consumed")
+                raise _UnexpectedSegmentIterationError
                 yield None
 
             return segments(), SimpleNamespace(language="ru", duration=9999)

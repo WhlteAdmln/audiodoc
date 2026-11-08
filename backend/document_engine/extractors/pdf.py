@@ -24,6 +24,24 @@ from backend.errors.documents import DocumentRejectedError
 logger = logging.getLogger(__name__)
 
 
+class _InvalidPdfPageSizeError(DocumentRejectedError):
+    """Raised when a PDF page has invalid dimensions."""
+
+    public_message = "Размер страницы PDF некорректен"
+
+
+class _PdfPageTooLargeError(DocumentRejectedError):
+    """Raised when a PDF page exceeds the safe OCR pixel limit."""
+
+    public_message = "Страница PDF слишком велика для безопасного OCR"
+
+
+class _PdfTooManyPagesError(DocumentRejectedError):
+    """Raised when a PDF document exceeds the page limit."""
+
+    public_message = "\u0412 PDF слишком много страниц"
+
+
 class _PageRect(Protocol):
     width: float
     height: float
@@ -44,7 +62,7 @@ def _render_dpi(page: object) -> int:
         or width_inches <= 0
         or height_inches <= 0
     ):
-        raise DocumentRejectedError("Размер страницы PDF некорректен")
+        raise _InvalidPdfPageSizeError
 
     dpi = min(
         PDF_OCR_DPI, int(math.sqrt(MAX_IMAGE_PIXELS / (width_inches * height_inches)))
@@ -54,7 +72,7 @@ def _render_dpi(page: object) -> int:
         if pixels <= MAX_IMAGE_PIXELS:
             return dpi
         dpi -= 1
-    raise DocumentRejectedError("Страница PDF слишком велика для безопасного OCR")
+    raise _PdfPageTooLargeError
 
 
 def extract_pdf(
@@ -70,7 +88,7 @@ def extract_pdf(
 
     with open_document(stream=data, filetype="pdf") as document:
         if document.page_count > MAX_DOCUMENT_PAGES:
-            raise DocumentRejectedError("\u0412 PDF слишком много страниц")
+            raise _PdfTooManyPagesError
 
         for index, page in enumerate(document):
             ctx.check()

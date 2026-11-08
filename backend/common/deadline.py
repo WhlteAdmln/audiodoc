@@ -8,8 +8,20 @@ import math
 import time
 
 
+class _InvalidDeadlineDurationError(ValueError):
+    """Raised when a deadline duration is invalid."""
+
+    def __init__(self) -> None:
+        """Initialize the validation error."""
+        super().__init__("seconds must be a finite positive number")
+
+
 class DeadlineExceededError(TimeoutError):
     """Neutral common-layer signal that an operation exhausted its deadline."""
+
+    def __init__(self, message: str = "processing deadline exceeded") -> None:
+        """Initialize the deadline error with its default message."""
+        super().__init__(message)
 
 
 class Deadline:
@@ -19,7 +31,7 @@ class Deadline:
         """Create a deadline relative to the current monotonic clock."""
         duration = float(seconds)
         if not math.isfinite(duration) or duration <= 0:
-            raise ValueError("seconds must be a finite positive number")
+            raise _InvalidDeadlineDurationError
         self._end = time.monotonic() + duration
 
     def remaining(self) -> float:
@@ -29,4 +41,4 @@ class Deadline:
     def check(self) -> None:
         """Raise when the total processing budget expires."""
         if self.remaining() <= 0:
-            raise DeadlineExceededError("processing deadline exceeded")
+            raise DeadlineExceededError

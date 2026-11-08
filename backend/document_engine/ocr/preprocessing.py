@@ -5,6 +5,13 @@ from PIL import Image, ImageOps
 from backend.document_engine.limits import MAX_IMAGE_PIXELS
 from backend.errors.documents import DocumentRejectedError
 
+
+class _ImageTooLargeError(DocumentRejectedError):
+    """Raised when an image exceeds the OCR pixel limit."""
+
+    public_message = "Изображение слишком большое: превышен лимит пикселей"
+
+
 SUPPORTED_IMAGE_FORMATS = {
     "PNG",
     "JPEG",
@@ -17,9 +24,7 @@ SUPPORTED_IMAGE_FORMATS = {
 def _prepare_image(image: Image.Image) -> Image.Image:
     """Подготавливает изображение для OCR."""
     if image.width * image.height > MAX_IMAGE_PIXELS:
-        raise DocumentRejectedError(
-            "Изображение слишком большое: превышен лимит пикселей"
-        )
+        raise _ImageTooLargeError
 
     # Исправляем ориентацию по EXIF.
     image = ImageOps.exif_transpose(image)

@@ -50,7 +50,7 @@ def test_csv_falls_back_to_excel_dialect_when_sniffer_fails(monkeypatch):
     csv_module = import_module("backend.document_engine.extractors.csv_text")
 
     def fail_sniff(*_args, **_kwargs):
-        raise csv_module.csv.Error("cannot determine dialect")
+        raise csv_module.csv.Error
 
     monkeypatch.setattr(csv_module.csv.Sniffer, "sniff", fail_sniff)
     assert extract_csv(b"one,two\nthree,four") == "one | two\nthree | four"

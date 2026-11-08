@@ -5,13 +5,37 @@ never allows the final joined text to exceed its configured character limit.
 """
 
 
+class _InvalidTextBudgetLimitError(ValueError):
+    """Raised when the text budget limit is invalid."""
+
+    def __init__(self) -> None:
+        """Initialize the validation error."""
+        super().__init__("limit must be a positive integer")
+
+
+class _InvalidTextChunkTypeError(TypeError):
+    """Raised when a text budget receives a non-string chunk."""
+
+    def __init__(self) -> None:
+        """Initialize the validation error."""
+        super().__init__("text must be a string")
+
+
+class _InvalidSeparatorLengthError(ValueError):
+    """Raised when the text separator length is invalid."""
+
+    def __init__(self) -> None:
+        """Initialize the validation error."""
+        super().__init__("separator_length must be a non-negative integer")
+
+
 class TextBudget:
     """A monotonic character budget for one document extraction operation."""
 
     def __init__(self, limit: int) -> None:
         """Create a budget with a positive maximum number of output characters."""
         if isinstance(limit, bool) or not _is_integer(limit) or limit < 1:
-            raise ValueError("limit must be a positive integer")
+            raise _InvalidTextBudgetLimitError
         self.limit = limit
         self.used = 0
         self._has_content = False
@@ -45,13 +69,13 @@ class TextBudget:
 
         """
         if not isinstance(text, str):
-            raise TypeError("text must be a string")
+            raise _InvalidTextChunkTypeError
         if (
             isinstance(separator_length, bool)
             or not _is_integer(separator_length)
             or separator_length < 0
         ):
-            raise ValueError("separator_length must be a non-negative integer")
+            raise _InvalidSeparatorLengthError
         if not text:
             return ""
         if self.exhausted:

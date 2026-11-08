@@ -22,6 +22,14 @@ from backend.transcription.model import model_holder  # noqa: E402
 client = TestClient(app)
 
 
+class _UnexpectedSegmentIterationError(AssertionError):
+    """Raised when the test consumes segments for overlong audio."""
+
+    def __init__(self) -> None:
+        """Initialize the test assertion error."""
+        super().__init__("segments should not be consumed for overlong audio")
+
+
 class FakeWhisperModel:
     def transcribe(self, file_path, **kwargs):
         assert Path(file_path).is_file()
@@ -49,7 +57,7 @@ def test_transcribe_response_shape_with_fake_model(monkeypatch):
 class TooLongWhisperModel:
     def transcribe(self, file_path, **kwargs):
         def segments():
-            raise AssertionError("segments should not be consumed for overlong audio")
+            raise _UnexpectedSegmentIterationError
             yield None
 
         info = SimpleNamespace(language="ru", duration=9999)

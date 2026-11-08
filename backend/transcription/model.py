@@ -10,6 +10,14 @@ from backend.config import settings
 logger = logging.getLogger(__name__)
 
 
+class _WhisperModelNotLoadedError(RuntimeError):
+    """Raised when the Whisper model has not been initialized."""
+
+    def __init__(self) -> None:
+        """Initialize the model state error."""
+        super().__init__("Whisper model is not loaded")
+
+
 class _TranscriptionSegment(Protocol):
     """Expose the segment data consumed by the transcription service."""
 
@@ -93,7 +101,7 @@ class ModelHolder:
 
         """
         if self._model is None:
-            raise RuntimeError("Whisper model is not loaded")
+            raise _WhisperModelNotLoadedError
         return self._model
 
 

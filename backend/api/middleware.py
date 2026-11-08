@@ -4,6 +4,14 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
+class _InvalidBodySizeLimitError(ValueError):
+    """Raised when the configured request body size limit is invalid."""
+
+    def __init__(self) -> None:
+        """Initialize the validation error."""
+        super().__init__("max_body_size must be positive")
+
+
 class _RequestBodyTooLargeError(Exception):
     pass
 
@@ -19,7 +27,7 @@ class BodySizeLimitMiddleware:
             max_body_size: Maximum permitted request body size in bytes.
         """
         if max_body_size <= 0:
-            raise ValueError("max_body_size must be positive")
+            raise _InvalidBodySizeLimitError
         self.app = app
         self.max_body_size = max_body_size
 

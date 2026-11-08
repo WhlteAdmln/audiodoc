@@ -26,6 +26,54 @@ from backend.errors.documents import DocumentRejectedError, ProcessingTimeoutErr
 logger = logging.getLogger(__name__)
 
 
+class _DjvuOutputTooLargeError(DocumentRejectedError):
+    """Raised when a DjVuLibre command produces excessive output."""
+
+    public_message = "Результат программы DjVuLibre слишком большой"
+
+
+class _DjvuProcessingTimeoutError(ProcessingTimeoutError):
+    """Raised when a DjVuLibre command exceeds its processing deadline."""
+
+    public_message = "Превышено время обработки DJVU"
+
+
+class _DjvuPageCountUnavailableError(DocumentRejectedError):
+    """Raised when the DjVu page count cannot be determined."""
+
+    public_message = "\u041d\u0435 удалось определить количество страниц DJVU"
+
+
+class _InvalidDjvuPageCountError(DocumentRejectedError):
+    """Raised when the DjVu page count is malformed."""
+
+    public_message = "Некорректное количество страниц DJVU"
+
+
+class _DjvuNoPagesError(DocumentRejectedError):
+    """Raised when a DjVu document contains no pages."""
+
+    public_message = "\u0412 DJVU не найдено страниц"
+
+
+class _DjvuTooManyPagesError(DocumentRejectedError):
+    """Raised when a DjVu document exceeds the page limit."""
+
+    public_message = "\u0412 DJVU слишком много страниц"
+
+
+class _DjvuPageRenderError(DocumentRejectedError):
+    """Raised when a DjVu page cannot be rendered."""
+
+    public_message = "\u041d\u0435 удалось отобразить страницу DJVU"
+
+
+class _DjvuPageTooLargeError(DocumentRejectedError):
+    """Raised when a rendered DjVu page exceeds the OCR size limit."""
+
+    public_message = "Страница DJVU слишком велика для OCR"
+
+
 def _run_djvu_command(
     args: list[str],
     context: ExtractContext,
@@ -44,12 +92,10 @@ def _run_djvu_command(
             max_output=max_output,
         )
     except SubprocessOutputLimitError as error:
-        raise DocumentRejectedError(
-            "Результат программы DjVuLibre слишком большой"
-        ) from error
+        raise _DjvuOutputTooLargeError from error
     except SubprocessTimeoutError as error:
         context.check()
-        raise ProcessingTimeoutError("Превышено время обработки DJVU") from error
+        raise _DjvuProcessingTimeoutError from error
 
 
 def _get_page_count(
@@ -71,17 +117,15 @@ def _get_page_count(
             "djvused page count failed: stderr=%r",
             stderr.decode("utf-8", errors="replace"),
         )
-        raise DocumentRejectedError(
-            "\u041d\u0435 удалось определить количество страниц DJVU"
-        )
+        raise _DjvuPageCountUnavailableError
     try:
         page_count = int(output.decode("utf-8", errors="replace").strip())
     except ValueError as error:
-        raise DocumentRejectedError("Некорректное количество страниц DJVU") from error
+        raise _InvalidDjvuPageCountError from error
     if page_count <= 0:
-        raise DocumentRejectedError("\u0412 DJVU не найдено страниц")
+        raise _DjvuNoPagesError
     if page_count > MAX_DOCUMENT_PAGES:
-        raise DocumentRejectedError("\u0412 DJVU слишком много страниц")
+        raise _DjvuTooManyPagesError
     return page_count
 
 
@@ -123,17 +167,13 @@ def extract_ocr_pages(
                     page_number,
                     stderr.decode("utf-8", errors="replace"),
                 )
-                raise DocumentRejectedError(
-                    "\u041d\u0435 удалось отобразить страницу DJVU"
-                )
+                raise _DjvuPageRenderError
             if not image_path.is_file():
-                raise DocumentRejectedError(
-                    "\u041d\u0435 удалось отобразить страницу DJVU"
-                )
+                raise _DjvuPageRenderError
 
             page_size = image_path.stat().st_size
             if page_size > MAX_DJVU_PAGE_BYTES:
-                raise DocumentRejectedError("Страница DJVU слишком велика для OCR")
+                raise _DjvuPageTooLargeError
 
             image_data = image_path.read_bytes()
             ctx.check()

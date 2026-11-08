@@ -14,6 +14,12 @@ from backend.errors.documents import DocumentRejectedError
 BLOCK_TAGS = {"title", "subtitle", "p", "v", "text-author", "date"}
 
 
+class _MissingFb2BodyError(DocumentRejectedError):
+    """Raised when an FB2 document does not contain a body element."""
+
+    public_message = "\u0412 FB2 не найдено содержимое книги"
+
+
 def _iter_text_blocks(element: ET.Element) -> Iterator[str]:
     """Yield text in block-aware order without constructing a whole-book string."""
     tag = element.tag.split("}")[-1]
@@ -37,7 +43,7 @@ def extract_fb2(data: bytes, *, context: ExtractContext | None = None) -> str:
     root = parse_xml(data)
     bodies = [item for item in root.iter() if item.tag.split("}")[-1] == "body"]
     if not bodies:
-        raise DocumentRejectedError("\u0412 FB2 не найдено содержимое книги")
+        raise _MissingFb2BodyError
 
     result: list[str] = []
     for body in bodies:

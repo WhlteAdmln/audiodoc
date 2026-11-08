@@ -14,6 +14,24 @@ from backend.errors.documents import DocumentRejectedError
 logger = logging.getLogger(__name__)
 
 
+class _EmptyImageError(DocumentRejectedError):
+    """Raised when OCR receives empty image data."""
+
+    public_message = "Изображение пустое"
+
+
+class _UnknownImageFormatError(DocumentRejectedError):
+    """Raised when the image format cannot be identified."""
+
+    public_message = "\u041d\u0435 удалось определить формат изображения"
+
+
+class _UnsupportedOcrImageFormatError(DocumentRejectedError):
+    """Raised when an image format is unsupported by OCR."""
+
+    public_message = "Формат изображения не поддерживается для OCR"
+
+
 def extract_image_text(
     data: bytes,
     languages: str = DEFAULT_OCR_LANGUAGES,
@@ -24,19 +42,17 @@ def extract_image_text(
     if deadline is not None:
         deadline.check()
     if not data:
-        raise DocumentRejectedError("Изображение пустое")
+        raise _EmptyImageError
 
     ensure_ready(languages)
     try:
         image = Image.open(io.BytesIO(data))
     except UnidentifiedImageError as error:
-        raise DocumentRejectedError(
-            "\u041d\u0435 удалось определить формат изображения"
-        ) from error
+        raise _UnknownImageFormatError from error
 
     with image:
         if image.format not in SUPPORTED_IMAGE_FORMATS:
-            raise DocumentRejectedError("Формат изображения не поддерживается для OCR")
+            raise _UnsupportedOcrImageFormatError
         return recognize_pages(image, languages, deadline=deadline)
 
 

@@ -26,6 +26,22 @@ from backend.errors.documents import (
 )
 
 
+class _UnexpectedDjvuCommandError(AssertionError):
+    """Raised when the test receives an unexpected DjVu command."""
+
+    def __init__(self, command: str) -> None:
+        """Initialize the assertion error with the unexpected command."""
+        super().__init__(f"Unexpected command: {command}")
+
+
+class _UnexpectedOcrCallError(AssertionError):
+    """Raised when OCR is unexpectedly called despite an existing text layer."""
+
+    def __init__(self) -> None:
+        """Initialize the test assertion error."""
+        super().__init__("OCR must not run when a text layer exists")
+
+
 def test_djvu_returns_text_layer_without_running_ocr(monkeypatch):
     captured = {}
     tools = DjvuTools("/usr/bin/djvutxt", None, None)
@@ -38,7 +54,7 @@ def test_djvu_returns_text_layer_without_running_ocr(monkeypatch):
         return "Text layer content"
 
     def unexpected_ocr(*_args, **_kwargs):
-        raise AssertionError("OCR must not run when a text layer exists")
+        raise _UnexpectedOcrCallError
 
     monkeypatch.setattr(djvu_module, "extract_text_layer", fake_extract_text_layer)
     monkeypatch.setattr(djvu_module, "extract_ocr_pages", unexpected_ocr)
@@ -128,8 +144,7 @@ def test_ocr_pages_renders_at_bounded_size_and_recognizes_each_page(
         if args[0] == "/usr/bin/ddjvu":
             Path(args[-1]).write_bytes(b"TIFF-data")
             return 0, b"", b""
-        message = f"Unexpected command: {args[0]}"
-        raise AssertionError(message)
+        raise _UnexpectedDjvuCommandError(args[0])
 
     recognized = iter((" Page one ", " Page two "))
     monkeypatch.setattr(ocr_pages_module, "run_limited", fake_run)

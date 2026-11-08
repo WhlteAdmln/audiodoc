@@ -5,6 +5,38 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
 
+class _InvalidWorkerCountError(ValueError):
+    """Raised when the configured worker count is invalid."""
+
+    def __init__(self) -> None:
+        """Initialize the validation error."""
+        super().__init__("workers must be a positive integer")
+
+
+class _InvalidMaxWaitingError(ValueError):
+    """Raised when the configured waiting queue size is invalid."""
+
+    def __init__(self) -> None:
+        """Initialize the validation error."""
+        super().__init__("max_waiting must be a non-negative integer")
+
+
+class _InvalidErrorFactoryError(TypeError):
+    """Raised when the queue error factory is not callable."""
+
+    def __init__(self) -> None:
+        """Initialize the validation error."""
+        super().__init__("error_factory must be callable")
+
+
+class _QueueReconfigurationError(RuntimeError):
+    """Raised when a queue is reconfigured while it is in use."""
+
+    def __init__(self) -> None:
+        """Initialize the queue configuration error."""
+        super().__init__("cannot reconfigure a queue while it is in use")
+
+
 class QueueFullError(RuntimeError):
     """Neutral common-layer signal that no active or waiting slot is available."""
 
@@ -27,10 +59,10 @@ class WorkQueue:
     ) -> None:
         """Create a queue with active slots, waiting positions, and error factory."""
         if isinstance(workers, bool) or not _is_integer(workers) or workers <= 0:
-            raise ValueError("workers must be a positive integer")
+            raise _InvalidWorkerCountError
         self._validate_max_waiting(max_waiting)
         if not callable(error_factory):
-            raise TypeError("error_factory must be callable")
+            raise _InvalidErrorFactoryError
 
         self._semaphore = asyncio.Semaphore(workers)
         self._workers = workers
@@ -46,7 +78,7 @@ class WorkQueue:
             or not _is_integer(max_waiting)
             or max_waiting < 0
         ):
-            raise ValueError("max_waiting must be a non-negative integer")
+            raise _InvalidMaxWaitingError
 
     @property
     def waiting(self) -> int:
@@ -61,7 +93,7 @@ class WorkQueue:
         """Update the waiting-room size during application startup only."""
         self._validate_max_waiting(max_waiting)
         if self._waiting or self._active:
-            raise RuntimeError("cannot reconfigure a queue while it is in use")
+            raise _QueueReconfigurationError
         self._max_waiting = max_waiting
 
     @asynccontextmanager

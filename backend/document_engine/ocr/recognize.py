@@ -9,9 +9,24 @@ from backend.document_engine.limits import (
     MAX_IMAGE_PIXELS,
     OCR_PAGE_TIMEOUT,
 )
-from backend.document_engine.ocr.preprocessing import _prepare_image
+from backend.document_engine.ocr.preprocessing import (
+    _ImageTooLargeError,
+    _prepare_image,
+)
 from backend.document_engine.ocr.tesseract import pytesseract
 from backend.errors.documents import DocumentRejectedError
+
+
+class _TooManyImageFramesError(DocumentRejectedError):
+    """Raised when an image contains more frames than allowed."""
+
+    public_message = "\u0412 изображении слишком много страниц"
+
+
+class _ImageRecognitionFailedError(DocumentRejectedError):
+    """Raised when Tesseract cannot recognize an image page."""
+
+    public_message = "\u041d\u0435 удалось распознать страницу изображения"
 
 
 def recognize_pages(
@@ -23,7 +38,7 @@ def recognize_pages(
     """Recognize image frames, rejecting oversized frames before copying them."""
     page_count = getattr(image, "n_frames", 1)
     if page_count > MAX_DOCUMENT_PAGES:
-        raise DocumentRejectedError("\u0412 изображении слишком много страниц")
+        raise _TooManyImageFramesError
 
     result: list[str] = []
     total_characters = 0
@@ -59,9 +74,7 @@ def _recognize_page(
 
     # Accessing dimensions does not create a decoded copy; copy() below does.
     if image.width * image.height > MAX_IMAGE_PIXELS:
-        raise DocumentRejectedError(
-            "Изображение слишком большое: превышен лимит пикселей"
-        )
+        raise _ImageTooLargeError
 
     prepared = _prepare_image(image.copy())
     try:
@@ -79,9 +92,7 @@ def _recognize_page(
     except RuntimeError as error:
         if deadline is not None:
             deadline.check()
-        raise DocumentRejectedError(
-            "\u041d\u0435 удалось распознать страницу изображения"
-        ) from error
+        raise _ImageRecognitionFailedError from error
     finally:
         prepared.close()
 

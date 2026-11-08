@@ -10,6 +10,22 @@ from backend.api.error_handlers import register_error_handlers
 from backend.errors.base import ServerBusyError
 
 
+class _UnexpectedUploadReadError(AssertionError):
+    """Raised when a test unexpectedly reads an upload."""
+
+    def __init__(self) -> None:
+        """Initialize the test assertion error."""
+        super().__init__("upload must not be read when the queue is full")
+
+
+class _UnexpectedAudioWriteError(AssertionError):
+    """Raised when a test unexpectedly writes an audio file."""
+
+    def __init__(self) -> None:
+        """Initialize the test assertion error."""
+        super().__init__("audio must not be copied when the queue is full")
+
+
 def _app_with_router(router):
     app = FastAPI()
     register_error_handlers(app)
@@ -39,7 +55,7 @@ def test_document_queue_rejects_before_upload_is_copied(monkeypatch):
         yield
 
     def unexpected_read(*_args, **_kwargs):
-        raise AssertionError("upload must not be read when the queue is full")
+        raise _UnexpectedUploadReadError
 
     monkeypatch.setattr(documents.document_queue, "slot", reject_slot)
     monkeypatch.setattr(documents, "read_upload_limited", unexpected_read)
@@ -61,7 +77,7 @@ def test_transcription_queue_rejects_before_temp_file_write(monkeypatch):
         yield
 
     def unexpected_write(*_args, **_kwargs):
-        raise AssertionError("audio must not be copied when the queue is full")
+        raise _UnexpectedAudioWriteError
 
     monkeypatch.setattr(transcribe.model_holder, "_model", object())
     monkeypatch.setattr(transcribe.transcription_queue, "slot", reject_slot)
