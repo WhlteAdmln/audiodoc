@@ -4,7 +4,8 @@ import contextvars
 import logging
 import re
 import uuid
-from typing import Any
+
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
     "request_id", default="-"
@@ -15,10 +16,10 @@ _VALID_REQUEST_ID = re.compile(r"[A-Za-z0-9._-]{8,64}")
 class RequestIdMiddleware:
     """Validate or create X-Request-ID and echo it on every HTTP response."""
 
-    def __init__(self, app: Any) -> None:
+    def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
-    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Process an ASGI request with a validated correlation ID."""
         if scope["type"] != "http":
             await self.app(scope, receive, send)
@@ -31,7 +32,7 @@ class RequestIdMiddleware:
         )
         token = request_id_var.set(request_id)
 
-        async def send_with_request_id(message: dict[str, Any]) -> None:
+        async def send_with_request_id(message: Message) -> None:
             """Echo the validated identifier on the ASGI response start."""
             if message["type"] == "http.response.start":
                 response_headers = [
