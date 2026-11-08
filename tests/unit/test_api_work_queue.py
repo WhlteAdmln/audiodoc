@@ -32,7 +32,7 @@ def test_server_busy_error_returns_retry_after_header():
 
 
 def test_document_queue_rejects_before_upload_is_copied(monkeypatch):
-    import backend.api.documents as documents
+    from backend.api import documents
 
     @asynccontextmanager
     async def reject_slot():
@@ -54,7 +54,7 @@ def test_document_queue_rejects_before_upload_is_copied(monkeypatch):
 
 
 def test_transcription_queue_rejects_before_temp_file_write(monkeypatch):
-    import backend.api.transcribe as transcribe
+    from backend.api import transcribe
 
     @asynccontextmanager
     async def reject_slot():

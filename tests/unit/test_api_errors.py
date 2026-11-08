@@ -28,7 +28,7 @@ def test_unexpected_exception_returns_generic_message_without_details(caplog):
 
 
 def test_document_filename_is_sanitized_before_logging(caplog, monkeypatch):
-    import backend.api.documents as documents
+    from backend.api import documents
     from backend.api.error_handlers import register_error_handlers
 
     async def fake_process_document(*_args, **_kwargs):
@@ -63,7 +63,7 @@ def _document_result():
 
 
 def test_typed_document_rejection_is_logged_without_raw_filename(caplog, monkeypatch):
-    import backend.api.documents as documents
+    from backend.api import documents
     from backend.errors.documents import DocumentRejectedError
 
     async def reject_document(*_args, **_kwargs):
