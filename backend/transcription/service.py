@@ -32,10 +32,11 @@ def _transcribe_sync(path: Path) -> dict[str, Any]:
 
     duration = float(info.duration)
     if duration > settings.MAX_AUDIO_DURATION:
-        raise AudioTooLongError(
+        message = (
             "Аудио слишком длинное. Максимальная длительность: "
             f"{settings.MAX_AUDIO_DURATION} с."
         )
+        raise AudioTooLongError(message)
 
     text = " ".join(segment.text.strip() for segment in segments).strip()
     return {"text": text, "language": info.language, "duration": duration}

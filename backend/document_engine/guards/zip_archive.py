@@ -23,7 +23,8 @@ def validate_zip_archive(data: bytes) -> None:
             # Проверяем CRC и фактическую целостность содержимого.
             bad_file = archive.testzip()
             if bad_file is not None:
-                raise ValueError(f"Повреждён файл внутри архива: {bad_file}")
+                message = f"Повреждён файл внутри архива: {bad_file}"
+                raise ValueError(message)
 
     except zipfile.BadZipFile as error:
         raise ValueError("Повреждён ZIP-архив") from error
@@ -32,7 +33,8 @@ def validate_zip_archive(data: bytes) -> None:
 def _validate_archive_entries(archive: zipfile.ZipFile) -> None:
     files = archive.infolist()
     if len(files) > MAX_ARCHIVE_FILES:
-        raise ValueError(f"Слишком много файлов в архиве: {len(files)}")
+        message = f"Слишком много файлов в архиве: {len(files)}"
+        raise ValueError(message)
 
     total_unpacked_size = 0
     for item in files:
@@ -47,7 +49,8 @@ def _validate_archive_entry(
         return 0
 
     if item.file_size > MAX_ARCHIVE_FILE_SIZE:
-        raise ValueError(f"Файл внутри архива слишком большой: {item.filename}")
+        message = f"Файл внутри архива слишком большой: {item.filename}"
+        raise ValueError(message)
 
     new_total_size = total_unpacked_size + item.file_size
     if new_total_size > MAX_ARCHIVE_UNPACKED_SIZE:
@@ -55,10 +58,12 @@ def _validate_archive_entry(
 
     if item.file_size > 0:
         if item.compress_size == 0:
-            raise ValueError(f"Подозрительный размер сжатого файла: {item.filename}")
+            message = f"Подозрительный размер сжатого файла: {item.filename}"
+            raise ValueError(message)
 
         ratio = item.file_size / item.compress_size
         if ratio > MAX_ARCHIVE_COMPRESSION_RATIO:
-            raise ValueError(f"Подозрительная степень сжатия: {item.filename}")
+            message = f"Подозрительная степень сжатия: {item.filename}"
+            raise ValueError(message)
 
     return item.file_size

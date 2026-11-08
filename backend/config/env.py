@@ -17,9 +17,8 @@ def get_bool(name: str, default: bool = False) -> bool:
     if normalized in {"0", "false", "no", "off"}:
         return False
 
-    raise ValueError(
-        f"Настройка {name} должна быть true или false. Получено: {value!r}"
-    )
+    message = f"Настройка {name} должна быть true или false. Получено: {value!r}"
+    raise ValueError(message)
 
 
 def get_int(name: str, default: str, minimum: int = 1) -> int:
@@ -29,14 +28,13 @@ def get_int(name: str, default: str, minimum: int = 1) -> int:
     try:
         result = int(value)
     except (TypeError, ValueError) as error:
-        raise ValueError(
-            f"Настройка {name} должна быть целым числом. Получено: {value!r}"
-        ) from error
+        message = f"Настройка {name} должна быть целым числом. Получено: {value!r}"
+        raise ValueError(message) from error
 
     if result < minimum:
-        raise ValueError(
-            f"Настройка {name} должна быть не меньше {minimum}. Получено: {result}"
-        )
+        message = f"Настройка {name} должна быть не меньше {minimum}."
+        message += f" Получено: {result}"
+        raise ValueError(message)
 
     return result
 
@@ -53,23 +51,21 @@ def get_float(
     try:
         result = float(value)
     except (TypeError, ValueError) as error:
-        raise ValueError(
-            f"Настройка {name} должна быть числом. Получено: {value!r}"
-        ) from error
+        message = f"Настройка {name} должна быть числом. Получено: {value!r}"
+        raise ValueError(message) from error
 
     if not math.isfinite(result):
-        raise ValueError(
-            f"Настройка {name} должна быть конечным числом. Получено: {value!r}"
-        )
+        message = f"Настройка {name} должна быть конечным числом. Получено: {value!r}"
+        raise ValueError(message)
 
     if minimum is not None and result < minimum:
-        raise ValueError(
-            f"Настройка {name} должна быть не меньше {minimum}. Получено: {result}"
-        )
+        message = f"Настройка {name} должна быть не меньше {minimum}."
+        message += f" Получено: {result}"
+        raise ValueError(message)
 
     if maximum is not None and result > maximum:
-        raise ValueError(
-            f"Настройка {name} должна быть не больше {maximum}. Получено: {result}"
-        )
+        message = f"Настройка {name} должна быть не больше {maximum}."
+        message += f" Получено: {result}"
+        raise ValueError(message)
 
     return result

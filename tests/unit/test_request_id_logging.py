@@ -55,7 +55,8 @@ def test_request_id_filter_adds_context_to_log_records():
 
 
 def _raise_upstream_error(sensitive_value: str) -> None:
-    raise RuntimeError(f"upstream request Authorization: Bearer {sensitive_value}")
+    message = f"upstream request Authorization: Bearer {sensitive_value}"
+    raise RuntimeError(message)
 
 
 def test_secrets_filter_redacts_message_arguments_and_traceback():

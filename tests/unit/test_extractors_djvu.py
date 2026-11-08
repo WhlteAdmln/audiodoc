@@ -125,7 +125,8 @@ def test_ocr_pages_renders_at_bounded_size_and_recognizes_each_page(
         if args[0] == "/usr/bin/ddjvu":
             Path(args[-1]).write_bytes(b"TIFF-data")
             return 0, b"", b""
-        raise AssertionError(f"Unexpected command: {args[0]}")
+        message = f"Unexpected command: {args[0]}"
+        raise AssertionError(message)
 
     recognized = iter((" Page one ", " Page two "))
     monkeypatch.setattr(ocr_pages_module, "run_limited", fake_run)
