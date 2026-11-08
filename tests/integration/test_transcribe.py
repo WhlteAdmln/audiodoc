@@ -1,7 +1,7 @@
-"""Интеграционная проверка HTTP-ответа Whisper с подставной моделью.
+"""Integration test for the Whisper HTTP response with a fake model.
 
-Настоящая модель не загружается: TestClient используется без запуска lifespan,
-а объект модели подменяется непосредственно в тесте.
+The real model is not loaded: TestClient is used without starting lifespan,
+and the model object is replaced directly in the test.
 """
 
 from pathlib import Path

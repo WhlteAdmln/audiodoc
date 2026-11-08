@@ -1,7 +1,7 @@
-"""Фабрики небольших документов для тестов Document Engine.
+"""Small document factories for Document Engine tests.
 
-Все функции возвращают байты, чтобы вызывающие тесты могли создавать файлы
-в изолированном каталоге pytest (tmp_path).
+All functions return bytes so callers can create files
+in an isolated pytest temporary directory (tmp_path).
 """
 
 import tempfile
@@ -165,7 +165,7 @@ def create_odp() -> bytes:
 
 
 def create_scanned_pdf() -> bytes:
-    """Создаёт PDF с текстовой страницей и страницей для OCR."""
+    """Create a PDF with a text page and a page for OCR."""
     import pymupdf
     from PIL import Image, ImageDraw, ImageFont
 
