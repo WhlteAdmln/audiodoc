@@ -12,6 +12,12 @@ class BodySizeLimitMiddleware:
     """Reject HTTP bodies larger than ``max_body_size`` bytes."""
 
     def __init__(self, app: ASGIApp, max_body_size: int) -> None:
+        """Initialize the middleware with an ASGI app and body size limit.
+
+        Args:
+            app: Downstream ASGI application.
+            max_body_size: Maximum permitted request body size in bytes.
+        """
         if max_body_size <= 0:
             raise ValueError("max_body_size must be positive")
         self.app = app

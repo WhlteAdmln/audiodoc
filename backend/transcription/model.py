@@ -58,6 +58,7 @@ class ModelHolder:
     """Owns the single Whisper model instance for this application process."""
 
     def __init__(self) -> None:
+        """Initialize an empty model holder."""
         self._model: _WhisperModel | None = None
 
     @property

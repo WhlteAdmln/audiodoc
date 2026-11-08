@@ -11,6 +11,11 @@ class SecretsFilter(logging.Filter):
     """Replace known secrets, Telegram tokens, and logged Bearer values."""
 
     def __init__(self, secrets: list[str] | tuple[str, ...]) -> None:
+        """Initialize the filter with secrets to redact.
+
+        Args:
+            secrets: Values that should be removed from log output.
+        """
         super().__init__()
         self._secrets = [secret for secret in secrets if secret and len(secret) >= 8]
 

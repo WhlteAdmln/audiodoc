@@ -17,6 +17,11 @@ class RequestIdMiddleware:
     """Validate or create X-Request-ID and echo it on every HTTP response."""
 
     def __init__(self, app: ASGIApp) -> None:
+        """Initialize the middleware with the downstream ASGI application.
+
+        Args:
+            app: Downstream ASGI application.
+        """
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
