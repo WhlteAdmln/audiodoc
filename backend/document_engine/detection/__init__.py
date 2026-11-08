@@ -21,14 +21,13 @@ def detect_format(
     data: bytes,
     filename: str | None = None,
 ) -> str | None:
-    """
-    Определяет формат документа.
+    """Determine the document format.
 
-    Порядок проверок сохранён: расширение картинки, сигнатуры PDF/DJVU/OLE,
-    ZIP, RTF, расширение и проверка содержимого на текст.
+    The detection order is preserved: image extension, PDF/DJVU/OLE signatures,
+    ZIP, RTF, extension, and text-content detection.
 
-    Самостоятельные изображения не обрабатываются: они направляются
-    в отдельный Vision Engine.
+    Standalone images are not processed; they are routed to the separate
+    Vision Engine.
     """
     if not data:
         return None
