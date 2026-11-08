@@ -160,15 +160,11 @@ max-branches = 12
 "tests/unit/test_zip_guard.py" = ["CPY001", "INP001"]
 
 [tool.mypy]
+mypy_path = "typings"
 python_version = "3.11"
 strict = true
 warn_unreachable = true
 enable_error_code = ["ignore-without-code", "redundant-expr"]
-
-# defusedxml does not provide type information.
-[[tool.mypy.overrides]]
-module = ["defusedxml", "defusedxml.*"]
-ignore_missing_imports = true
 
 # openpyxl does not provide type information.
 [[tool.mypy.overrides]]

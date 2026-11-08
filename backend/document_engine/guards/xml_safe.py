@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from defusedxml import ElementTree as SafeElementTree
 from defusedxml.common import DefusedXmlException
@@ -27,11 +27,8 @@ def parse_xml(data: bytes) -> Element[str]:
 
     """
     try:
-        return cast(
-            "Element[str]",
-            SafeElementTree.fromstring(
-                data, forbid_dtd=True, forbid_entities=True, forbid_external=True
-            ),
+        return SafeElementTree.fromstring(
+            data, forbid_dtd=True, forbid_entities=True, forbid_external=True
         )
     except DefusedXmlException as error:
         raise DocumentRejectedError("XML содержит запрещённые конструкции") from error
