@@ -166,11 +166,6 @@ strict = true
 warn_unreachable = true
 enable_error_code = ["ignore-without-code", "redundant-expr"]
 
-# openpyxl does not provide type information.
-[[tool.mypy.overrides]]
-module = ["openpyxl", "openpyxl.*"]
-ignore_missing_imports = true
-
 # odfpy does not provide type information.
 [[tool.mypy.overrides]]
 module = ["odf", "odf.*"]
