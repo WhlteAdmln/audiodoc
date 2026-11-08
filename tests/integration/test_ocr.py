@@ -12,11 +12,14 @@ def test_ocr_recognizes_text_from_image():
     if shutil.which("tesseract") is None:
         pytest.skip("Tesseract is not installed")
 
-    import pytesseract
+    try:
+        import pytesseract
+    except ImportError as error:
+        pytest.skip(f"Tesseract languages are unavailable: {error}")
 
     try:
         languages = set(pytesseract.get_languages(config=""))
-    except Exception as error:
+    except (OSError, pytesseract.TesseractError) as error:
         pytest.skip(f"Tesseract languages are unavailable: {error}")
 
     if not {"rus", "eng"}.issubset(languages):

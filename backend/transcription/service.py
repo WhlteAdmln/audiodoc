@@ -47,13 +47,12 @@ async def _run_transcription(path: Path) -> dict[str, Any]:
     try:
         return await asyncio.shield(worker)
     except asyncio.CancelledError:
-        while not worker.done():
+        cleanup = asyncio.gather(worker, return_exceptions=True)
+        while not cleanup.done():
             try:
-                await asyncio.shield(worker)
+                await asyncio.shield(cleanup)
             except asyncio.CancelledError:
                 continue
-            except Exception:
-                break
         raise
 
 

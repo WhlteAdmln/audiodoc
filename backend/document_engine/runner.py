@@ -42,13 +42,12 @@ async def _run_pipeline(
     except asyncio.CancelledError:
         # Cancelling asyncio.to_thread does not stop the OS thread. Keep this
         # queue slot until the worker really exits so concurrency stays bounded.
-        while not worker.done():
+        cleanup = asyncio.gather(worker, return_exceptions=True)
+        while not cleanup.done():
             try:
-                await asyncio.shield(worker)
+                await asyncio.shield(cleanup)
             except asyncio.CancelledError:
                 continue
-            except Exception:
-                break
         raise
 
 

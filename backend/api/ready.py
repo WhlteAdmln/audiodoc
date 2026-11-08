@@ -23,9 +23,13 @@ def _available_tesseract_languages() -> tuple[bool, list[str]]:
 
     try:
         import pytesseract
+    except ImportError:
+        logger.warning("Unable to query Tesseract language data")
+        return True, []
 
+    try:
         return True, sorted(set(pytesseract.get_languages(config="")))
-    except Exception:
+    except (OSError, pytesseract.TesseractError):
         # Keep the diagnostic endpoint safe and useful even when tessdata is broken.
         logger.warning("Unable to query Tesseract language data")
         return True, []

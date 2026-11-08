@@ -21,11 +21,14 @@ def test_scanned_djvu_is_processed_with_ocr(tmp_path):
     if missing:
         pytest.skip("Missing DJVU/OCR tools: " + ", ".join(missing))
 
-    import pytesseract
+    try:
+        import pytesseract
+    except ImportError as error:
+        pytest.skip(f"Tesseract languages are unavailable: {error}")
 
     try:
         languages = set(pytesseract.get_languages(config=""))
-    except Exception as error:
+    except (OSError, pytesseract.TesseractError) as error:
         pytest.skip(f"Tesseract languages are unavailable: {error}")
 
     if not {"rus", "eng"}.issubset(languages):
