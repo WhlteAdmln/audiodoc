@@ -34,6 +34,7 @@ async def transcribe(file: Annotated[UploadFile, File()]) -> dict[str, object]:
     Raises:
         HTTPException: For missing model, invalid duration, oversized audio, or
             an internal transcription failure.
+
     """
     if not model_holder.is_loaded:
         raise HTTPException(status_code=503, detail="Whisper model is not loaded")

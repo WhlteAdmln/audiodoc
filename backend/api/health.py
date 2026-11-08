@@ -16,6 +16,7 @@ async def health() -> dict[str, object]:
 
     Returns:
         A JSON-compatible status object. This endpoint requires no API key.
+
     """
     configured_path = settings.WHISPER_MODEL_PATH
     model_name = (

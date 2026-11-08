@@ -53,6 +53,7 @@ def run_limited(
         ValueError: If arguments or limits are invalid, or output exceeds its cap.
         TimeoutError: If the child process exceeds ``timeout``.
         OSError: If the executable cannot be started.
+
     """
     timeout_value = _validate_run_limited_args(args, timeout, max_output)
 

@@ -42,6 +42,7 @@ async def ready() -> dict[str, object]:
     Returns:
         Boolean Tesseract/DjVuLibre status, available Tesseract languages, and
         the current Whisper model state. Requires the document API key.
+
     """
     tesseract, languages = await asyncio.to_thread(_available_tesseract_languages)
     djvulibre = all(

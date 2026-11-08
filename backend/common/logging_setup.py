@@ -15,6 +15,7 @@ def configure_logging(level: str, secrets: Iterable[str] = ()) -> None:
     Args:
         level: Logging level name, such as ``INFO`` or ``WARNING``.
         secrets: Configured values that must be redacted from messages and tracebacks.
+
     """
     numeric_level = getattr(logging, str(level).upper(), logging.INFO)
     if not isinstance(numeric_level, int):

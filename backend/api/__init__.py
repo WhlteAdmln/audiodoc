@@ -11,6 +11,7 @@ def register_routes(app: FastAPI) -> None:
 
     Returns:
         None.
+
     """
     # Import routers only when assembling the application. This keeps helpers
     # such as backend.api.auth independently importable in narrow unit tests.

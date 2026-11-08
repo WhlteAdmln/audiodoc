@@ -10,6 +10,7 @@ def log_safe(value: object | None, limit: int = 120) -> str:
 
     Returns:
         A sanitized string with control characters replaced.
+
     """
     text = "" if value is None else str(value)
     text = text.replace("\r", "\\r").replace("\n", "\\n")
