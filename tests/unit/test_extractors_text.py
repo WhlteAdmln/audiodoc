@@ -32,7 +32,10 @@ CASES = [
 ]
 
 
-@pytest.mark.parametrize("data, name, expected_format, expected_text", CASES)
+@pytest.mark.parametrize(
+    ("data", "name", "expected_format", "expected_text"),
+    CASES,
+)
 def test_text_formats(data, name, expected_format, expected_text, tmp_path):
     path = tmp_path / name
     path.write_bytes(data)

@@ -22,9 +22,9 @@ def test_text_budget_accounts_for_newline_between_chunks():
 
 
 def test_text_budget_rejects_invalid_limits_and_chunks():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="limit must be a positive integer"):
         TextBudget(0)
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="text must be a string"):
         TextBudget(5).add(b"bytes")  # type: ignore[arg-type]
 
 

@@ -70,8 +70,11 @@ def test_env_example_matches_settings_environment_variables():
     missing = sorted(settings_names - example_names)
     extra = sorted(example_names - settings_names)
 
-    assert not missing and not extra, (
+    assert not missing, (
         ".env.example and backend/config/settings.py are out of sync. "
-        f"Missing from .env.example: {missing}; "
+        f"Missing from .env.example: {missing}"
+    )
+    assert not extra, (
+        ".env.example and backend/config/settings.py are out of sync. "
         f"not read by Settings: {extra}"
     )

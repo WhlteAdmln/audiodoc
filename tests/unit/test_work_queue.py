@@ -65,7 +65,7 @@ def test_work_queue_uses_injected_application_busy_error():
 
 
 def test_work_queue_validates_capacity():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="workers must be a positive integer"):
         WorkQueue(0, 1)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="max_waiting must be a non-negative integer"):
         WorkQueue(1, -1)

@@ -19,7 +19,9 @@ def test_deadline_reports_remaining_time_and_expires(monkeypatch):
 
 def test_deadline_requires_a_finite_positive_duration():
     for value in (0, -1, float("inf"), float("nan")):
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError, match="seconds must be a finite positive number"
+        ):
             Deadline(value)
 
 

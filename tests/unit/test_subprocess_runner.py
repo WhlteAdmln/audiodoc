@@ -49,9 +49,9 @@ def test_run_limited_kills_timed_out_process():
 
 
 def test_run_limited_validates_arguments_and_limits():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="args must be a non-empty list of strings"):
         run_limited([], timeout=1)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="timeout must be a finite positive number"):
         run_limited([sys.executable, "-c", "pass"], timeout=0)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="max_output must be a non-negative integer"):
         run_limited([sys.executable, "-c", "pass"], timeout=1, max_output=-1)
