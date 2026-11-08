@@ -13,7 +13,6 @@ from backend.document_engine.limits import (
 
 def validate_zip_archive(data: bytes) -> None:
     """Проверяет ZIP-архив на чрезмерный размер и подозрительное сжатие."""
-
     if not zipfile.is_zipfile(io.BytesIO(data)):
         raise ValueError("Некорректный ZIP-контейнер")
 
