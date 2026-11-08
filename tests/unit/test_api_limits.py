@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from starlette.datastructures import UploadFile
 from starlette.exceptions import HTTPException
 
+import backend.common.limited_upload as upload_limits
 from backend.api.middleware import BodySizeLimitMiddleware
 from backend.common.limited_upload import read_upload_limited, save_upload_limited
 
@@ -85,8 +86,6 @@ def test_read_upload_limited_rejects_file_over_limit():
 
 
 def test_save_upload_limited_rejects_file_over_limit(tmp_path, monkeypatch):
-    import backend.common.limited_upload as upload_limits
-
     monkeypatch.setattr(upload_limits, "CHUNK_SIZE", 5)
     upload = UploadFile(file=io.BytesIO(b"123456"), filename="voice.ogg")
     target = tmp_path / "voice.ogg"

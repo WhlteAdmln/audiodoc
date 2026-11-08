@@ -1,6 +1,7 @@
 import importlib
 import shutil
 import subprocess
+from io import BytesIO
 from typing import Protocol, cast
 
 import pytest
@@ -45,11 +46,8 @@ def test_scanned_djvu_is_processed_with_ocr(tmp_path):
     if not {"rus", "eng"}.issubset(languages):
         pytest.skip("Tesseract language packs rus and eng are required")
 
-    from io import BytesIO
-
-    from PIL import Image
-
-    image = Image.open(BytesIO(create_ocr_image())).convert("RGB")
+    image_module = pytest.importorskip("PIL.Image")
+    image = image_module.open(BytesIO(create_ocr_image())).convert("RGB")
     ppm_path = tmp_path / "scanned.ppm"
     djvu_path = tmp_path / "scanned.djvu"
     image.save(ppm_path)

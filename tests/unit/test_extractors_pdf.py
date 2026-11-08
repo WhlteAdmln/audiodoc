@@ -91,8 +91,6 @@ def test_pdf_render_dpi_is_reduced_for_oversized_page():
 
 
 def test_pdf_rejects_page_that_cannot_fit_even_at_minimum_dpi():
-    from backend.errors.documents import DocumentRejectedError
-
     page = _FakePage()
     page.rect = SimpleNamespace(width=1000 * 72, height=1000 * 72)
     with pytest.raises(DocumentRejectedError, match="слишком велика"):

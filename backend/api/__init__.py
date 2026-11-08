@@ -1,6 +1,13 @@
 """Register the HTTP routers that expose backend services."""
 
-from fastapi import FastAPI
+from importlib import import_module
+from typing import Protocol, cast
+
+from fastapi import APIRouter, FastAPI
+
+
+class _RouterModule(Protocol):
+    router: APIRouter
 
 
 def register_routes(app: FastAPI) -> None:
@@ -15,7 +22,16 @@ def register_routes(app: FastAPI) -> None:
     """
     # Import routers only when assembling the application. This keeps helpers
     # such as backend.api.auth independently importable in narrow unit tests.
-    from backend.api import documents, health, ready, transcribe
+    documents = cast(
+        "_RouterModule",
+        import_module(".documents", package=__name__),
+    )
+    health = cast("_RouterModule", import_module(".health", package=__name__))
+    ready = cast("_RouterModule", import_module(".ready", package=__name__))
+    transcribe = cast(
+        "_RouterModule",
+        import_module(".transcribe", package=__name__),
+    )
 
     app.include_router(health.router)
     app.include_router(ready.router)

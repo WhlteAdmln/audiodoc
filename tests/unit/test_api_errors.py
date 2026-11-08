@@ -1,11 +1,13 @@
 """Tests for safe HTTP error responses and sanitized request logging."""
 
 import logging
+from importlib import import_module
 
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api.error_handlers import register_error_handlers
+from backend.errors.documents import DocumentRejectedError
 
 
 def test_unexpected_exception_returns_generic_message_without_details(caplog):
@@ -28,8 +30,7 @@ def test_unexpected_exception_returns_generic_message_without_details(caplog):
 
 
 def test_document_filename_is_sanitized_before_logging(caplog, monkeypatch):
-    from backend.api import documents
-    from backend.api.error_handlers import register_error_handlers
+    documents = import_module("backend.api.documents")
 
     async def fake_process_document(*_args, **_kwargs):
         return _document_result()
@@ -63,8 +64,7 @@ def _document_result():
 
 
 def test_typed_document_rejection_is_logged_without_raw_filename(caplog, monkeypatch):
-    from backend.api import documents
-    from backend.errors.documents import DocumentRejectedError
+    documents = import_module("backend.api.documents")
 
     async def reject_document(*_args, **_kwargs):
         raise DocumentRejectedError("Документ не может быть обработан")

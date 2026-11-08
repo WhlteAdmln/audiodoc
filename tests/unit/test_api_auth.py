@@ -1,14 +1,16 @@
+import asyncio
+from importlib import import_module
 from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 
 from backend.api.auth import check_security_settings, require_key
+from backend.config import settings
 
 
 def run_dependency(dependency, authorization=None):
-    import asyncio
-
     return asyncio.run(dependency(authorization))
 
 
@@ -67,10 +69,7 @@ def test_document_route_requires_its_own_key(monkeypatch):
     pytest.importorskip("ebooklib")
     pytest.importorskip("striprtf")
 
-    from fastapi.testclient import TestClient
-
-    from backend.config import settings
-    from backend.main import app
+    app = import_module("backend.main").app
 
     monkeypatch.setattr(settings, "DOCUMENT_API_KEY", "document-test-key")
     monkeypatch.setattr(settings, "WHISPER_API_KEY", "whisper-test-key")

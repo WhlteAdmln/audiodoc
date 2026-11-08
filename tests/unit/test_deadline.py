@@ -30,8 +30,6 @@ def test_pipeline_maps_deadline_expiration_to_safe_backend_error(monkeypatch):
 
     class ExpiredDeadline:
         def check(self):
-            from backend.common.deadline import DeadlineExceededError
-
             raise DeadlineExceededError
 
     with pytest.raises(ProcessingTimeoutError):

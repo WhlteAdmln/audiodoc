@@ -6,6 +6,7 @@ pytest.importorskip("ebooklib")
 pytest.importorskip("striprtf")
 
 from backend.document_engine import process_document_sync
+from backend.errors.documents import UnsupportedFormatError
 
 CASES = [
     (b"Hello! This is a TXT test.", "test.txt", "txt", "TXT test"),
@@ -68,7 +69,5 @@ def test_fb2_extraction(tmp_path):
 
 
 def test_standalone_image_is_rejected_by_document_engine():
-    from backend.errors.documents import UnsupportedFormatError
-
     with pytest.raises(UnsupportedFormatError):
         process_document_sync(b"\x89PNG\r\n\x1a\n", "image.png")

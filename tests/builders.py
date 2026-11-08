@@ -5,14 +5,14 @@ in an isolated pytest temporary directory (tmp_path).
 """
 
 import tempfile
+from importlib import import_module
 from io import BytesIO
 from pathlib import Path
 
 
 def create_docx() -> bytes:
-    from docx import Document
-
-    document = Document()
+    docx = import_module("docx")
+    document = docx.Document()
     document.add_heading("DOCX test", level=1)
     document.add_paragraph("Document engine works!")
     table = document.add_table(rows=1, cols=2)
@@ -25,9 +25,8 @@ def create_docx() -> bytes:
 
 
 def create_xlsx() -> bytes:
-    from openpyxl import Workbook
-
-    workbook = Workbook()
+    openpyxl = import_module("openpyxl")
+    workbook = openpyxl.Workbook()
     sheet = workbook.active
     sheet.title = "Test sheet"
     sheet.append(["Name", "Value"])
@@ -39,9 +38,8 @@ def create_xlsx() -> bytes:
 
 
 def create_pptx() -> bytes:
-    from pptx import Presentation
-
-    presentation = Presentation()
+    pptx = import_module("pptx")
+    presentation = pptx.Presentation()
     slide = presentation.slides.add_slide(presentation.slide_layouts[1])
     slide.shapes.title.text = "PPTX test"
     slide.placeholders[1].text = "Document engine works!"
@@ -52,8 +50,7 @@ def create_pptx() -> bytes:
 
 
 def create_epub() -> bytes:
-    from ebooklib import epub
-
+    epub = import_module("ebooklib.epub")
     book = epub.EpubBook()
     book.set_identifier("test-document")
     book.set_title("EPUB test")
@@ -91,7 +88,7 @@ def create_fb2() -> bytes:
 
 
 def create_pdf() -> bytes:
-    import pymupdf
+    pymupdf = import_module("pymupdf")
 
     document = pymupdf.open()
     page = document.new_page()
@@ -102,29 +99,29 @@ def create_pdf() -> bytes:
 
 
 def create_odt() -> bytes:
-    from odf.opendocument import OpenDocumentText
-    from odf.text import H, P
+    odf_opendocument = import_module("odf.opendocument")
+    odf_text = import_module("odf.text")
 
-    document = OpenDocumentText()
-    document.text.addElement(H(outlinelevel=1, text="ODT test"))
-    document.text.addElement(P(text="Document engine works!"))
+    document = odf_opendocument.OpenDocumentText()
+    document.text.addElement(odf_text.H(outlinelevel=1, text="ODT test"))
+    document.text.addElement(odf_text.P(text="Document engine works!"))
     output = BytesIO()
     document.save(output)
     return output.getvalue()
 
 
 def create_ods() -> bytes:
-    from odf.opendocument import OpenDocumentSpreadsheet
-    from odf.table import Table, TableCell, TableRow
-    from odf.text import P
+    odf_opendocument = import_module("odf.opendocument")
+    odf_table = import_module("odf.table")
+    odf_text = import_module("odf.text")
 
-    document = OpenDocumentSpreadsheet()
-    table = Table(name="Test sheet")
+    document = odf_opendocument.OpenDocumentSpreadsheet()
+    table = odf_table.Table(name="Test sheet")
     for values in (("Name", "Value"), ("Document engine", "Works!")):
-        row = TableRow()
+        row = odf_table.TableRow()
         for value in values:
-            cell = TableCell()
-            cell.addElement(P(text=value))
+            cell = odf_table.TableCell()
+            cell.addElement(odf_text.P(text=value))
             row.addElement(cell)
         table.addElement(row)
     document.spreadsheet.addElement(table)
@@ -135,26 +132,26 @@ def create_ods() -> bytes:
 
 
 def create_odp() -> bytes:
-    from odf.draw import Frame, Page, TextBox
-    from odf.opendocument import OpenDocumentPresentation
-    from odf.style import Style
-    from odf.text import P
+    odf_draw = import_module("odf.draw")
+    odf_opendocument = import_module("odf.opendocument")
+    odf_style = import_module("odf.style")
+    odf_text = import_module("odf.text")
 
-    document = OpenDocumentPresentation()
-    frame_style = Style(name="FrameStyle", family="graphic")
+    document = odf_opendocument.OpenDocumentPresentation()
+    frame_style = odf_style.Style(name="FrameStyle", family="graphic")
     document.automaticstyles.addElement(frame_style)
 
-    page = Page(name="Slide 1", masterpagename="Default")
-    frame = Frame(
+    page = odf_draw.Page(name="Slide 1", masterpagename="Default")
+    frame = odf_draw.Frame(
         stylename=frame_style,
         width="15cm",
         height="5cm",
         x="1cm",
         y="1cm",
     )
-    textbox = TextBox()
-    textbox.addElement(P(text="ODP test"))
-    textbox.addElement(P(text="Document engine works!"))
+    textbox = odf_draw.TextBox()
+    textbox.addElement(odf_text.P(text="ODP test"))
+    textbox.addElement(odf_text.P(text="Document engine works!"))
     frame.addElement(textbox)
     page.addElement(frame)
     document.presentation.addElement(page)
@@ -166,18 +163,20 @@ def create_odp() -> bytes:
 
 def create_scanned_pdf() -> bytes:
     """Create a PDF with a text page and a page for OCR."""
-    import pymupdf
-    from PIL import Image, ImageDraw, ImageFont
+    pymupdf = import_module("pymupdf")
+    image_module = import_module("PIL.Image")
+    image_draw_module = import_module("PIL.ImageDraw")
+    image_font_module = import_module("PIL.ImageFont")
 
-    image = Image.new("RGB", (1200, 400), "white")
-    draw = ImageDraw.Draw(image)
+    image = image_module.new("RGB", (1200, 400), "white")
+    draw = image_draw_module.Draw(image)
     try:
-        font = ImageFont.truetype(
+        font = image_font_module.truetype(
             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             48,
         )
     except OSError:
-        font = ImageFont.load_default()
+        font = image_font_module.load_default()
     draw.text((50, 70), "Scanned PDF OCR Test", fill="black", font=font)
     draw.text(
         (50, 170),
@@ -205,17 +204,19 @@ def create_scanned_pdf() -> bytes:
 
 
 def create_ocr_image() -> bytes:
-    from PIL import Image, ImageDraw, ImageFont
+    image_module = import_module("PIL.Image")
+    image_draw_module = import_module("PIL.ImageDraw")
+    image_font_module = import_module("PIL.ImageFont")
 
-    image = Image.new("RGB", (1200, 400), "white")
-    draw = ImageDraw.Draw(image)
+    image = image_module.new("RGB", (1200, 400), "white")
+    draw = image_draw_module.Draw(image)
     try:
-        font = ImageFont.truetype(
+        font = image_font_module.truetype(
             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             48,
         )
     except OSError:
-        font = ImageFont.load_default()
+        font = image_font_module.load_default()
     draw.text((50, 70), "Document Engine OCR Test", fill="black", font=font)
     draw.text((50, 170), "Hello! This is a test.", fill="black", font=font)
     output = BytesIO()

@@ -1,8 +1,9 @@
 """HTTP behavior for overloaded document and transcription queues."""
 
 from contextlib import asynccontextmanager
+from importlib import import_module
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api.error_handlers import register_error_handlers
@@ -17,8 +18,6 @@ def _app_with_router(router):
 
 
 def test_server_busy_error_returns_retry_after_header():
-    from fastapi import APIRouter
-
     router = APIRouter()
 
     @router.get("/busy")
@@ -32,7 +31,7 @@ def test_server_busy_error_returns_retry_after_header():
 
 
 def test_document_queue_rejects_before_upload_is_copied(monkeypatch):
-    from backend.api import documents
+    documents = import_module("backend.api.documents")
 
     @asynccontextmanager
     async def reject_slot():
@@ -54,7 +53,7 @@ def test_document_queue_rejects_before_upload_is_copied(monkeypatch):
 
 
 def test_transcription_queue_rejects_before_temp_file_write(monkeypatch):
-    from backend.api import transcribe
+    transcribe = import_module("backend.api.transcribe")
 
     @asynccontextmanager
     async def reject_slot():

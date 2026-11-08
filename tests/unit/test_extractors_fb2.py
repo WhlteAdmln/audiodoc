@@ -4,6 +4,7 @@ import pytest
 
 from backend.document_engine.extractors.fb2 import extract_fb2
 from backend.document_engine.limits import MAX_EXTRACTED_TEXT_LENGTH
+from backend.errors.documents import DocumentRejectedError
 from tests.builders import create_fb2
 
 
@@ -17,8 +18,6 @@ def test_fb2_extracts_titles_paragraphs_and_nested_text():
 
 def test_fb2_without_body_is_rejected():
     data = b"<FictionBook><description /></FictionBook>"
-
-    from backend.errors.documents import DocumentRejectedError
 
     with pytest.raises(
         DocumentRejectedError, match="\u0412 FB2 не найдено содержимое книги"

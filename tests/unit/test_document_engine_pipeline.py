@@ -11,7 +11,8 @@ from backend.document_engine import (
     process_document_sync,
     runner,
 )
-from backend.document_engine.extractors import REGISTRY
+from backend.document_engine.extractors import REGISTRY, _odf
+from backend.errors.documents import DocumentRejectedError, UnsupportedFormatError
 
 EXPECTED_FORMATS = {
     "pdf",
@@ -52,8 +53,6 @@ def test_odf_registry_entries_dispatch_to_the_correct_type(monkeypatch):
 
     # ODF adapters resolve the shared extract_odf function at call time.
     # Rebuild only the three entries to make their dispatch observable.
-    from backend.document_engine.extractors import _odf
-
     for kind in ("odt", "ods", "odp"):
         assert _odf(kind)(b"odf") == kind.upper()
 
@@ -99,8 +98,6 @@ def test_pipeline_validates_zip_before_calling_extractor(monkeypatch):
 
 
 def test_pipeline_preserves_safe_empty_and_unsupported_document_errors(monkeypatch):
-    from backend.errors.documents import DocumentRejectedError, UnsupportedFormatError
-
     with pytest.raises(DocumentRejectedError, match="Документ пуст"):
         process_document_sync(b"", "empty.txt")
 
@@ -172,15 +169,11 @@ def test_pipeline_truncates_one_character_over_budget():
 
 
 def test_pipeline_rejects_invalid_character_hint():
-    from backend.errors.documents import DocumentRejectedError
-
     with pytest.raises(DocumentRejectedError, match="лимит длины текста"):
         process_document_sync(b"hello", "note.txt", max_characters=0)
 
 
 def test_pipeline_hides_unexpected_extractor_exception(monkeypatch, caplog):
-    from backend.errors.documents import DocumentRejectedError
-
     monkeypatch.setattr(pipeline, "detect_format", lambda _data, _name: "txt")
 
     def fail_extractor(_data, *, context=None):

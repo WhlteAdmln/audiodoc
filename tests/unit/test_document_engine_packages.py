@@ -5,6 +5,7 @@ import io
 import pytest
 from PIL import Image
 
+import backend.document_engine.result as result_module
 from backend.document_engine.detection import detect_format
 from backend.document_engine.detection.formats import (
     IMAGE_EXTENSIONS,
@@ -18,6 +19,7 @@ from backend.document_engine.ocr import preprocessing as ocr_preprocessing
 from backend.document_engine.ocr import recognize as ocr_package_recognize
 from backend.document_engine.ocr import tesseract as ocr_tesseract
 from backend.document_engine.result import build_result, limit_text
+from backend.errors.documents import DependencyMissingError, DocumentRejectedError
 
 
 def test_detection_package_exports_expected_format_collections():
@@ -39,8 +41,6 @@ def test_text_extension_mapping_is_preserved():
 
 
 def test_limit_text_and_build_result_preserve_response_shape(monkeypatch):
-    import backend.document_engine.result as result_module
-
     monkeypatch.setattr(result_module, "MAX_EXTRACTED_TEXT_LENGTH", 5)
     assert limit_text("123456") == "12345"
     assert build_result("txt", " hello ", truncated=True) == {
@@ -66,8 +66,6 @@ def test_prepare_image_rejects_excessive_pixel_count(monkeypatch):
     monkeypatch.setattr(ocr_preprocessing, "MAX_IMAGE_PIXELS", 3)
     source = Image.new("RGB", (2, 2))
     try:
-        from backend.errors.documents import DocumentRejectedError
-
         with pytest.raises(DocumentRejectedError, match="превышен лимит пикселей"):
             ocr_preprocessing._prepare_image(source)
     finally:
@@ -76,8 +74,6 @@ def test_prepare_image_rejects_excessive_pixel_count(monkeypatch):
 
 def test_check_tesseract_requires_binary_when_not_installed(monkeypatch):
     monkeypatch.setattr(ocr_tesseract.shutil, "which", lambda _: None)
-    from backend.errors.documents import DependencyMissingError
-
     with pytest.raises(DependencyMissingError):
         ocr_tesseract._check_tesseract()
 
@@ -88,8 +84,6 @@ def test_check_languages_reports_missing_language(monkeypatch):
         "get_languages",
         lambda config="": ["eng"],
     )
-    from backend.errors.documents import DependencyMissingError
-
     with pytest.raises(DependencyMissingError):
         ocr_tesseract._check_languages("rus+eng")
 

@@ -1,5 +1,6 @@
 import asyncio
 import threading
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -65,8 +66,6 @@ def test_transcribe_file_reports_model_not_ready(tmp_path, monkeypatch):
 
 
 def test_transcriptions_respect_the_concurrency_semaphore(monkeypatch, tmp_path):
-    import time
-
     monkeypatch.setattr(
         transcription_service,
         "transcription_queue",
