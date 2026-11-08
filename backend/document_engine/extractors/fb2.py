@@ -1,6 +1,6 @@
 """Extract text blocks from FictionBook 2 documents."""
 
-import xml.etree.ElementTree as ElementTree
+import xml.etree.ElementTree as ET
 from collections.abc import Iterator
 
 from backend.document_engine.extractors.base import (
@@ -14,7 +14,7 @@ from backend.errors.documents import DocumentRejectedError
 BLOCK_TAGS = {"title", "subtitle", "p", "v", "text-author", "date"}
 
 
-def _iter_text_blocks(element: ElementTree.Element) -> Iterator[str]:
+def _iter_text_blocks(element: ET.Element) -> Iterator[str]:
     """Yield text in block-aware order without constructing a whole-book string."""
     tag = element.tag.split("}")[-1]
     if tag in BLOCK_TAGS:
