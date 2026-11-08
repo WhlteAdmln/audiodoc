@@ -115,6 +115,7 @@ def check_lock(requirements_path: Path, lock_path: Path) -> list[str]:
 
 
 def main() -> int:
+    """Run the lock consistency check."""
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--requirements", type=Path, default=root / "requirements.txt")
