@@ -1,5 +1,7 @@
+import importlib
 import shutil
 import subprocess
+from typing import Protocol, cast
 
 import pytest
 
@@ -7,6 +9,12 @@ from backend.document_engine.extractors.djvu import extract_djvu
 from tests.builders import create_ocr_image
 
 pytestmark = pytest.mark.integration
+
+
+class _PytesseractModule(Protocol):
+    TesseractError: type[Exception]
+
+    def get_languages(self, config: str = "") -> list[str]: ...
 
 
 def test_scanned_djvu_is_processed_with_ocr(tmp_path):
@@ -22,7 +30,10 @@ def test_scanned_djvu_is_processed_with_ocr(tmp_path):
         pytest.skip("Missing DJVU/OCR tools: " + ", ".join(missing))
 
     try:
-        import pytesseract
+        pytesseract = cast(
+            "_PytesseractModule",
+            importlib.import_module("pytesseract"),
+        )
     except ImportError as error:
         pytest.skip(f"Tesseract languages are unavailable: {error}")
 

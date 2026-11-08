@@ -1,4 +1,6 @@
+import importlib
 import shutil
+from typing import Protocol, cast
 
 import pytest
 
@@ -8,12 +10,21 @@ from tests.builders import create_scanned_pdf
 pytestmark = pytest.mark.integration
 
 
+class _PytesseractModule(Protocol):
+    TesseractError: type[Exception]
+
+    def get_languages(self, config: str = "") -> list[str]: ...
+
+
 def test_pdf_text_layer_and_scanned_page_ocr(tmp_path):
     if shutil.which("tesseract") is None:
         pytest.skip("Tesseract is not installed")
 
     try:
-        import pytesseract
+        pytesseract = cast(
+            "_PytesseractModule",
+            importlib.import_module("pytesseract"),
+        )
     except ImportError as error:
         pytest.skip(f"Tesseract languages are unavailable: {error}")
 
