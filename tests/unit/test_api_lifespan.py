@@ -82,7 +82,7 @@ def test_lifespan_checks_configuration_prepares_storage_and_loads_model(
         "cleanup_stale_files",
         lambda: events.append(("cleanup", None)),
     )
-    monkeypatch.setattr(model_module, "_build_model", lambda: FakeModel())
+    monkeypatch.setattr(model_module, "_build_model", FakeModel)
     monkeypatch.setattr(model_holder, "_model", None)
 
     with TestClient(app) as client:

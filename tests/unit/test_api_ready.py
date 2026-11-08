@@ -52,7 +52,7 @@ def test_ready_reports_missing_programs_without_raising(monkeypatch):
     monkeypatch.setattr(
         ready_module.shutil,
         "which",
-        lambda name: {"djvused": "/usr/bin/djvused"}.get(name),
+        {"djvused": "/usr/bin/djvused"}.get,
     )
     monkeypatch.setattr(model_holder, "_model", None)
 
