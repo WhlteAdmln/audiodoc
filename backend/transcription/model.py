@@ -2,6 +2,7 @@
 
 import logging
 from collections.abc import Iterable
+from importlib import import_module
 from typing import Protocol, cast
 
 from backend.config import settings
@@ -39,12 +40,12 @@ class _WhisperModel(Protocol):
 
 def _build_model() -> _WhisperModel:
     """Construct Whisper lazily so API modules remain importable without the extra."""
-    from faster_whisper import WhisperModel
+    whisper_model_factory = import_module("faster_whisper").WhisperModel
 
     model_path = settings.WHISPER_MODEL_PATH or settings.WHISPER_MODEL_SIZE
     return cast(
         "_WhisperModel",
-        WhisperModel(
+        whisper_model_factory(
             model_path,
             device=settings.WHISPER_DEVICE,
             compute_type=settings.WHISPER_COMPUTE_TYPE,

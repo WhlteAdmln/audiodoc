@@ -180,11 +180,6 @@ ignore_missing_imports = true
 module = ["odf", "odf.*"]
 ignore_missing_imports = true
 
-# faster-whisper does not provide type information.
-[[tool.mypy.overrides]]
-module = ["faster_whisper", "faster_whisper.*"]
-ignore_missing_imports = true
-
 [tool.coverage.run]
 branch = true
 source = ["backend"]
