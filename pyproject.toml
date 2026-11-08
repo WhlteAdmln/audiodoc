@@ -7,6 +7,7 @@ requires-python = ">=3.11"
 line-length = 88
 target-version = "py311"
 extend-exclude = ["tmp", "models"]
+namespace-packages = ["scripts"]
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -108,7 +109,7 @@ max-branches = 12
 "backend/transcription/model.py" = ["ANN401", "CPY001", "D107", "D413", "EM101", "PLC0415", "TRY003"]
 "backend/transcription/service.py" = ["BLE001", "CPY001", "EM102", "RSE102", "RUF001", "TRY003"]
 "backend/transcription/temp_files.py" = ["CPY001", "D413"]
-"scripts/check_lock.py" = ["CPY001", "D103", "EXE001"]
+"scripts/check_lock.py" = ["CPY001", "D103"]
 "tests/__init__.py" = ["CPY001"]
 "tests/builders.py" = ["CPY001", "PLC0415"]
 "tests/conftest.py" = ["CPY001"]

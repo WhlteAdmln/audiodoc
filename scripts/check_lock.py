@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Check that every direct runtime requirement is pinned compatibly in the lock."""
 
 from __future__ import annotations
