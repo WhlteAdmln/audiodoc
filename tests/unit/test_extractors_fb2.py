@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Изолированные тесты FB2-экстрактора (этап A4)."""
 
 import pytest

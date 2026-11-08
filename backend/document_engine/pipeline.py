@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Synchronous document validation and bounded extraction pipeline."""
 
 import logging

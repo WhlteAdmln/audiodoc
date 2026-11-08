@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Read the embedded DJVU text layer with bounded subprocess output."""
 
 import logging

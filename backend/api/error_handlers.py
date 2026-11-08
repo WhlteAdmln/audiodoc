@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Translate backend and unexpected exceptions into safe HTTP responses."""
 
 import logging

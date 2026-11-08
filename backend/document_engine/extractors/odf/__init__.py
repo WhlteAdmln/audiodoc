@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Load OpenDocument packages and dispatch to bounded ODT/ODS/ODP extractors."""
 
 import io

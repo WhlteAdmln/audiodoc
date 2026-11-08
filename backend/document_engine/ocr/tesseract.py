@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Check Tesseract and the requested language data once per process."""
 
 import shutil

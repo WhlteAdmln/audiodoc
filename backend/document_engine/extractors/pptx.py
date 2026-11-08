@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Extract slide and table text from PowerPoint within the shared text budget."""
 
 from io import BytesIO

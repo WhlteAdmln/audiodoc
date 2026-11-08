@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Поиск внешних инструментов DjVuLibre."""
 
 import shutil

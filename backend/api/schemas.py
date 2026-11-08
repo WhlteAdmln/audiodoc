@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Stable JSON response schemas shared with the Telegram bot."""
 
 from pydantic import BaseModel

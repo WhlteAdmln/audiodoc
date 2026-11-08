@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Private temporary storage for uploaded audio."""
 
 import os

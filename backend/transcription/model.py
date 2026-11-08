@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Lifecycle holder for the process-wide Whisper model."""
 
 import logging

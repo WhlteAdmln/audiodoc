@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Stream CSV rows into the result without repeated full-list length sums."""
 
 import csv

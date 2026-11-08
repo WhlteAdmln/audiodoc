@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Unauthenticated liveness endpoint that reports Whisper model state."""
 
 from pathlib import Path

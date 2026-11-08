@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Central limits for document uploads, extraction, tables, OCR, and tools."""
 
 # Входные документы

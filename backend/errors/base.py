@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Base exception contract used to map safe backend errors to HTTP responses."""
 
 from typing import ClassVar

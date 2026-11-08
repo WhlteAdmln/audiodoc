@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Configure structured application logging with request IDs and secret redaction."""
 
 import logging

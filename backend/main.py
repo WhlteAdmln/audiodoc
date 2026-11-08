@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """FastAPI application factory and application lifecycle."""
 
 import asyncio

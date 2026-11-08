@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """ASGI middleware that rejects oversized request bodies before parsing multipart."""
 
 from starlette.responses import JSONResponse

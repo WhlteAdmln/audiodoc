@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Redact configured API secrets and token-like strings from log records."""
 
 import logging

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Tests for app factory wiring and lifecycle; no real model is loaded."""
 
 import pytest

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Monotonic processing deadlines shared by document extractors.
 
 A single deadline is passed through the synchronous extraction pipeline so each

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 import pytest
 
 # The public Document Engine package imports the full extractor registry. Keep

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Unit tests for bounded DJVU text extraction and page rendering."""
 
 from pathlib import Path
@@ -106,7 +107,8 @@ def test_djvu_requires_ocr_tools_only_when_text_layer_is_empty(monkeypatch):
 
 def test_text_layer_maps_subprocess_timeout_to_processing_timeout(monkeypatch):
     def timeout(*_args, **_kwargs):
-        raise SubprocessTimeoutError("timeout")
+        timeout_message = "timeout"
+        raise SubprocessTimeoutError(timeout_message)
 
     monkeypatch.setattr(text_layer_module, "run_limited", timeout)
     with pytest.raises(ProcessingTimeoutError):

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Build stable document responses and retain the extraction truncation flag."""
 
 from typing import TypedDict

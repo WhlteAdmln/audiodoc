@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Bounded reads and writes for uploaded files."""
 
 from pathlib import Path

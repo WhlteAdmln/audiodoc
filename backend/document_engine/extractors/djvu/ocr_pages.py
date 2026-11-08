@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Render bounded DJVU page images and recognize them with OCR."""
 
 import logging

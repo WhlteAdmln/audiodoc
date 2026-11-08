@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Application entry point for the Uvicorn server."""
 
 from backend.main import app  # noqa: F401  (entry point for `uvicorn app:app`)

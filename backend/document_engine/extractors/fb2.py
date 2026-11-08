@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Extract text blocks from FictionBook 2 documents."""
 
 import xml.etree.ElementTree as ET

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Asynchronous, bounded execution of the synchronous Document Engine pipeline."""
 
 import asyncio

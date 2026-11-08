@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """HTTP response contract shared with the Telegram bot."""
 
 import json

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Request-scoped correlation IDs for HTTP responses and application logs."""
 
 import contextvars

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Tests for the O(1)-per-chunk output budget."""
 
 import pytest

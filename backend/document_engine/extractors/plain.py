@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Extract plain text and Markdown while applying the shared output budget."""
 
 from backend.document_engine.extractors.base import ExtractContext, make_context

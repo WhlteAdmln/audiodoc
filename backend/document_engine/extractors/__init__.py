@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Registry of Document Engine extractors with a shared bounded context."""
 
 from collections.abc import Callable

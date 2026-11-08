@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Whisper runtime and offline mode are read from application settings."""
 
 import sys

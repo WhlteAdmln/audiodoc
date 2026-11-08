@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 import asyncio
 from importlib import import_module
 from types import SimpleNamespace

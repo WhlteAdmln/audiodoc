@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 import pytest
 
 from backend.common.safe_log import log_safe

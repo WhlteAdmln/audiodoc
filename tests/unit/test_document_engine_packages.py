@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Unit-проверки разнесённых пакетов Document Engine и OCR."""
 
 import io

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Extract readable text from Rich Text Format documents."""
 
 from typing import TYPE_CHECKING, cast

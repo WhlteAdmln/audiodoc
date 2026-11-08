@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """HTTP behavior for overloaded document and transcription queues."""
 
 from contextlib import asynccontextmanager

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 import os
 import time
 import uuid

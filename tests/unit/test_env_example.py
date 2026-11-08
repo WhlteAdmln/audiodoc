@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Keep the documented environment template in sync with Settings."""
 
 import ast

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Extract ODS sheets with lazy row/cell traversal and fixed output limits."""
 
 from collections.abc import Iterator

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Изолированные тесты EPUB-экстрактора (этап A4)."""
 
 import pytest

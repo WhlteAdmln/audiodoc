@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Small document factories for Document Engine tests.
 
 All functions return bytes so callers can create files

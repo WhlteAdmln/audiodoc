@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """HTTP tests for optional max_characters and the truncation response flag."""
 
 from fastapi.testclient import TestClient

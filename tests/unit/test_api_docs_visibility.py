@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """API documentation routes are disabled in production by default."""
 
 from fastapi.testclient import TestClient

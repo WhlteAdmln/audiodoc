@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Extract ODT headings and paragraphs within the shared character budget."""
 
 from odf import teletype

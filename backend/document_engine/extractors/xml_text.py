@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Extract non-empty text nodes from XML within the shared text budget."""
 
 from backend.document_engine.extractors.base import (

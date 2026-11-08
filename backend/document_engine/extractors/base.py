@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Shared extraction context and helpers for bounded document extractors."""
 
 from collections.abc import Callable, Iterable

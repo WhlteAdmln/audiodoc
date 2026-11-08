@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Client-safe exceptions raised while validating or extracting documents."""
 
 from backend.errors.base import BackendError

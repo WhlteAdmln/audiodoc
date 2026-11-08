@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Typed application errors with safe client-facing messages."""
 
 from backend.errors.base import BackendError, ServerBusyError

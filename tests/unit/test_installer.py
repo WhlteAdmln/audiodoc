@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Smoke tests for the POSIX release installer CLI."""
 
 import shutil

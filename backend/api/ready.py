@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Authenticated readiness diagnostics for native OCR and DJVU dependencies."""
 
 import asyncio

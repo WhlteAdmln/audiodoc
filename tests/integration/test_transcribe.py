@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Integration test for the Whisper HTTP response with a fake model.
 
 The real model is not loaded: TestClient is used without starting lifespan,

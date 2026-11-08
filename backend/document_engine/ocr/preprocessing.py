@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Подготовка изображений перед распознаванием текста."""
 
 from PIL import Image, ImageOps

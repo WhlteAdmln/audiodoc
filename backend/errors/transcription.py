@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Client-safe exceptions raised by audio transcription."""
 
 from backend.errors.base import BackendError

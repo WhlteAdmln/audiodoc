@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Filesystem paths rooted at the audiodoc project directory."""
 
 from pathlib import Path

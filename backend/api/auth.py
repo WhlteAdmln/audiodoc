@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Bearer authentication dependencies and fail-closed startup validation."""
 
 import hmac

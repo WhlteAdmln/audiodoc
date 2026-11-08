@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Tests that OCR dimensions are checked before frame copies and setup is cached."""
 
 import pytest

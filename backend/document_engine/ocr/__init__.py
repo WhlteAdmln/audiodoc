@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """OCR helpers built on Pillow and Tesseract."""
 
 import io

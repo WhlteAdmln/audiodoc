@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Register the HTTP routers that expose backend services."""
 
 from importlib import import_module

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Whisper transcription endpoint."""
 
 import logging

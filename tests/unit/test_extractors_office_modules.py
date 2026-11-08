@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Изолированные тесты экстракторов DOCX, XLSX и PPTX (этап A4)."""
 
 from io import BytesIO

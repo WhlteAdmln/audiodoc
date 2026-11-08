@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Extract DJVU text with bounded tools and page-by-page OCR fallback."""
 
 import logging

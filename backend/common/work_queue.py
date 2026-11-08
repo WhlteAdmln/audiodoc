@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Bounded asynchronous admission queues for resource-intensive work."""
 
 import asyncio

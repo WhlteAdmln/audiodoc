@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Проверки реестра, синхронного pipeline и публичных импортов."""
 
 import asyncio
@@ -177,7 +178,8 @@ def test_pipeline_hides_unexpected_extractor_exception(monkeypatch, caplog):
     monkeypatch.setattr(pipeline, "detect_format", lambda _data, _name: "txt")
 
     def fail_extractor(_data, *, context=None):
-        raise RuntimeError("/private/path/to/parser-internal-error")
+        error_message = "/private/path/to/parser-internal-error"
+        raise RuntimeError(error_message)
 
     monkeypatch.setitem(pipeline.REGISTRY, "txt", fail_extractor)
 

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Small, strict environment-variable readers shared by backend settings."""
 
 import math

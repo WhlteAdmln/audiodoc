@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Определение формата документа по содержимому и расширению."""
 
 from pathlib import Path

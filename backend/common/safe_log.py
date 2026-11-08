@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Sanitize untrusted values before writing them to application logs."""
 
 

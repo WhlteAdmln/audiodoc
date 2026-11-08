@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Check that every direct runtime requirement is pinned compatibly in the lock."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Tests for the hardened XML parser used by XML and FB2 extractors."""
 
 import pytest

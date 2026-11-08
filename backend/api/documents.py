@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Document text extraction endpoint."""
 
 import logging

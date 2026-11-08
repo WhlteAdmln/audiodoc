@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Extract readable text from HTML without scripts, styles, and navigation."""
 
 from bs4 import BeautifulSoup

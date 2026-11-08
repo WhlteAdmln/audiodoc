@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Tests for row/column caps and extractor use of the shared TextBudget."""
 
 from typing import ClassVar

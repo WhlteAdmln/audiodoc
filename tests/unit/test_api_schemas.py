@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 from backend.api.schemas import DocumentResponse, TranscribeResponse
 
 

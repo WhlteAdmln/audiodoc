@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Extract OpenDocument Presentation slide text within the shared text budget."""
 
 from odf import teletype

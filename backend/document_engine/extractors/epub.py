@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Extract readable chapter text from EPUB packages."""
 
 import io

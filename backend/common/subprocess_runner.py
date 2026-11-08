@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Run external programs without a shell and with bounded time and output."""
 
 import math

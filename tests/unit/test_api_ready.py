@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 import sys
 from collections.abc import Callable
 from types import ModuleType

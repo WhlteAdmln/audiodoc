@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Extract paragraphs and table rows from Microsoft Word documents."""
 
 from io import BytesIO

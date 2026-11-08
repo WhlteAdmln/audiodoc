@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Parse untrusted XML while rejecting DTD and entity declarations."""
 
 from __future__ import annotations

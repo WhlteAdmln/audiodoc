@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Extract Excel cell text with row, column, time, and character limits."""
 
 from io import BytesIO

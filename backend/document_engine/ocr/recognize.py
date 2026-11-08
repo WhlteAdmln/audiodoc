@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Recognize image frames using Tesseract after checking pixel dimensions."""
 
 from PIL import Image

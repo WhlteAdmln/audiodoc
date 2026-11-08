@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Count extracted text incrementally so large documents stop early.
 
 The budget accounts for the separator inserted between accepted chunks and

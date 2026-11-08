@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Extract PDF text within the budget and mark unprocessed pages as omitted."""
 
 import logging

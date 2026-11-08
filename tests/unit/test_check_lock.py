@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 from pathlib import Path
 
 from scripts.check_lock import check_lock

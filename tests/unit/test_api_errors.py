@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Tests for safe HTTP error responses and sanitized request logging."""
 
 import logging

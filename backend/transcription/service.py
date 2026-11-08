@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Nikolai Zelensky
 """Threaded Whisper execution with bounded admission and active concurrency."""
 
 import asyncio
