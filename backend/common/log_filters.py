@@ -5,6 +5,7 @@ import re
 
 _TOKEN_PATTERN = re.compile(r"\b\d{6,12}:[A-Za-z0-9_-]{30,}\b")
 _BEARER_PATTERN = re.compile(r"(?i)(\bauthorization\s*[:=]\s*bearer\s+)[^\s,;]+")
+_MIN_SECRET_LENGTH = 8
 
 
 class SecretsFilter(logging.Filter):
@@ -17,7 +18,9 @@ class SecretsFilter(logging.Filter):
             secrets: Values that should be removed from log output.
         """
         super().__init__()
-        self._secrets = [secret for secret in secrets if secret and len(secret) >= 8]
+        self._secrets = [
+            secret for secret in secrets if secret and len(secret) >= _MIN_SECRET_LENGTH
+        ]
 
     def _clean(self, text: str) -> str:
         cleaned = _TOKEN_PATTERN.sub("[REDACTED]", text)

@@ -3,6 +3,19 @@
 import io
 import zipfile
 
+_MIMETYPE_FORMATS: dict[str, str] = {
+    "application/epub+zip": "epub",
+    "application/vnd.oasis.opendocument.text": "odt",
+    "application/vnd.oasis.opendocument.spreadsheet": "ods",
+    "application/vnd.oasis.opendocument.presentation": "odp",
+}
+
+_MEMBER_FORMATS: dict[str, str] = {
+    "word/document.xml": "docx",
+    "xl/workbook.xml": "xlsx",
+    "ppt/presentation.xml": "pptx",
+}
+
 
 def _detect_zip_format(data: bytes) -> str | None:
     """Определяет формат ZIP-контейнера по внутренним файлам.
@@ -21,26 +34,13 @@ def _detect_zip_format(data: bytes) -> str | None:
                         errors="ignore",
                     )
 
-                if mimetype == "application/epub+zip":
-                    return "epub"
+                detected = _MIMETYPE_FORMATS.get(mimetype)
+                if detected is not None:
+                    return detected
 
-                if mimetype == "application/vnd.oasis.opendocument.text":
-                    return "odt"
-
-                if mimetype == "application/vnd.oasis.opendocument.spreadsheet":
-                    return "ods"
-
-                if mimetype == "application/vnd.oasis.opendocument.presentation":
-                    return "odp"
-
-            if "word/document.xml" in names:
-                return "docx"
-
-            if "xl/workbook.xml" in names:
-                return "xlsx"
-
-            if "ppt/presentation.xml" in names:
-                return "pptx"
+            for archive_member, document_format in _MEMBER_FORMATS.items():
+                if archive_member in names:
+                    return document_format
 
     except (zipfile.BadZipFile, OSError, RuntimeError):
         return None

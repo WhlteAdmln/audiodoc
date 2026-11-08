@@ -29,47 +29,35 @@ def detect_format(
     Standalone images are not processed; they are routed to the separate
     Vision Engine.
     """
-    if not data:
-        return None
+    detected: str | None = None
+    if data:
+        file_extension = Path(filename or "").suffix.lower()
 
-    file_extension = Path(filename or "").suffix.lower()
+        # Изображения обрабатываются отдельным Vision Engine.
+        if file_extension not in IMAGE_EXTENSIONS:
+            detected = detect_pdf_signature(data)
+            if not detected:
+                detected = detect_djvu_signature(data)
+            if not detected:
+                detected = detect_ole_signature(data, file_extension)
 
-    # Изображения обрабатываются отдельным Vision Engine.
-    if file_extension in IMAGE_EXTENSIONS:
-        return None
+            # ZIP-контейнеры: DOCX, XLSX, PPTX, EPUB, ODT и другие.
+            if not detected and data.startswith(b"PK"):
+                detected = _detect_zip_format(data)
 
-    detected = detect_pdf_signature(data)
-    if detected:
-        return detected
+            if not detected:
+                detected = detect_rtf_signature(data)
 
-    detected = detect_djvu_signature(data)
-    if detected:
-        return detected
+            # Текстовые форматы: проверяем расширение.
+            if not detected:
+                extension = file_extension.lstrip(".")
+                if extension in extension_map:
+                    detected = extension_map[extension]
+                # Проверка, похоже ли содержимое на текст.
+                elif looks_like_text(data):
+                    detected = "txt"
 
-    detected = detect_ole_signature(data, file_extension)
-    if detected:
-        return detected
-
-    # ZIP-контейнеры: DOCX, XLSX, PPTX, EPUB, ODT и другие.
-    if data.startswith(b"PK"):
-        detected = _detect_zip_format(data)
-        if detected:
-            return detected
-
-    detected = detect_rtf_signature(data)
-    if detected:
-        return detected
-
-    # Текстовые форматы: проверяем расширение.
-    extension = file_extension.lstrip(".")
-    if extension in extension_map:
-        return extension_map[extension]
-
-    # Проверка, похоже ли содержимое на текст.
-    if looks_like_text(data):
-        return "txt"
-
-    return None
+    return detected
 
 
 __all__ = [
