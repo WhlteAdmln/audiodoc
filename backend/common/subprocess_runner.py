@@ -19,6 +19,19 @@ class SubprocessOutputLimitError(ValueError):
     """A child process produced more stdout than the accepted byte limit."""
 
 
+def _validate_run_limited_args(
+    args: list[str], timeout: float, max_output: int
+) -> float:
+    if not args or any(not isinstance(argument, str) for argument in args):
+        raise ValueError("args must be a non-empty list of strings")
+    timeout_value = float(timeout)
+    if not math.isfinite(timeout_value) or timeout_value <= 0:
+        raise ValueError("timeout must be a finite positive number")
+    if isinstance(max_output, bool) or not _is_integer(max_output) or max_output < 0:
+        raise ValueError("max_output must be a non-negative integer")
+    return timeout_value
+
+
 def run_limited(
     args: list[str],
     *,
@@ -41,13 +54,7 @@ def run_limited(
         TimeoutError: If the child process exceeds ``timeout``.
         OSError: If the executable cannot be started.
     """
-    if not args or any(not isinstance(argument, str) for argument in args):
-        raise ValueError("args must be a non-empty list of strings")
-    timeout_value = float(timeout)
-    if not math.isfinite(timeout_value) or timeout_value <= 0:
-        raise ValueError("timeout must be a finite positive number")
-    if isinstance(max_output, bool) or not _is_integer(max_output) or max_output < 0:
-        raise ValueError("max_output must be a non-negative integer")
+    timeout_value = _validate_run_limited_args(args, timeout, max_output)
 
     timed_out = threading.Event()
     with tempfile.TemporaryFile(mode="w+b") as stderr_file:
