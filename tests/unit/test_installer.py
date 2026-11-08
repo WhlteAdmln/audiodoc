@@ -1,5 +1,6 @@
 """Smoke tests for the POSIX release installer CLI."""
 
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -8,8 +9,11 @@ INSTALLER = PROJECT_ROOT / "install.sh"
 
 
 def run_installer(*arguments: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["sh", str(INSTALLER), *arguments],
+    shell_path = shutil.which("sh")
+    assert shell_path is not None, "A POSIX shell is required"
+
+    return subprocess.run(  # noqa: S603 - resolved shell runs the local installer.
+        [shell_path, str(INSTALLER), *arguments],
         cwd=PROJECT_ROOT,
         check=False,
         capture_output=True,

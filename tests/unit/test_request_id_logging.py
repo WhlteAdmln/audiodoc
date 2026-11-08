@@ -55,24 +55,24 @@ def test_request_id_filter_adds_context_to_log_records():
 
 
 def test_secrets_filter_redacts_message_arguments_and_traceback():
-    secret = "document-api-secret-0123456789"
-    secrets_filter = SecretsFilter([secret])
+    sensitive_value = "document-api-secret-0123456789"
+    secrets_filter = SecretsFilter([sensitive_value])
     record = logging.LogRecord(
-        "test", logging.ERROR, __file__, 1, "failed with %s", (secret,), None
+        "test", logging.ERROR, __file__, 1, "failed with %s", (sensitive_value,), None
     )
     assert secrets_filter.filter(record)
-    assert secret not in record.getMessage()
+    assert sensitive_value not in record.getMessage()
     assert "[REDACTED]" in record.getMessage()
 
     try:
-        raise RuntimeError(f"upstream request Authorization: Bearer {secret}")
+        raise RuntimeError(f"upstream request Authorization: Bearer {sensitive_value}")
     except RuntimeError:
         error_record = logging.LogRecord(
             "test", logging.ERROR, __file__, 1, "request failed", (), sys.exc_info()
         )
     secrets_filter.filter(error_record)
     assert error_record.exc_text is not None
-    assert secret not in error_record.exc_text
+    assert sensitive_value not in error_record.exc_text
     assert "[REDACTED]" in error_record.exc_text
 
 

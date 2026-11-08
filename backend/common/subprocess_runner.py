@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import threading
 from contextlib import suppress
+from typing import IO, cast
 
 MAX_SUBPROCESS_OUTPUT = 20 * 1024 * 1024
 MAX_STDERR_PREVIEW = 4096
@@ -50,14 +51,14 @@ def run_limited(
 
     timed_out = threading.Event()
     with tempfile.TemporaryFile(mode="w+b") as stderr_file:
-        process = subprocess.Popen(
+        process = subprocess.Popen(  # noqa: S603 - internal argv; shell=False.
             args,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=stderr_file,
             shell=False,
         )
-        assert process.stdout is not None
+        stdout = cast("IO[bytes]", process.stdout)
 
         def on_timeout() -> None:
             """Kill the child process when the wall-clock timer expires."""
@@ -72,7 +73,7 @@ def run_limited(
 
         output = b""
         try:
-            output = process.stdout.read(max_output + 1)
+            output = stdout.read(max_output + 1)
             if len(output) > max_output and process.poll() is None:
                 with suppress(OSError):
                     process.kill()
@@ -83,7 +84,7 @@ def run_limited(
                 with suppress(OSError):
                     process.kill()
             process.wait()
-            process.stdout.close()
+            stdout.close()
 
         if timed_out.is_set():
             raise SubprocessTimeoutError("subprocess timed out")

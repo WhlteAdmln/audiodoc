@@ -11,7 +11,13 @@ pytestmark = pytest.mark.integration
 
 def test_scanned_djvu_is_processed_with_ocr(tmp_path):
     required = ("c44", "djvutxt", "djvused", "ddjvu", "tesseract")
-    missing = [name for name in required if shutil.which(name) is None]
+    tool_paths: dict[str, str] = {}
+    for name in required:
+        executable = shutil.which(name)
+        if executable is not None:
+            tool_paths[name] = executable
+
+    missing = [name for name in required if name not in tool_paths]
     if missing:
         pytest.skip("Missing DJVU/OCR tools: " + ", ".join(missing))
 
@@ -35,8 +41,8 @@ def test_scanned_djvu_is_processed_with_ocr(tmp_path):
     image.save(ppm_path)
     image.close()
 
-    subprocess.run(
-        ["c44", str(ppm_path), str(djvu_path)],
+    subprocess.run(  # noqa: S603 - resolved c44 runs with a fixed argument list.
+        [tool_paths["c44"], str(ppm_path), str(djvu_path)],
         check=True,
         capture_output=True,
         timeout=60,
