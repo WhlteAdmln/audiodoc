@@ -41,7 +41,7 @@ configure_logging(
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Validate access configuration and initialize storage and Whisper."""
     os.umask(0o077)
     check_security_settings(settings)
