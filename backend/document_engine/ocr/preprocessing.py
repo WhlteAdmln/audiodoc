@@ -43,6 +43,4 @@ def _prepare_image(image: Image.Image) -> Image.Image:
     image = ImageOps.grayscale(image)
 
     # Улучшаем контраст.
-    image = ImageOps.autocontrast(image)
-
-    return image
+    return ImageOps.autocontrast(image)
