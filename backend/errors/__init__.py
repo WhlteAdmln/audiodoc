@@ -11,13 +11,13 @@ from backend.errors.documents import (
 from backend.errors.transcription import AudioTooLongError, ModelNotReadyError
 
 __all__ = [
+    "AudioTooLongError",
     "BackendError",
-    "ServerBusyError",
+    "DependencyMissingError",
     "DocumentRejectedError",
-    "UnsupportedFormatError",
+    "ModelNotReadyError",
     "PayloadTooLargeError",
     "ProcessingTimeoutError",
-    "DependencyMissingError",
-    "AudioTooLongError",
-    "ModelNotReadyError",
+    "ServerBusyError",
+    "UnsupportedFormatError",
 ]

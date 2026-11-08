@@ -2,4 +2,4 @@
 
 from backend.config.settings import Settings, settings
 
-__all__ = ["settings", "Settings"]
+__all__ = ["Settings", "settings"]

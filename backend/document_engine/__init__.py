@@ -3,4 +3,4 @@
 from backend.document_engine.pipeline import process_document_sync
 from backend.document_engine.runner import document_queue, process_document
 
-__all__ = ["process_document", "process_document_sync", "document_queue"]
+__all__ = ["document_queue", "process_document", "process_document_sync"]

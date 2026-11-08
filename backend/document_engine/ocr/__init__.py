@@ -40,4 +40,4 @@ def extract_image_text(
         return recognize_pages(image, languages, deadline=deadline)
 
 
-__all__ = ["extract_image_text", "DEFAULT_OCR_LANGUAGES"]
+__all__ = ["DEFAULT_OCR_LANGUAGES", "extract_image_text"]

@@ -30,4 +30,4 @@ def extract_odf(
     return extractor(document, context=ctx)
 
 
-__all__ = ["extract_odf", "extract_odt", "extract_ods", "extract_odp"]
+__all__ = ["extract_odf", "extract_odp", "extract_ods", "extract_odt"]

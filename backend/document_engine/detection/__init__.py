@@ -73,7 +73,7 @@ def detect_format(
 
 
 __all__ = [
-    "detect_format",
-    "SUPPORTED_FORMATS",
     "IMAGE_EXTENSIONS",
+    "SUPPORTED_FORMATS",
+    "detect_format",
 ]
