@@ -21,7 +21,7 @@ def _transcribe_sync(path: Path) -> dict[str, Any]:
     try:
         model = model_holder.get()
     except RuntimeError as error:
-        raise ModelNotReadyError() from error
+        raise ModelNotReadyError from error
 
     segments, info = model.transcribe(
         str(path),

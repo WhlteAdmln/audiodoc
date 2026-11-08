@@ -40,7 +40,7 @@ def extract_djvu(
 
         logger.info("DJVU has no text layer; starting OCR")
         if tools.djvused is None or tools.ddjvu is None:
-            raise DependencyMissingError()
+            raise DependencyMissingError
         return extract_ocr_pages(
             file_path,
             temp_path,

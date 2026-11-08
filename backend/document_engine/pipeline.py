@@ -60,7 +60,7 @@ def process_document_sync(
         _validate_document_input(data, context)
         filetype = detect_format(data, filename)
         if filetype is None:
-            raise UnsupportedFormatError()
+            raise UnsupportedFormatError
 
         context.check()
         _validate_zip_document(data, filetype)
@@ -71,7 +71,7 @@ def process_document_sync(
         return build_result(filetype, text, truncated=context.budget.truncated)
 
     except DeadlineExceededError as error:
-        raise ProcessingTimeoutError() from error
+        raise ProcessingTimeoutError from error
 
 
 def _get_text_limit(max_characters: int | None) -> int:
@@ -91,7 +91,7 @@ def _validate_document_input(data: bytes, context: ExtractContext) -> None:
     if not data:
         raise DocumentRejectedError("Документ пуст")
     if len(data) > MAX_DOCUMENT_SIZE:
-        raise PayloadTooLargeError()
+        raise PayloadTooLargeError
 
 
 def _validate_zip_document(data: bytes, filetype: str) -> None:
@@ -111,7 +111,7 @@ def _extract_document_text(
 ) -> str:
     extractor = REGISTRY.get(filetype)
     if extractor is None:
-        raise UnsupportedFormatError()
+        raise UnsupportedFormatError
 
     try:
         return extractor(data, context=context)

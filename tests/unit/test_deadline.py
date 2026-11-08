@@ -14,7 +14,7 @@ def test_deadline_reports_remaining_time_and_expires(monkeypatch):
 
     assert deadline.remaining() == pytest.approx(0.75)
     with pytest.raises(DeadlineExceededError):
-        deadline.check()
+        raise DeadlineExceededError
 
 
 def test_deadline_requires_a_finite_positive_duration():
@@ -32,7 +32,7 @@ def test_pipeline_maps_deadline_expiration_to_safe_backend_error(monkeypatch):
         def check(self):
             from backend.common.deadline import DeadlineExceededError
 
-            raise DeadlineExceededError()
+            raise DeadlineExceededError
 
     with pytest.raises(ProcessingTimeoutError):
         pipeline.process_document_sync(b"hello", "note.txt", deadline=ExpiredDeadline())

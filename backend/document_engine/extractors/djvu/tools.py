@@ -27,5 +27,5 @@ def find_djvu_tools() -> DjvuTools:
 def require_djvutxt(tools: DjvuTools) -> str:
     """Проверяет наличие инструмента чтения текстового слоя."""
     if tools.djvutxt is None:
-        raise DependencyMissingError()
+        raise DependencyMissingError
     return tools.djvutxt

@@ -23,7 +23,7 @@ def test_server_busy_error_returns_retry_after_header():
 
     @router.get("/busy")
     async def busy():
-        raise ServerBusyError()
+        raise ServerBusyError
 
     response = TestClient(_app_with_router(router)).get("/busy")
     assert response.status_code == 503
@@ -36,7 +36,7 @@ def test_document_queue_rejects_before_upload_is_copied(monkeypatch):
 
     @asynccontextmanager
     async def reject_slot():
-        raise ServerBusyError()
+        raise ServerBusyError
         yield
 
     def unexpected_read(*_args, **_kwargs):
@@ -58,7 +58,7 @@ def test_transcription_queue_rejects_before_temp_file_write(monkeypatch):
 
     @asynccontextmanager
     async def reject_slot():
-        raise ServerBusyError()
+        raise ServerBusyError
         yield
 
     def unexpected_write(*_args, **_kwargs):

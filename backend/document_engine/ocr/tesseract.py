@@ -83,7 +83,7 @@ DEFAULT_OCR_LANGUAGES = "rus+eng"
 def _check_tesseract() -> None:
     """Raise a safe dependency error when the Tesseract executable is absent."""
     if shutil.which("tesseract") is None:
-        raise DependencyMissingError()
+        raise DependencyMissingError
 
 
 def _check_languages(languages: str) -> None:
@@ -91,12 +91,12 @@ def _check_languages(languages: str) -> None:
     try:
         available = set(pytesseract.get_languages(config=""))
     except Exception as error:
-        raise DependencyMissingError() from error
+        raise DependencyMissingError from error
 
     requested = {language for language in languages.split("+") if language}
     missing = requested - available
     if missing:
-        raise DependencyMissingError()
+        raise DependencyMissingError
 
 
 @lru_cache(maxsize=8)
