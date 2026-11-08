@@ -1,5 +1,7 @@
 """Recognize image frames using Tesseract after checking pixel dimensions."""
 
+from typing import cast
+
 import pytesseract
 from PIL import Image
 
@@ -28,46 +30,69 @@ def recognize_pages(
     result: list[str] = []
     total_characters = 0
     for page_index in range(page_count):
-        if deadline is not None:
-            deadline.check()
-        image.seek(page_index)
-
-        # Accessing dimensions does not create a decoded copy; copy() below does.
-        if image.width * image.height > MAX_IMAGE_PIXELS:
-            raise DocumentRejectedError(
-                "Изображение слишком большое: превышен лимит пикселей"
-            )
-
-        prepared = _prepare_image(image.copy())
-        try:
-            if deadline is not None:
-                deadline.check()
-                timeout = min(OCR_PAGE_TIMEOUT, max(deadline.remaining(), 0.001))
-            else:
-                timeout = OCR_PAGE_TIMEOUT
-            text = pytesseract.image_to_string(
-                prepared,
-                lang=languages,
-                config="--psm 3",
-                timeout=timeout,
-            )
-        except RuntimeError as error:
-            if deadline is not None:
-                deadline.check()
-            raise DocumentRejectedError(
-                "Не удалось распознать страницу изображения"
-            ) from error
-        finally:
-            prepared.close()
-
-        text = text.strip()
-        if text:
-            prefix = f"--- Страница {page_index + 1} ---\n" if page_count > 1 else ""
-            accepted = (prefix + text)[: MAX_EXTRACTED_TEXT_LENGTH - total_characters]
-            if accepted:
-                result.append(accepted)
-                total_characters += len(accepted)
+        accepted = _recognize_page(
+            image,
+            page_index,
+            page_count,
+            languages,
+            deadline,
+            MAX_EXTRACTED_TEXT_LENGTH - total_characters,
+        )
+        if accepted:
+            result.append(accepted)
+            total_characters += len(accepted)
         if total_characters >= MAX_EXTRACTED_TEXT_LENGTH:
             break
 
     return "\n\n".join(result)
+
+
+def _recognize_page(
+    image: Image.Image,
+    page_index: int,
+    page_count: int,
+    languages: str,
+    deadline: Deadline | None,
+    remaining_characters: int,
+) -> str:
+    if deadline is not None:
+        deadline.check()
+    image.seek(page_index)
+
+    # Accessing dimensions does not create a decoded copy; copy() below does.
+    if image.width * image.height > MAX_IMAGE_PIXELS:
+        raise DocumentRejectedError(
+            "Изображение слишком большое: превышен лимит пикселей"
+        )
+
+    prepared = _prepare_image(image.copy())
+    try:
+        if deadline is not None:
+            deadline.check()
+            timeout = min(OCR_PAGE_TIMEOUT, max(deadline.remaining(), 0.001))
+        else:
+            timeout = OCR_PAGE_TIMEOUT
+        text = cast(
+            "str",
+            pytesseract.image_to_string(
+                prepared,
+                lang=languages,
+                config="--psm 3",
+                timeout=timeout,
+            ),
+        )
+    except RuntimeError as error:
+        if deadline is not None:
+            deadline.check()
+        raise DocumentRejectedError(
+            "Не удалось распознать страницу изображения"
+        ) from error
+    finally:
+        prepared.close()
+
+    text = text.strip()
+    if not text:
+        return ""
+
+    prefix = f"--- Страница {page_index + 1} ---\n" if page_count > 1 else ""
+    return (prefix + text)[:remaining_characters]

@@ -47,17 +47,7 @@ def process_document_sync(
     Raises:
         BackendError: For invalid, unsupported, oversized, or timed-out documents.
     """
-    if max_characters is not None:
-        if (
-            isinstance(max_characters, bool)
-            or not _is_integer(max_characters)
-            or not 1 <= max_characters <= MAX_EXTRACTED_TEXT_LENGTH
-        ):
-            raise DocumentRejectedError("Некорректный лимит длины текста")
-        limit = min(MAX_EXTRACTED_TEXT_LENGTH, max_characters)
-    else:
-        limit = MAX_EXTRACTED_TEXT_LENGTH
-
+    limit = _get_text_limit(max_characters)
     operation_deadline = deadline or Deadline(DOCUMENT_PROCESSING_TIMEOUT)
     context = ExtractContext(
         budget=TextBudget(limit),
@@ -66,46 +56,72 @@ def process_document_sync(
     )
 
     try:
-        context.check()
-        if not data:
-            raise DocumentRejectedError("Документ пуст")
-        if len(data) > MAX_DOCUMENT_SIZE:
-            raise PayloadTooLargeError()
-
+        _validate_document_input(data, context)
         filetype = detect_format(data, filename)
         if filetype is None:
             raise UnsupportedFormatError()
 
         context.check()
-        if filetype in ZIP_FORMATS:
-            try:
-                validate_zip_archive(data)
-            except ValueError as error:
-                raise DocumentRejectedError(
-                    "Документ содержит повреждённый или недопустимый архив"
-                ) from error
+        _validate_zip_document(data, filetype)
         context.check()
 
-        extractor = REGISTRY.get(filetype)
-        if extractor is None:
-            raise UnsupportedFormatError()
-
-        try:
-            text = extractor(data, context=context)
-        except BackendError:
-            raise
-        except Exception as error:
-            logger.exception("Document extractor failed: format=%s", filetype)
-            raise DocumentRejectedError(
-                "Не удалось прочитать документ: файл повреждён или имеет "
-                "неподдерживаемую структуру"
-            ) from error
-
+        text = _extract_document_text(data, filetype, context)
         context.check()
         return build_result(filetype, text, truncated=context.budget.truncated)
 
     except DeadlineExceededError as error:
         raise ProcessingTimeoutError() from error
+
+
+def _get_text_limit(max_characters: int | None) -> int:
+    if max_characters is not None:
+        if (
+            isinstance(max_characters, bool)
+            or not _is_integer(max_characters)
+            or not 1 <= max_characters <= MAX_EXTRACTED_TEXT_LENGTH
+        ):
+            raise DocumentRejectedError("Некорректный лимит длины текста")
+        return min(MAX_EXTRACTED_TEXT_LENGTH, max_characters)
+    return MAX_EXTRACTED_TEXT_LENGTH
+
+
+def _validate_document_input(data: bytes, context: ExtractContext) -> None:
+    context.check()
+    if not data:
+        raise DocumentRejectedError("Документ пуст")
+    if len(data) > MAX_DOCUMENT_SIZE:
+        raise PayloadTooLargeError()
+
+
+def _validate_zip_document(data: bytes, filetype: str) -> None:
+    if filetype in ZIP_FORMATS:
+        try:
+            validate_zip_archive(data)
+        except ValueError as error:
+            raise DocumentRejectedError(
+                "Документ содержит повреждённый или недопустимый архив"
+            ) from error
+
+
+def _extract_document_text(
+    data: bytes,
+    filetype: str,
+    context: ExtractContext,
+) -> str:
+    extractor = REGISTRY.get(filetype)
+    if extractor is None:
+        raise UnsupportedFormatError()
+
+    try:
+        return extractor(data, context=context)
+    except BackendError:
+        raise
+    except Exception as error:
+        logger.exception("Document extractor failed: format=%s", filetype)
+        raise DocumentRejectedError(
+            "Не удалось прочитать документ: файл повреждён или имеет "
+            "неподдерживаемую структуру"
+        ) from error
 
 
 def _is_integer(value: object) -> bool:
