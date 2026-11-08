@@ -72,6 +72,7 @@ class ModelHolder:
         Raises:
             ImportError: If the optional ``faster-whisper`` dependency is absent.
             RuntimeError: If model construction or model download fails.
+
         """
         logger.info(
             "Loading Whisper model: %s",
@@ -88,6 +89,7 @@ class ModelHolder:
 
         Raises:
             RuntimeError: If ``load()`` has not completed successfully.
+
         """
         if self._model is None:
             raise RuntimeError("Whisper model is not loaded")

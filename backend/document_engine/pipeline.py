@@ -46,6 +46,7 @@ def process_document_sync(
 
     Raises:
         BackendError: For invalid, unsupported, oversized, or timed-out documents.
+
     """
     limit = _get_text_limit(max_characters)
     operation_deadline = deadline or Deadline(DOCUMENT_PROCESSING_TIMEOUT)

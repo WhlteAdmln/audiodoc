@@ -9,6 +9,7 @@ def detect_pdf_signature(data: bytes) -> str | None:
 
     Returns:
         ``pdf`` on a match, otherwise ``None``.
+
     """
     if data.startswith(b"%PDF-"):
         return "pdf"
@@ -23,6 +24,7 @@ def detect_djvu_signature(data: bytes) -> str | None:
 
     Returns:
         ``djvu`` on a match, otherwise ``None``.
+
     """
     if data.startswith(b"AT&TFORM"):
         return "djvu"
@@ -54,6 +56,7 @@ def detect_rtf_signature(data: bytes) -> str | None:
 
     Returns:
         ``rtf`` on a match, otherwise ``None``.
+
     """
     if data.startswith(b"{\\rtf"):
         return "rtf"

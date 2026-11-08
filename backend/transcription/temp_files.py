@@ -28,6 +28,7 @@ def ensure_temp_dir() -> Path:
 
     Returns:
         The configured private temporary directory.
+
     """
     TEMP_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
     # Tighten permissions if the directory already existed with broader access.

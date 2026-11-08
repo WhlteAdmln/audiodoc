@@ -56,6 +56,7 @@ def create_app() -> FastAPI:
 
     Returns:
         A configured FastAPI application using the backend lifespan handler.
+
     """
     app = FastAPI(
         title="audiodoc",

@@ -42,6 +42,7 @@ class TextBudget:
         Returns:
             The accepted part of ``text``. Join accepted chunks with a
             separator of the same length to produce a string within the limit.
+
         """
         if not isinstance(text, str):
             raise TypeError("text must be a string")

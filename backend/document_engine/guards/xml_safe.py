@@ -24,6 +24,7 @@ def parse_xml(data: bytes) -> Element[str]:
 
     Raises:
         DocumentRejectedError: If DTD/entities are present or XML is malformed.
+
     """
     try:
         return cast(
