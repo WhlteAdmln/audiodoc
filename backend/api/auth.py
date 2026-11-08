@@ -50,7 +50,7 @@ def check_security_settings(settings: Settings) -> None:
 
     if missing and not settings.ALLOW_UNAUTHENTICATED:
         raise RuntimeError(
-            "Не заданы ключи: " + ", ".join(missing) + ". "
+            "\u041d\u0435 заданы ключи: " + ", ".join(missing) + ". "
             "Задайте их в .env (те же значения, что в .env бота) "
             "или поставьте ALLOW_UNAUTHENTICATED=true только для локальной разработки."
         )

@@ -47,6 +47,6 @@ def extract_text_layer(
         logger.warning(
             "djvutxt failed: stderr=%r", stderr.decode("utf-8", errors="replace")
         )
-        raise DocumentRejectedError("Не удалось прочитать DJVU")
+        raise DocumentRejectedError("\u041d\u0435 удалось прочитать DJVU")
     ctx.check()
     return output.decode("utf-8", errors="replace").strip()

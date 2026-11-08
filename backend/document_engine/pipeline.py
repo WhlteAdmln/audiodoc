@@ -120,7 +120,7 @@ def _extract_document_text(
     except Exception as error:
         logger.exception("Document extractor failed: format=%s", filetype)
         raise DocumentRejectedError(
-            "Не удалось прочитать документ: файл повреждён или имеет "
+            "\u041d\u0435 удалось прочитать документ: файл повреждён или имеет "
             "неподдерживаемую структуру"
         ) from error
 

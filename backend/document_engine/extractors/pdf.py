@@ -70,7 +70,7 @@ def extract_pdf(
 
     with open_document(stream=data, filetype="pdf") as document:
         if document.page_count > MAX_DOCUMENT_PAGES:
-            raise DocumentRejectedError("В PDF слишком много страниц")
+            raise DocumentRejectedError("\u0412 PDF слишком много страниц")
 
         for index, page in enumerate(document):
             ctx.check()

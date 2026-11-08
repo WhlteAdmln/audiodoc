@@ -34,4 +34,4 @@ class DependencyMissingError(BackendError):
     """A required system executable or parser dependency is unavailable (HTTP 503)."""
 
     status_code = 503
-    public_message = "На сервере не установлена нужная программа"
+    public_message = "\u041d\u0430 сервере не установлена нужная программа"

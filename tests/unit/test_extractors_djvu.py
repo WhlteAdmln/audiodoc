@@ -105,7 +105,10 @@ def test_text_layer_uses_bounded_output_and_hides_stderr(monkeypatch, tmp_path):
         return 1, b"", b"DJVU parser error /private/tmp/file"
 
     monkeypatch.setattr(text_layer_module, "run_limited", fake_run)
-    with pytest.raises(DocumentRejectedError, match="Не удалось прочитать DJVU"):
+    with pytest.raises(
+        DocumentRejectedError,
+        match="\u041d\u0435 удалось прочитать DJVU",
+    ):
         extract_text_layer(tmp_path / "document.djvu", "/usr/bin/djvutxt")
     assert captured["max_output"] > 0
     assert captured["timeout"] == SUBPROCESS_TIMEOUT

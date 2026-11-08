@@ -34,7 +34,7 @@ def _transcribe_sync(path: Path) -> dict[str, Any]:
     if duration > settings.MAX_AUDIO_DURATION:
         message = (
             "Аудио слишком длинное. Максимальная длительность: "
-            f"{settings.MAX_AUDIO_DURATION} с."
+            f"{settings.MAX_AUDIO_DURATION} \u0441."
         )
         raise AudioTooLongError(message)
 

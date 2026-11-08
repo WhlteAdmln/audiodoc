@@ -192,7 +192,7 @@ def test_pipeline_hides_unexpected_extractor_exception(monkeypatch, caplog):
         process_document_sync(b"payload", "note.txt")
 
     assert error.value.public_message == (
-        "Не удалось прочитать документ: файл повреждён или имеет "
+        "\u041d\u0435 удалось прочитать документ: файл повреждён или имеет "
         "неподдерживаемую структуру"
     )
     assert "/private/path/to/parser-internal-error" not in error.value.public_message

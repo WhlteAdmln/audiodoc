@@ -23,7 +23,7 @@ def recognize_pages(
     """Recognize image frames, rejecting oversized frames before copying them."""
     page_count = getattr(image, "n_frames", 1)
     if page_count > MAX_DOCUMENT_PAGES:
-        raise DocumentRejectedError("В изображении слишком много страниц")
+        raise DocumentRejectedError("\u0412 изображении слишком много страниц")
 
     result: list[str] = []
     total_characters = 0
@@ -80,7 +80,7 @@ def _recognize_page(
         if deadline is not None:
             deadline.check()
         raise DocumentRejectedError(
-            "Не удалось распознать страницу изображения"
+            "\u041d\u0435 удалось распознать страницу изображения"
         ) from error
     finally:
         prepared.close()

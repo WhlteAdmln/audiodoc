@@ -79,7 +79,7 @@ def test_pdf_rejects_too_many_pages(monkeypatch):
 
     with pytest.raises(
         DocumentRejectedError,
-        match="В PDF слишком много страниц",
+        match="\u0412 PDF слишком много страниц",
     ):
         extract_pdf(b"fake-pdf")
 

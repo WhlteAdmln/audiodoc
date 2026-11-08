@@ -31,7 +31,7 @@ def extract_image_text(
         image = Image.open(io.BytesIO(data))
     except UnidentifiedImageError as error:
         raise DocumentRejectedError(
-            "Не удалось определить формат изображения"
+            "\u041d\u0435 удалось определить формат изображения"
         ) from error
 
     with image:

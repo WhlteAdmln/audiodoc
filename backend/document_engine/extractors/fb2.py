@@ -37,7 +37,7 @@ def extract_fb2(data: bytes, *, context: ExtractContext | None = None) -> str:
     root = parse_xml(data)
     bodies = [item for item in root.iter() if item.tag.split("}")[-1] == "body"]
     if not bodies:
-        raise DocumentRejectedError("В FB2 не найдено содержимое книги")
+        raise DocumentRejectedError("\u0412 FB2 не найдено содержимое книги")
 
     result: list[str] = []
     for body in bodies:

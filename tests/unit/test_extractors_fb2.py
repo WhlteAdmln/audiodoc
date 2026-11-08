@@ -21,7 +21,7 @@ def test_fb2_without_body_is_rejected():
     from backend.errors.documents import DocumentRejectedError
 
     with pytest.raises(
-        DocumentRejectedError, match="В FB2 не найдено содержимое книги"
+        DocumentRejectedError, match="\u0412 FB2 не найдено содержимое книги"
     ):
         extract_fb2(data)
 

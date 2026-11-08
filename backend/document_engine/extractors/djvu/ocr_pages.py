@@ -71,15 +71,17 @@ def _get_page_count(
             "djvused page count failed: stderr=%r",
             stderr.decode("utf-8", errors="replace"),
         )
-        raise DocumentRejectedError("Не удалось определить количество страниц DJVU")
+        raise DocumentRejectedError(
+            "\u041d\u0435 удалось определить количество страниц DJVU"
+        )
     try:
         page_count = int(output.decode("utf-8", errors="replace").strip())
     except ValueError as error:
         raise DocumentRejectedError("Некорректное количество страниц DJVU") from error
     if page_count <= 0:
-        raise DocumentRejectedError("В DJVU не найдено страниц")
+        raise DocumentRejectedError("\u0412 DJVU не найдено страниц")
     if page_count > MAX_DOCUMENT_PAGES:
-        raise DocumentRejectedError("В DJVU слишком много страниц")
+        raise DocumentRejectedError("\u0412 DJVU слишком много страниц")
     return page_count
 
 
@@ -121,9 +123,13 @@ def extract_ocr_pages(
                     page_number,
                     stderr.decode("utf-8", errors="replace"),
                 )
-                raise DocumentRejectedError("Не удалось отобразить страницу DJVU")
+                raise DocumentRejectedError(
+                    "\u041d\u0435 удалось отобразить страницу DJVU"
+                )
             if not image_path.is_file():
-                raise DocumentRejectedError("Не удалось отобразить страницу DJVU")
+                raise DocumentRejectedError(
+                    "\u041d\u0435 удалось отобразить страницу DJVU"
+                )
 
             page_size = image_path.stat().st_size
             if page_size > MAX_DJVU_PAGE_BYTES:
