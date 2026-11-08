@@ -54,6 +54,10 @@ def test_request_id_filter_adds_context_to_log_records():
         request_id_var.reset(token)
 
 
+def _raise_upstream_error(sensitive_value: str) -> None:
+    raise RuntimeError(f"upstream request Authorization: Bearer {sensitive_value}")
+
+
 def test_secrets_filter_redacts_message_arguments_and_traceback():
     sensitive_value = "document-api-secret-0123456789"
     secrets_filter = SecretsFilter([sensitive_value])
@@ -65,7 +69,7 @@ def test_secrets_filter_redacts_message_arguments_and_traceback():
     assert "[REDACTED]" in record.getMessage()
 
     try:
-        raise RuntimeError(f"upstream request Authorization: Bearer {sensitive_value}")
+        _raise_upstream_error(sensitive_value)
     except RuntimeError:
         error_record = logging.LogRecord(
             "test", logging.ERROR, __file__, 1, "request failed", (), sys.exc_info()
