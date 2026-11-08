@@ -18,23 +18,6 @@ repos:
     hooks:
       - id: codespell
 
-  - repo: https://github.com/scop/pre-commit-shfmt
-    rev: v3.13.1-1
-    hooks:
-      - id: shfmt
-        alias: shfmt-installer
-        name: shfmt (installer)
-        args: ["-i", "0", "-d"]
-        types: [file]
-        files: ^install\.sh$
-
-      - id: shfmt
-        alias: shfmt-scripts
-        name: shfmt (scripts)
-        args: ["-i", "2", "-sr", "-d"]
-        types: [file]
-        files: ^(scripts/.*\.sh|deploy/.*\.sh(\.example)?)$
-
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.12
     hooks:
@@ -69,6 +52,20 @@ repos:
 
   - repo: local
     hooks:
+      - id: shfmt-installer
+        name: shfmt (installer)
+        entry: shfmt -i 0 -d
+        language: system
+        types: [file]
+        files: ^install\.sh$
+
+      - id: shfmt-scripts
+        name: shfmt (scripts)
+        entry: shfmt -i 2 -sr -d
+        language: system
+        types: [file]
+        files: ^(scripts/.*\.sh|deploy/.*\.sh(\.example)?)$
+
       - id: shellcheck
         name: ShellCheck
         entry: shellcheck
