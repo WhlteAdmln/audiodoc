@@ -1,12 +1,14 @@
 """Base exception contract used to map safe backend errors to HTTP responses."""
 
+from typing import ClassVar
+
 
 class BackendError(Exception):
     """Base backend error whose public message is safe to return to clients."""
 
     status_code = 500
     public_message = "Внутренняя ошибка сервиса"
-    headers: dict[str, str] = {}
+    headers: ClassVar[dict[str, str]] = {}
 
     def __init__(self, message: str | None = None) -> None:
         """Initialize with an optional safe message, otherwise use the class default."""
@@ -19,4 +21,4 @@ class ServerBusyError(BackendError):
 
     status_code = 503
     public_message = "Сервис занят. Повторите запрос позже"
-    headers = {"Retry-After": "30"}
+    headers: ClassVar[dict[str, str]] = {"Retry-After": "30"}

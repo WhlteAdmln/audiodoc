@@ -1,5 +1,7 @@
 """Tests for row/column caps and extractor use of the shared TextBudget."""
 
+from typing import ClassVar
+
 import backend.document_engine.extractors.odf.ods as ods_module
 import backend.document_engine.extractors.xlsx as xlsx_module
 from backend.common.deadline import Deadline
@@ -23,7 +25,7 @@ def test_xlsx_passes_fixed_row_and_column_caps_to_openpyxl(monkeypatch):
             yield ("must not be read",)
 
     class FakeWorkbook:
-        worksheets = [FakeSheet()]
+        worksheets: ClassVar[list[FakeSheet]] = [FakeSheet()]
 
         def close(self):
             captured["closed"] = True
