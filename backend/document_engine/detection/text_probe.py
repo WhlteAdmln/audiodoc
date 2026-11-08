@@ -10,6 +10,6 @@ def looks_like_text(data: bytes) -> bool:
 
     try:
         sample.decode("utf-8")
-        return True
     except UnicodeDecodeError:
         return False
+    return True
