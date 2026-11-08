@@ -18,6 +18,7 @@ class BodySizeLimitMiddleware:
         self.max_body_size = max_body_size
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Process an ASGI request and enforce the body size limit."""
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return

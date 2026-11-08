@@ -19,6 +19,7 @@ class RequestIdMiddleware:
         self.app = app
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        """Process an ASGI request with a validated correlation ID."""
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
