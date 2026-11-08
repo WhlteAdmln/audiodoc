@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 
 from backend.api.auth import require_key
 from backend.config import settings
+from backend.document_engine.ocr.tesseract import _get_pytesseract
 from backend.transcription.model import model_holder
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ def _available_tesseract_languages() -> tuple[bool, list[str]]:
         return False, []
 
     try:
-        import pytesseract
+        pytesseract = _get_pytesseract()
     except ImportError:
         logger.warning("Unable to query Tesseract language data")
         return True, []

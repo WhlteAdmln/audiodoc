@@ -1,8 +1,5 @@
 """Recognize image frames using Tesseract after checking pixel dimensions."""
 
-from typing import cast
-
-import pytesseract
 from PIL import Image
 
 from backend.common.deadline import Deadline
@@ -13,6 +10,7 @@ from backend.document_engine.limits import (
     OCR_PAGE_TIMEOUT,
 )
 from backend.document_engine.ocr.preprocessing import _prepare_image
+from backend.document_engine.ocr.tesseract import pytesseract
 from backend.errors.documents import DocumentRejectedError
 
 
@@ -72,14 +70,11 @@ def _recognize_page(
             timeout = min(OCR_PAGE_TIMEOUT, max(deadline.remaining(), 0.001))
         else:
             timeout = OCR_PAGE_TIMEOUT
-        text = cast(
-            "str",
-            pytesseract.image_to_string(
-                prepared,
-                lang=languages,
-                config="--psm 3",
-                timeout=timeout,
-            ),
+        text = pytesseract.image_to_string(
+            prepared,
+            lang=languages,
+            config="--psm 3",
+            timeout=timeout,
         )
     except RuntimeError as error:
         if deadline is not None:

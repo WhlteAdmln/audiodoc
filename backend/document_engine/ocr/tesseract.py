@@ -2,10 +2,80 @@
 
 import shutil
 from functools import lru_cache
+from importlib import import_module
+from typing import TYPE_CHECKING, Protocol, cast
 
-import pytesseract
+if TYPE_CHECKING:
+    from PIL import Image
 
 from backend.errors.documents import DependencyMissingError
+
+
+class _Pytesseract(Protocol):
+    """Describe the pytesseract API used by the OCR pipeline."""
+
+    TesseractError: type[Exception]
+
+    def get_languages(self, config: str = "") -> list[str]:
+        """Return available OCR languages.
+
+        Args:
+            config: Additional Tesseract configuration.
+
+        """
+        ...
+
+    def image_to_string(
+        self,
+        image: "Image.Image",
+        *,
+        lang: str,
+        config: str,
+        timeout: float,
+    ) -> str:
+        """Recognize text in an image.
+
+        Args:
+            image: Image to recognize.
+            lang: OCR languages to use.
+            config: Additional Tesseract configuration.
+            timeout: Maximum execution time in seconds.
+
+        """
+        ...
+
+
+def _get_pytesseract() -> _Pytesseract:
+    """Return the lazily imported pytesseract module."""
+    return cast("_Pytesseract", import_module("pytesseract"))
+
+
+class _PytesseractProxy:
+    """Provide lazy access to the pytesseract API."""
+
+    def get_languages(self, config: str = "") -> list[str]:
+        """Return available OCR languages."""
+        return _get_pytesseract().get_languages(config=config)
+
+    def image_to_string(
+        self,
+        image: "Image.Image",
+        *,
+        lang: str,
+        config: str,
+        timeout: float,
+    ) -> str:
+        """Recognize text in an image."""
+        return _get_pytesseract().image_to_string(
+            image,
+            lang=lang,
+            config=config,
+            timeout=timeout,
+        )
+
+
+pytesseract = _PytesseractProxy()
+
 
 DEFAULT_OCR_LANGUAGES = "rus+eng"
 
