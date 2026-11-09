@@ -1,7 +1,12 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "audiodoc"
 version = "0.1.0"
 requires-python = ">=3.11"
+dynamic = ["dependencies"]
 
 [tool.ruff]
 line-length = 88
@@ -77,4 +82,93 @@ exclude_also = [
     "if TYPE_CHECKING:",
     "raise NotImplementedError",
     '\.\.\.',
+]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.deptry]
+requirements_files_dev = ["requirements-dev.txt"]
+known_first_party = ["backend"]
+extend_exclude = ["scripts"]
+
+[tool.deptry.per_rule_ignores]
+# Runtime dependencies consumed outside ordinary static imports.
+DEP002 = [
+    "uvicorn",
+    "python-multipart",
+    "av",
+    "faster-whisper",  # Loaded dynamically by the transcription model holder.
+    "pytesseract",  # Loaded dynamically by the OCR adapter.
+]
+
+[tool.vulture]
+paths = [
+    "backend",
+    "app.py",
+    "scripts/check_lock.py",
+    "scripts/vulture_whitelist.py",
+]
+min_confidence = 80
+
+[tool.importlinter]
+root_package = "backend"
+
+[[tool.importlinter.contracts]]
+name = "API may import all lower-level packages"
+type = "layers"
+layers = [
+    "backend.api",
+    "backend.document_engine : backend.transcription",
+    "backend.common",
+    "backend.config",
+    "backend.errors",
+]
+
+[[tool.importlinter.contracts]]
+name = "Document engine has no forbidden dependencies"
+type = "forbidden"
+source_modules = ["backend.document_engine"]
+forbidden_modules = [
+    "backend.api",
+    "backend.transcription",
+    "backend.config",
+]
+
+[[tool.importlinter.contracts]]
+name = "Errors are independent of application packages"
+type = "forbidden"
+source_modules = ["backend.errors"]
+forbidden_modules = [
+    "backend.main",
+    "backend.api",
+    "backend.document_engine",
+    "backend.transcription",
+    "backend.common",
+    "backend.config",
+]
+
+[[tool.importlinter.contracts]]
+name = "Common imports only errors from the application"
+type = "forbidden"
+source_modules = ["backend.common"]
+forbidden_modules = [
+    "backend.main",
+    "backend.api",
+    "backend.document_engine",
+    "backend.transcription",
+    "backend.config",
+]
+
+[[tool.importlinter.contracts]]
+name = "Config is independent of application packages"
+type = "forbidden"
+source_modules = ["backend.config"]
+forbidden_modules = [
+    "backend.main",
+    "backend.api",
+    "backend.document_engine",
+    "backend.transcription",
+    "backend.common",
+    "backend.errors",
 ]

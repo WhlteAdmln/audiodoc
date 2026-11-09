@@ -1,9 +1,9 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Check Tesseract and the requested language data once per process."""
 
+import importlib
 import shutil
 from functools import lru_cache
-from importlib import import_module
 from typing import TYPE_CHECKING, Protocol, cast
 
 if TYPE_CHECKING:
@@ -48,7 +48,7 @@ class _Pytesseract(Protocol):
 
 def _get_pytesseract() -> _Pytesseract:
     """Return the lazily imported pytesseract module."""
-    return cast("_Pytesseract", import_module("pytesseract"))
+    return cast("_Pytesseract", importlib.import_module("pytesseract"))
 
 
 class _PytesseractProxy:

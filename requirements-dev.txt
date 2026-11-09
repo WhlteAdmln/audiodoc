@@ -8,6 +8,9 @@ pytest-randomly==5.0.0
 pytest-timeout==2.4.0
 
 # Static analysis and dependency auditing
+deptry==0.25.1
+import-linter==2.16
+vulture==2.16
 ruff==0.17.4
 mypy==2.4.1
 pip-audit==2.10.1

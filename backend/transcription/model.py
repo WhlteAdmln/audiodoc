@@ -1,9 +1,9 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Lifecycle holder for the process-wide Whisper model."""
 
+import importlib
 import logging
 from collections.abc import Iterable
-from importlib import import_module
 from typing import Protocol, cast
 
 from backend.config import settings
@@ -49,7 +49,7 @@ class _WhisperModel(Protocol):
 
 def _build_model() -> _WhisperModel:
     """Construct Whisper lazily so API modules remain importable without the extra."""
-    whisper_model_factory = import_module("faster_whisper").WhisperModel
+    whisper_model_factory = importlib.import_module("faster_whisper").WhisperModel
 
     model_path = settings.WHISPER_MODEL_PATH or settings.WHISPER_MODEL_SIZE
     return cast(
