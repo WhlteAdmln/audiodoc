@@ -9,6 +9,16 @@ from fastapi import Header, HTTPException
 from backend.config import Settings
 
 
+class _SharedAPIKeyError(RuntimeError):
+    """Raised when API keys are shared between protected APIs."""
+
+    def __init__(self) -> None:
+        """Initialize the shared API key error."""
+        super().__init__(
+            "WHISPER_API_KEY and DOCUMENT_API_KEY must not share any key values."
+        )
+
+
 def require_key(
     get_expected: Callable[[], str],
 ) -> Callable[..., Awaitable[None]]:
@@ -40,12 +50,16 @@ def require_key(
 
 
 def check_security_settings(settings: Settings) -> None:
-    """Fail closed when API keys are absent unless local bypass is explicit."""
-    missing = []
+    """Fail closed when API keys are absent or shared between APIs."""
+    missing: list[str] = []
+    configured_keys: dict[str, set[str]] = {}
+
     for name in ("WHISPER_API_KEY", "DOCUMENT_API_KEY"):
-        configured = [
+        configured = {
             key.strip() for key in getattr(settings, name, "").split(",") if key.strip()
-        ]
+        }
+        configured_keys[name] = configured
+
         if not configured:
             missing.append(name)
 
@@ -55,3 +69,6 @@ def check_security_settings(settings: Settings) -> None:
             "Задайте их в .env (те же значения, что в .env бота) "
             "или поставьте ALLOW_UNAUTHENTICATED=true только для локальной разработки."
         )
+
+    if configured_keys["WHISPER_API_KEY"] & configured_keys["DOCUMENT_API_KEY"]:
+        raise _SharedAPIKeyError

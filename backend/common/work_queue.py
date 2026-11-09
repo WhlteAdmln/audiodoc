@@ -71,6 +71,9 @@ class WorkQueue:
         self._waiting = 0
         self._active = 0
         self._error_factory = error_factory
+        self._closed = False
+        self._idle = asyncio.Event()
+        self._idle.set()
 
     @staticmethod
     def _validate_max_waiting(max_waiting: int) -> None:
@@ -97,15 +100,33 @@ class WorkQueue:
             raise _QueueReconfigurationError
         self._max_waiting = max_waiting
 
+    def start(self) -> None:
+        """Open the queue for a new application lifespan."""
+        if self._waiting or self._active:
+            raise _QueueReconfigurationError
+        self._closed = False
+        self._idle = asyncio.Event()
+        self._idle.set()
+
+    async def shutdown(self) -> None:
+        """Reject new work and wait until all admitted work has completed."""
+        self._closed = True
+        await self._idle.wait()
+
+    def _set_idle_if_idle(self) -> None:
+        if not self._waiting and not self._active:
+            self._idle.set()
+
     @asynccontextmanager
     async def slot(self) -> AsyncIterator[None]:
         """Reserve admission, wait for a worker, and release it on exit."""
         # No await is allowed between this check and increment: callers share
         # one event loop and therefore cannot overbook the waiting room here.
-        if self.is_full():
+        if self._closed or self.is_full():
             raise self._error_factory()
 
         self._waiting += 1
+        self._idle.clear()
         acquired = False
         try:
             await self._semaphore.acquire()
@@ -113,6 +134,7 @@ class WorkQueue:
             self._active += 1
         finally:
             self._waiting -= 1
+            self._set_idle_if_idle()
 
         try:
             yield
@@ -120,6 +142,7 @@ class WorkQueue:
             if acquired:
                 self._active -= 1
                 self._semaphore.release()
+                self._set_idle_if_idle()
 
 
 def _is_integer(value: object) -> bool:

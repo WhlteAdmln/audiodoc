@@ -66,8 +66,34 @@ def test_comma_only_key_value_is_treated_as_missing():
         check_security_settings(settings)
 
 
+@pytest.mark.parametrize(
+    ("whisper_key", "document_key"),
+    [
+        ("shared-secret", "shared-secret"),
+        ("new-secret, shared-secret", "shared-secret, old-secret"),
+    ],
+)
+def test_shared_api_keys_fail_closed(
+    whisper_key: str,
+    document_key: str,
+) -> None:
+    settings = SimpleNamespace(
+        WHISPER_API_KEY=whisper_key,
+        DOCUMENT_API_KEY=document_key,
+        ALLOW_UNAUTHENTICATED=False,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="must not share any key values",
+    ):
+        check_security_settings(settings)
+
+
 def test_document_route_requires_its_own_key(monkeypatch):
-    app = import_module("backend.main").app
+    main_module = import_module("backend.main")
+    app = main_module.app
+    main_module.document_queue.start()
 
     monkeypatch.setattr(settings, "DOCUMENT_API_KEY", "document-test-key")
     monkeypatch.setattr(settings, "WHISPER_API_KEY", "whisper-test-key")
