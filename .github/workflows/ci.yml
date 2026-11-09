@@ -91,7 +91,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          python -m pytest -q -rs -m "not integration" \
+          python -m pytest -q -rs -m "not integration and not e2e" \
             --cov=backend --cov-branch \
             --cov-report=term-missing:skip-covered \
             --cov-report=xml --cov-report=html \
@@ -149,6 +149,13 @@ jobs:
             echo "::error::Integration tests must not be skipped in CI."
             exit 1
           fi
+
+  e2e:
+    name: Real Whisper smoke test
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/e2e.yml
 
   audit:
     name: Dependency audit

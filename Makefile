@@ -3,7 +3,7 @@ PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 VERSION ?= dev
 PYTHON_SCRIPTS_DIR = $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_path('scripts'))")
 
-.PHONY: venv install-dev lint fix types deptry vulture import-lint test test-integration cov docs-check contract check build clean
+.PHONY: venv install-dev lint fix types deptry vulture import-lint test test-integration test-e2e cov docs-check contract check build clean
 
 venv:
 	@if [ ! -x .venv/bin/python ]; then $(PYTHON) -m venv .venv; else echo "Virtual environment already exists"; fi
@@ -35,12 +35,16 @@ import-lint:
 	$(PYTHON_SCRIPTS_DIR)/lint-imports
 
 test:
-	$(PYTHON) -m pytest -q -rs -m "not integration" \
+	$(PYTHON) -m pytest -q -rs -m "not integration and not e2e" \
 		--cov=backend --cov-branch \
 		--cov-report=term-missing:skip-covered
 
 test-integration:
 	$(PYTHON) -m pytest -q -rs -m integration
+
+test-e2e:
+	$(PYTHON) -c "from faster_whisper.utils import download_model; download_model('tiny')"
+	$(PYTHON) -m pytest -q -rs -m e2e
 
 cov:
 	$(PYTHON) -m coverage xml --fail-under=0

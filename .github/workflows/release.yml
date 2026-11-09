@@ -20,8 +20,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  e2e:
+    name: Real Whisper smoke test
+    permissions:
+      contents: read
+    uses: ./.github/workflows/e2e.yml
+
   release:
     name: Build and publish release
+    needs: e2e
     runs-on: ubuntu-latest
     permissions:
       contents: write
