@@ -9,7 +9,10 @@ import backend.document_engine.extractors.djvu as djvu_module
 import backend.document_engine.extractors.djvu.ocr_pages as ocr_pages_module
 import backend.document_engine.extractors.djvu.text_layer as text_layer_module
 from backend.common.deadline import Deadline
-from backend.common.subprocess_runner import SubprocessTimeoutError
+from backend.common.subprocess_runner import (
+    SubprocessOutputLimitError,
+    SubprocessTimeoutError,
+)
 from backend.common.text_budget import TextBudget
 from backend.document_engine.extractors.base import ExtractContext
 from backend.document_engine.extractors.djvu.ocr_pages import extract_ocr_pages
@@ -280,3 +283,85 @@ def test_ocr_pages_exact_fit_on_last_page_is_not_truncated(monkeypatch, tmp_path
         == page_text
     )
     assert budget.truncated is False
+
+
+def test_text_layer_maps_subprocess_output_limit(monkeypatch, tmp_path):
+    def output_limit(*_args, **_kwargs):
+        message = "output limit"
+        raise SubprocessOutputLimitError(message)
+
+    monkeypatch.setattr(text_layer_module, "run_limited", output_limit)
+    with pytest.raises(DocumentRejectedError):
+        extract_text_layer(tmp_path / "document.djvu", "/usr/bin/djvutxt")
+
+
+@pytest.mark.parametrize(
+    ("return_code", "output"),
+    [(1, b"1"), (0, b"not-a-number"), (0, b"0")],
+)
+def test_ocr_pages_rejects_invalid_page_count(
+    monkeypatch,
+    tmp_path,
+    return_code,
+    output,
+):
+    monkeypatch.setattr(
+        ocr_pages_module,
+        "run_limited",
+        lambda *_args, **_kwargs: (return_code, output, b"private details"),
+    )
+    with pytest.raises(DocumentRejectedError):
+        extract_ocr_pages(
+            tmp_path / "document.djvu",
+            tmp_path,
+            "/usr/bin/djvused",
+            "/usr/bin/ddjvu",
+        )
+
+
+@pytest.mark.parametrize("return_code", [0, 1])
+def test_ocr_pages_rejects_failed_or_missing_render(
+    monkeypatch,
+    tmp_path,
+    return_code,
+):
+    def fake_run(args, **_kwargs):
+        if args[0] == "/usr/bin/djvused":
+            return 0, b"1", b""
+        return return_code, b"", b"private details"
+
+    monkeypatch.setattr(ocr_pages_module, "run_limited", fake_run)
+    with pytest.raises(DocumentRejectedError):
+        extract_ocr_pages(
+            tmp_path / "document.djvu",
+            tmp_path,
+            "/usr/bin/djvused",
+            "/usr/bin/ddjvu",
+        )
+
+
+@pytest.mark.parametrize(
+    ("error_type", "expected_error"),
+    [
+        (SubprocessOutputLimitError, DocumentRejectedError),
+        (SubprocessTimeoutError, ProcessingTimeoutError),
+    ],
+)
+def test_ocr_pages_maps_subprocess_failures(
+    monkeypatch,
+    tmp_path,
+    error_type,
+    expected_error,
+):
+    def fail(*_args, **_kwargs):
+        message = "subprocess failure"
+        raise error_type(message)
+
+    monkeypatch.setattr(ocr_pages_module, "run_limited", fail)
+    with pytest.raises(expected_error):
+        extract_ocr_pages(
+            tmp_path / "document.djvu",
+            tmp_path,
+            "/usr/bin/djvused",
+            "/usr/bin/ddjvu",
+        )

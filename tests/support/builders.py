@@ -360,3 +360,8 @@ def create_ogg_opus() -> bytes:
         for packet in stream.encode(None):
             container.mux(packet)
     return output.getvalue()
+
+
+def create_djvu() -> bytes:
+    """Create a minimal DJVU signature payload for mocked DjVuLibre tests."""
+    return b"AT&TFORM\x00\x00\x00\x04DJVU"
