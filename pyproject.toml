@@ -53,7 +53,10 @@ ignore_missing_imports = true
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
 addopts = "--strict-markers --strict-config -ra"
-filterwarnings = ["error"]
+filterwarnings = [
+    "error",
+    "ignore:^builtin type (SwigPyPacked|SwigPyObject|swigvarlink) has no __module__ attribute$:DeprecationWarning",
+]
 timeout = 30
 markers = [
     "unit: isolated unit tests",

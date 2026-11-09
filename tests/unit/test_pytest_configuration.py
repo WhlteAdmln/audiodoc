@@ -15,7 +15,13 @@ def test_pytest_configuration_is_strict() -> None:
     options = configuration["tool"]["pytest"]["ini_options"]
 
     assert options["addopts"] == "--strict-markers --strict-config -ra"
-    assert options["filterwarnings"] == ["error"]
+    assert options["filterwarnings"] == [
+        "error",
+        (
+            "ignore:^builtin type (SwigPyPacked|SwigPyObject|swigvarlink) "
+            "has no __module__ attribute$:DeprecationWarning"
+        ),
+    ]
     assert options["timeout"] == 30
     assert {marker.split(":", maxsplit=1)[0] for marker in options["markers"]} == {
         "unit",
