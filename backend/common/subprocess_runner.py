@@ -2,6 +2,8 @@
 """Run external programs without a shell and with bounded time and output."""
 
 import math
+import os
+import signal
 import subprocess
 import tempfile
 import threading
@@ -52,6 +54,16 @@ class SubprocessOutputLimitError(ValueError):
         super().__init__(message)
 
 
+def _kill_process_group(process: subprocess.Popen[bytes]) -> None:
+    """Kill the complete isolated process group."""
+    if os.name == "posix":
+        with suppress(OSError):
+            os.killpg(process.pid, signal.SIGKILL)
+    else:
+        with suppress(OSError):
+            process.kill()
+
+
 def _validate_run_limited_args(
     args: list[str], timeout: float, max_output: int
 ) -> float:
@@ -63,6 +75,42 @@ def _validate_run_limited_args(
     if isinstance(max_output, bool) or not _is_integer(max_output) or max_output < 0:
         raise _InvalidSubprocessOutputLimitError
     return timeout_value
+
+
+def _collect_process_output(
+    process: subprocess.Popen[bytes],
+    timeout: float,
+    max_output: int,
+) -> tuple[bytes, bool]:
+    """Read bounded stdout and terminate the isolated process group."""
+    stdout = cast("IO[bytes]", process.stdout)
+    timed_out = threading.Event()
+    finished = threading.Event()
+    finish_lock = threading.Lock()
+
+    def on_timeout() -> None:
+        """Kill the process group when the wall-clock timer expires."""
+        with finish_lock:
+            if not finished.is_set():
+                timed_out.set()
+                _kill_process_group(process)
+
+    timer = threading.Timer(timeout, on_timeout)
+    timer.daemon = True
+    timer.start()
+
+    output = b""
+    try:
+        output = stdout.read(max_output + 1)
+    finally:
+        with finish_lock:
+            finished.set()
+        timer.cancel()
+        _kill_process_group(process)
+        process.wait()
+        stdout.close()
+
+    return output, timed_out.is_set()
 
 
 def run_limited(
@@ -90,7 +138,6 @@ def run_limited(
     """
     timeout_value = _validate_run_limited_args(args, timeout, max_output)
 
-    timed_out = threading.Event()
     with tempfile.TemporaryFile(mode="w+b") as stderr_file:
         process = subprocess.Popen(  # noqa: S603 - internal argv; shell=False.
             args,
@@ -98,36 +145,15 @@ def run_limited(
             stdout=subprocess.PIPE,
             stderr=stderr_file,
             shell=False,
+            start_new_session=os.name == "posix",
         )
-        stdout = cast("IO[bytes]", process.stdout)
+        output, timed_out = _collect_process_output(
+            process,
+            timeout_value,
+            max_output,
+        )
 
-        def on_timeout() -> None:
-            """Kill the child process when the wall-clock timer expires."""
-            if process.poll() is None:
-                timed_out.set()
-                with suppress(OSError):
-                    process.kill()
-
-        timer = threading.Timer(timeout_value, on_timeout)
-        timer.daemon = True
-        timer.start()
-
-        output = b""
-        try:
-            output = stdout.read(max_output + 1)
-            if len(output) > max_output and process.poll() is None:
-                with suppress(OSError):
-                    process.kill()
-            process.wait()
-        finally:
-            timer.cancel()
-            if process.poll() is None:
-                with suppress(OSError):
-                    process.kill()
-            process.wait()
-            stdout.close()
-
-        if timed_out.is_set():
+        if timed_out:
             raise SubprocessTimeoutError
         if len(output) > max_output:
             raise SubprocessOutputLimitError
