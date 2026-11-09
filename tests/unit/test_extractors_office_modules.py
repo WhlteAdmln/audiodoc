@@ -66,3 +66,21 @@ def test_docx_exact_fit_at_end_of_document_is_not_truncated():
 
     assert extract_docx(output.getvalue(), context=context) == "abc"
     assert budget.truncated is False
+
+
+def test_docx_skips_empty_content_and_truncates_table_rows():
+    """Cover empty paragraphs, empty table rows, and table truncation."""
+    document = Document()
+    document.add_paragraph("")
+    empty_table = document.add_table(rows=1, cols=1)
+    empty_table.cell(0, 0).text = ""
+    table = document.add_table(rows=1, cols=1)
+    table.cell(0, 0).text = "abcdef"
+    output = BytesIO()
+    document.save(output)
+
+    budget = TextBudget(3)
+    context = ExtractContext(budget=budget, deadline=Deadline(10))
+
+    assert extract_docx(output.getvalue(), context=context) == "abc"
+    assert budget.truncated is True
