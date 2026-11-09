@@ -13,8 +13,7 @@ on:
         type: boolean
         default: false
 
-permissions:
-  contents: write
+permissions: {}
 
 concurrency:
   group: release-${{ inputs.version }}
@@ -24,6 +23,8 @@ jobs:
   release:
     name: Build and publish release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     timeout-minutes: 10
     steps:
       - name: Check out source
