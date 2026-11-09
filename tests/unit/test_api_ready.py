@@ -83,7 +83,7 @@ def create_ready_app():
     return app
 
 
-def test_ready_requires_document_key_and_reports_native_dependencies(monkeypatch):
+def test_ready_is_public_and_reports_native_dependencies(monkeypatch):
     monkeypatch.setattr(settings, "DOCUMENT_API_KEY", "document-ready-test-key")
     monkeypatch.setattr(
         ready_module,
@@ -98,11 +98,7 @@ def test_ready_requires_document_key_and_reports_native_dependencies(monkeypatch
     monkeypatch.setattr(model_holder, "_model", object())
     client = TestClient(create_ready_app())
 
-    assert client.get("/ready").status_code == 401
-    response = client.get(
-        "/ready",
-        headers={"Authorization": "Bearer document-ready-test-key"},
-    )
+    response = client.get("/ready")
 
     assert response.status_code == 200
     assert response.json() == {
