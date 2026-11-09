@@ -6,6 +6,9 @@ import logging
 from collections.abc import Iterable
 from typing import Protocol, cast
 
+import numpy as np
+from numpy.typing import NDArray
+
 from backend.config import settings
 
 logger = logging.getLogger(__name__)
@@ -37,7 +40,7 @@ class _WhisperModel(Protocol):
 
     def transcribe(
         self,
-        audio: str,
+        audio: NDArray[np.float32],
         *,
         language: str | None,
         beam_size: int,

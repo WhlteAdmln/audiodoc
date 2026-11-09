@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from tests.support.bot_client import upload_file
+from tests.support.builders import create_wav
 from tests.support.server import LiveServer, live_server
 
 __all__ = ["live_server"]
@@ -38,8 +39,8 @@ async def test_bot_client_uploads_audio_with_whisper_key(
     live_server: LiveServer,
     tmp_path: Path,
 ) -> None:
-    file_path = tmp_path / "voice.ogg"
-    file_path.write_bytes(b"fake audio for the fake Whisper model")
+    file_path = tmp_path / "voice.wav"
+    file_path.write_bytes(create_wav())
 
     status, payload = await upload_file(
         f"{live_server.base_url}/transcribe",
