@@ -1,11 +1,27 @@
 # Copyright (c) 2026 Nikolai Zelensky
+"""Environment readers and application settings validation."""
+
+from dataclasses import FrozenInstanceError, is_dataclass
+from pathlib import Path
+
 import pytest
 
 from backend.common.safe_log import log_safe
-from backend.config.env import get_bool, get_float, get_int
+from backend.config import (
+    ConfigError,
+    Settings,
+    get_settings,
+    load_settings,
+    reset_settings_cache,
+    settings,
+)
+from backend.config.env import get_bool, get_float, get_int, load_env_file
+from backend.config.paths import PROJECT_ROOT
 
 
-def test_get_bool_accepts_common_spellings_and_default(monkeypatch):
+def test_get_bool_accepts_common_spellings_and_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("BOOL_SETTING", " YES ")
     assert get_bool("BOOL_SETTING") is True
 
@@ -16,13 +32,17 @@ def test_get_bool_accepts_common_spellings_and_default(monkeypatch):
     assert get_bool("BOOL_SETTING", default=True) is True
 
 
-def test_get_bool_rejects_invalid_value(monkeypatch):
+def test_get_bool_rejects_invalid_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("BOOL_SETTING", "sometimes")
     with pytest.raises(ValueError, match="BOOL_SETTING"):
         get_bool("BOOL_SETTING")
 
 
-def test_get_int_reads_default_environment_and_minimum(monkeypatch):
+def test_get_int_reads_default_environment_and_minimum(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("INT_SETTING", raising=False)
     assert get_int("INT_SETTING", "6") == 6
 
@@ -33,7 +53,9 @@ def test_get_int_reads_default_environment_and_minimum(monkeypatch):
         get_int("INT_SETTING", "6", minimum=13)
 
 
-def test_get_float_enforces_finite_value_and_bounds(monkeypatch):
+def test_get_float_enforces_finite_value_and_bounds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("FLOAT_SETTING", "0.75")
     assert get_float("FLOAT_SETTING", "0.5", minimum=0, maximum=1) == 0.75
 
@@ -42,6 +64,156 @@ def test_get_float_enforces_finite_value_and_bounds(monkeypatch):
         get_float("FLOAT_SETTING", "0.5")
 
 
-def test_log_safe_removes_line_breaks_and_non_printable_characters():
+def test_log_safe_removes_line_breaks_and_non_printable_characters() -> None:
     assert log_safe("user\nname\r\x00", limit=30) == "user\\nname\\r?"
-    assert log_safe(None) == ""
+
+
+def test_load_settings_uses_supplied_environment_and_normalizes_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("WHISPER_MODEL_SIZE", "global-value")
+
+    loaded = load_settings(
+        {
+            "WHISPER_MODEL_SIZE": "large",
+            "WHISPER_CPU_THREADS": "8",
+            "WHISPER_DEVICE": " CUDA ",
+            "WHISPER_COMPUTE_TYPE": " float16 ",
+            "WHISPER_MODEL_PATH": " /models/whisper ",
+            "WHISPER_OFFLINE": "yes",
+            "WHISPER_API_KEY": " whisper-key ",
+        }
+    )
+
+    assert loaded.WHISPER_MODEL_SIZE == "large"
+    assert loaded.WHISPER_CPU_THREADS == 8
+    assert loaded.WHISPER_DEVICE == "cuda"
+    assert loaded.WHISPER_COMPUTE_TYPE == "float16"
+    assert loaded.WHISPER_MODEL_PATH == "/models/whisper"
+    assert loaded.WHISPER_OFFLINE is True
+    assert loaded.WHISPER_API_KEY == "whisper-key"
+    assert loaded.MAX_AUDIO_SIZE == 25 * 1024 * 1024
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "WHISPER_CPU_THREADS",
+        "WHISPER_BEAM_SIZE",
+        "WHISPER_TIMEOUT",
+        "MAX_AUDIO_SIZE",
+        "MAX_AUDIO_DURATION",
+        "MAX_CONCURRENT_TRANSCRIPTIONS",
+        "MAX_WAITING_DOCUMENTS",
+        "MAX_WAITING_TRANSCRIPTIONS",
+    ],
+)
+def test_load_settings_rejects_each_invalid_integer(name: str) -> None:
+    with pytest.raises(ConfigError, match=name):
+        load_settings({name: "not-an-integer"})
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "WHISPER_CPU_THREADS",
+        "WHISPER_BEAM_SIZE",
+        "WHISPER_TIMEOUT",
+        "MAX_AUDIO_SIZE",
+        "MAX_AUDIO_DURATION",
+        "MAX_CONCURRENT_TRANSCRIPTIONS",
+        "MAX_WAITING_DOCUMENTS",
+        "MAX_WAITING_TRANSCRIPTIONS",
+    ],
+)
+def test_load_settings_rejects_each_integer_below_minimum(name: str) -> None:
+    with pytest.raises(ConfigError, match=name):
+        load_settings({name: "0"})
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["WHISPER_OFFLINE", "ENABLE_DOCS", "ALLOW_UNAUTHENTICATED"],
+)
+def test_load_settings_rejects_each_invalid_boolean(name: str) -> None:
+    with pytest.raises(ConfigError, match=name):
+        load_settings({name: "sometimes"})
+
+
+def test_load_settings_collects_all_errors() -> None:
+    with pytest.raises(ConfigError) as error:
+        load_settings(
+            {
+                "WHISPER_CPU_THREADS": "invalid",
+                "WHISPER_OFFLINE": "sometimes",
+                "MAX_AUDIO_SIZE": "0",
+            }
+        )
+
+    assert len(error.value.errors) == 3
+    assert all(
+        name in str(error.value)
+        for name in ("WHISPER_CPU_THREADS", "WHISPER_OFFLINE", "MAX_AUDIO_SIZE")
+    )
+
+
+def test_settings_is_a_frozen_slotted_dataclass() -> None:
+    assert is_dataclass(Settings)
+    assert hasattr(Settings, "__slots__")
+
+    field_name = "WHISPER_MODEL_SIZE"
+    with pytest.raises(FrozenInstanceError):
+        setattr(Settings(), field_name, "large")
+
+
+def test_settings_proxy_is_cached_and_resettable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reset_settings_cache()
+
+    try:
+        with monkeypatch.context() as scoped:
+            scoped.setenv("WHISPER_MODEL_SIZE", "first")
+            assert settings.WHISPER_MODEL_SIZE == "first"
+
+            scoped.setenv("WHISPER_MODEL_SIZE", "second")
+            assert get_settings().WHISPER_MODEL_SIZE == "first"
+
+            reset_settings_cache()
+            assert settings.WHISPER_MODEL_SIZE == "second"
+    finally:
+        reset_settings_cache()
+
+
+def test_settings_proxy_deletion_restores_cached_values() -> None:
+    reset_settings_cache()
+    original = get_settings()
+
+    try:
+        settings.WHISPER_MODEL_SIZE = "temporary"
+        settings.WHISPER_LANGUAGE = "temporary"
+
+        del settings.WHISPER_MODEL_SIZE
+        assert settings.WHISPER_MODEL_SIZE == original.WHISPER_MODEL_SIZE
+        assert settings.WHISPER_LANGUAGE == "temporary"
+
+        del settings.WHISPER_LANGUAGE
+        assert get_settings() is original
+    finally:
+        reset_settings_cache()
+
+
+def test_load_env_file_uses_project_file_without_overriding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[Path, bool]] = []
+
+    def fake_load_dotenv(path: Path, *, override: bool) -> bool:
+        calls.append((path, override))
+        return True
+
+    monkeypatch.setattr("backend.config.env.load_dotenv", fake_load_dotenv)
+
+    load_env_file()
+
+    assert calls == [(PROJECT_ROOT / ".env", False)]

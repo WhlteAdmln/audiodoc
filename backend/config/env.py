@@ -3,11 +3,24 @@
 
 import math
 import os
+from collections.abc import Mapping
+
+from dotenv import load_dotenv
+
+from backend.config.paths import PROJECT_ROOT
 
 
-def get_bool(name: str, default: bool = False) -> bool:
+def load_env_file() -> None:
+    """Load the project environment file without overriding exported variables."""
+    load_dotenv(PROJECT_ROOT / ".env", override=False)
+
+
+def get_bool(
+    name: str, default: bool = False, *, environ: Mapping[str, str] | None = None
+) -> bool:
     """Read a boolean environment variable using common spellings."""
-    value = os.getenv(name)
+    source = os.environ if environ is None else environ
+    value = source.get(name)
 
     if value is None or not value.strip():
         return default
@@ -22,9 +35,16 @@ def get_bool(name: str, default: bool = False) -> bool:
     raise ValueError(message)
 
 
-def get_int(name: str, default: str, minimum: int = 1) -> int:
+def get_int(
+    name: str,
+    default: str,
+    minimum: int = 1,
+    *,
+    environ: Mapping[str, str] | None = None,
+) -> int:
     """Read an integer setting and enforce its lower bound."""
-    value = os.getenv(name, default)
+    source = os.environ if environ is None else environ
+    value = source.get(name, default)
 
     try:
         result = int(value)
