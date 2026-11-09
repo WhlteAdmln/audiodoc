@@ -5,13 +5,23 @@ import asyncio
 import logging
 import shutil
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from backend.document_engine.ocr.tesseract import _get_pytesseract
-from backend.transcription.model import model_holder
+from backend.transcription.model import ModelHolder, model_holder
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _get_model_holder(request: Request) -> ModelHolder:
+    """Return the loaded application model, falling back during migration."""
+    configured_holder: ModelHolder | None = getattr(
+        request.app.state, "model_holder", None
+    )
+    if configured_holder is not None:
+        return configured_holder
+    return model_holder
 
 
 def _available_tesseract_languages() -> tuple[bool, list[str]]:
@@ -34,7 +44,7 @@ def _available_tesseract_languages() -> tuple[bool, list[str]]:
 
 
 @router.get("/ready")
-async def ready() -> dict[str, object]:
+async def ready(request: Request) -> dict[str, object]:
     """Report whether optional document-processing dependencies are installed.
 
     Returns:
@@ -50,5 +60,5 @@ async def ready() -> dict[str, object]:
         "tesseract": tesseract,
         "languages": languages,
         "djvulibre": djvulibre,
-        "model_loaded": model_holder.is_loaded,
+        "model_loaded": _get_model_holder(request).is_loaded,
     }

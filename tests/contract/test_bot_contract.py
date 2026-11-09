@@ -8,7 +8,6 @@ from fastapi.testclient import TestClient
 from jsonschema import validate
 
 from app import app
-from backend.transcription.model import model_holder
 from scripts.export_openapi import render_openapi
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -36,10 +35,16 @@ def _assert_document_shape(payload: dict) -> None:
 
 
 def test_transcribe_response_matches_shared_bot_contract(monkeypatch):
-    monkeypatch.setattr(model_holder, "_model", object())
+    monkeypatch.setattr(app.state.model_holder, "_model", object())
 
-    async def fake_transcribe_file(_path, *, _slot_acquired=False):
+    async def fake_transcribe_file(
+        _path: Path,
+        *,
+        _slot_acquired: bool = False,
+        configured_model_holder: object | None = None,
+    ) -> dict[str, object]:
         assert _slot_acquired is True
+        assert configured_model_holder is app.state.model_holder
         return dict(CONTRACT["transcribe"])
 
     monkeypatch.setattr("backend.api.transcribe.transcribe_file", fake_transcribe_file)

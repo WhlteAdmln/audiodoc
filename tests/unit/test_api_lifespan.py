@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 import backend.main as main_module
 import backend.transcription.model as model_module
 from app import app
+from backend.api import ready as ready_module
 from backend.config import Settings, settings
 from backend.errors.base import ServerBusyError
 from backend.transcription.model import model_holder
@@ -29,11 +30,12 @@ class _TempDirectoryPermissionError(PermissionError):
 
 
 def test_health_route_reports_model_state_without_starting_lifespan(monkeypatch):
-    monkeypatch.setattr(settings, "WHISPER_MODEL_SIZE", "small-test")
-    monkeypatch.setattr(settings, "WHISPER_MODEL_PATH", "")
-    monkeypatch.setattr(model_holder, "_model", None)
+    application = main_module.create_app(
+        Settings(WHISPER_MODEL_SIZE="small-test", WHISPER_MODEL_PATH="")
+    )
+    monkeypatch.setattr(application.state.model_holder, "_model", None)
 
-    response = TestClient(app).get("/health")
+    response = TestClient(application).get("/health")
 
     assert response.status_code == 200
     assert response.json() == {
@@ -44,15 +46,50 @@ def test_health_route_reports_model_state_without_starting_lifespan(monkeypatch)
 
 
 def test_health_route_reports_local_model_directory_name(monkeypatch):
-    monkeypatch.setattr(
-        settings, "WHISPER_MODEL_PATH", "/srv/audiodoc/models/custom-whisper"
+    application = main_module.create_app(
+        Settings(WHISPER_MODEL_PATH="/srv/audiodoc/models/custom-whisper")
     )
-    monkeypatch.setattr(model_holder, "_model", None)
+    monkeypatch.setattr(application.state.model_holder, "_model", None)
 
-    response = TestClient(app).get("/health")
+    response = TestClient(application).get("/health")
 
     assert response.status_code == 200
     assert response.json()["model"] == "custom-whisper"
+
+
+def test_health_and_ready_use_application_model_holder(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(model_holder, "_model", None)
+
+    loaded_application = main_module.create_app()
+    monkeypatch.setattr(loaded_application.state.model_holder, "_model", object())
+
+    monkeypatch.setattr(
+        ready_module,
+        "_available_tesseract_languages",
+        lambda: (False, []),
+    )
+    monkeypatch.setattr(ready_module.shutil, "which", lambda _name: None)
+
+    client = TestClient(loaded_application)
+
+    health_response = client.get("/health")
+    ready_response = client.get("/ready")
+
+    assert health_response.status_code == 200
+    assert health_response.json()["loaded"] is True
+    assert ready_response.status_code == 200
+    assert ready_response.json()["model_loaded"] is True
+
+    unloaded_application = main_module.create_app()
+    monkeypatch.setattr(model_holder, "_model", object())
+    monkeypatch.setattr(unloaded_application.state.model_holder, "_model", None)
+
+    other_client = TestClient(unloaded_application)
+
+    assert other_client.get("/health").json()["loaded"] is False
+    assert other_client.get("/ready").json()["model_loaded"] is False
 
 
 def test_app_registers_all_expected_routes():
@@ -83,6 +120,33 @@ def test_create_app_does_not_mutate_global_queue(
     assert calls == []
 
 
+def test_create_app_creates_independent_model_holders(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first_settings = Settings(WHISPER_MODEL_SIZE="tiny")
+    second_settings = Settings(WHISPER_MODEL_SIZE="base")
+    received_settings: list[Settings] = []
+
+    def build_model(configured_settings: Settings) -> FakeModel:
+        received_settings.append(configured_settings)
+        return FakeModel()
+
+    monkeypatch.setattr(model_module, "_build_model", build_model)
+
+    first_app = main_module.create_app(first_settings)
+    second_app = main_module.create_app(second_settings)
+
+    assert first_app.state.model_holder is not second_app.state.model_holder
+    assert first_app.state.model_holder is not model_holder
+    assert first_app.state.model_holder.is_loaded is False
+    assert second_app.state.model_holder.is_loaded is False
+
+    first_app.state.model_holder.load()
+    second_app.state.model_holder.load()
+
+    assert received_settings == [first_settings, second_settings]
+
+
 def test_lifespan_checks_configuration_prepares_storage_and_loads_model(
     monkeypatch, tmp_path
 ):
@@ -106,17 +170,22 @@ def test_lifespan_checks_configuration_prepares_storage_and_loads_model(
         "cleanup_stale_files",
         lambda: events.append(("cleanup", None)),
     )
-    monkeypatch.setattr(model_module, "_build_model", FakeModel)
-    monkeypatch.setattr(model_holder, "_model", None)
 
-    with TestClient(app) as client:
+    application = main_module.create_app()
+    monkeypatch.setattr(
+        model_module,
+        "_build_model",
+        lambda _configured_settings: FakeModel(),
+    )
+
+    with TestClient(application) as client:
         response = client.get("/health")
         assert response.status_code == 200
         assert response.json()["loaded"] is True
 
     assert events == [
         ("umask", 0o077),
-        ("security", app.state.settings),
+        ("security", application.state.settings),
         ("temp", tmp_path),
         ("cleanup", None),
     ]
@@ -174,9 +243,8 @@ def test_lifespan_fails_when_temp_directory_is_not_writable(
     monkeypatch.setattr(
         model_module,
         "_build_model",
-        lambda: events.append("model") or FakeModel(),
+        lambda _configured_settings: events.append("model") or FakeModel(),
     )
-    monkeypatch.setattr(model_holder, "_model", None)
 
     with (
         pytest.raises(
@@ -202,13 +270,17 @@ def test_lifespan_waits_for_running_job_before_shutdown(
     )
     monkeypatch.setattr(main_module, "ensure_temp_dir", lambda: tmp_path)
     monkeypatch.setattr(main_module, "cleanup_stale_files", lambda: None)
-    monkeypatch.setattr(model_module, "_build_model", FakeModel)
-    monkeypatch.setattr(model_holder, "_model", None)
+    monkeypatch.setattr(
+        model_module,
+        "_build_model",
+        lambda _configured_settings: FakeModel(),
+    )
 
     async def run_lifecycle() -> None:
+        application = main_module.create_app()
         job_started = asyncio.Event()
         release_job = asyncio.Event()
-        context = main_module.lifespan(main_module.create_app())
+        context = main_module.lifespan(application)
         await context.__aenter__()
 
         async def running_job() -> None:

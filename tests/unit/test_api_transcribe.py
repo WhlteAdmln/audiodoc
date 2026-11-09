@@ -13,11 +13,10 @@ from fastapi.testclient import TestClient
 
 from app import app
 from backend.api import ready as ready_module
-from backend.config import settings
+from backend.config import Settings, settings
 from backend.transcription import model as model_module
 from backend.transcription import service as service_module
 from backend.transcription import temp_files
-from backend.transcription.model import model_holder
 from tests.support.builders import create_wav
 
 client = TestClient(app)
@@ -44,7 +43,7 @@ class FakeWhisperModel:
 
 
 def test_transcribe_response_shape_with_fake_model(monkeypatch, tmp_path):
-    monkeypatch.setattr(model_holder, "_model", FakeWhisperModel())
+    monkeypatch.setattr(app.state.model_holder, "_model", FakeWhisperModel())
     monkeypatch.setattr(temp_files, "TEMP_DIR", tmp_path)
 
     response = client.post(
@@ -72,7 +71,7 @@ class TooLongWhisperModel:
 
 
 def test_transcribe_rejects_audio_over_configured_duration(monkeypatch, tmp_path):
-    monkeypatch.setattr(model_holder, "_model", TooLongWhisperModel())
+    monkeypatch.setattr(app.state.model_holder, "_model", TooLongWhisperModel())
     monkeypatch.setattr(temp_files, "TEMP_DIR", tmp_path)
 
     response = client.post(
@@ -86,7 +85,7 @@ def test_transcribe_rejects_audio_over_configured_duration(monkeypatch, tmp_path
 
 
 def test_transcribe_rejects_corrupt_audio_and_removes_temp_file(monkeypatch, tmp_path):
-    monkeypatch.setattr(model_holder, "_model", FakeWhisperModel())
+    monkeypatch.setattr(app.state.model_holder, "_model", FakeWhisperModel())
     monkeypatch.setattr(temp_files, "TEMP_DIR", tmp_path)
 
     response = client.post(
@@ -109,7 +108,7 @@ def test_transcribe_returns_gateway_timeout_for_slow_model(monkeypatch, tmp_path
             time.sleep(0.2)
             return iter([]), SimpleNamespace(language="ru", duration=0.25)
 
-    monkeypatch.setattr(model_holder, "_model", SlowWhisperModel())
+    monkeypatch.setattr(app.state.model_holder, "_model", SlowWhisperModel())
     monkeypatch.setattr(service_module.settings, "WHISPER_TIMEOUT", 0.1)
     monkeypatch.setattr(temp_files, "TEMP_DIR", tmp_path)
 
@@ -124,14 +123,14 @@ def test_transcribe_returns_gateway_timeout_for_slow_model(monkeypatch, tmp_path
 
 
 def test_ready_reports_unloaded_model_after_model_load_failure(monkeypatch):
-    def fail_build():
+    def fail_build(_configured_settings: Settings) -> None:
         raise _ModelBuildError
 
-    monkeypatch.setattr(model_holder, "_model", None)
+    monkeypatch.setattr(app.state.model_holder, "_model", None)
     monkeypatch.setattr(model_module, "_build_model", fail_build)
 
     with pytest.raises(_ModelBuildError):
-        model_holder.load()
+        app.state.model_holder.load()
 
     monkeypatch.setattr(settings, "DOCUMENT_API_KEY", "")
     monkeypatch.setattr(settings, "ALLOW_UNAUTHENTICATED", True)

@@ -17,7 +17,7 @@ from backend.common.request_id import RequestIdMiddleware
 from backend.config import Settings, get_settings
 from backend.document_engine import document_queue
 from backend.document_engine.limits import MAX_DOCUMENT_SIZE
-from backend.transcription.model import model_holder
+from backend.transcription.model import ModelHolder
 from backend.transcription.temp_files import cleanup_stale_files, ensure_temp_dir
 
 API_VERSION = "1"  # Increment this on every breaking API change.
@@ -43,7 +43,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     ensure_temp_dir()
     cleanup_stale_files()
     document_queue.set_max_waiting(configured_settings.MAX_WAITING_DOCUMENTS)
-    await asyncio.to_thread(model_holder.load)
+    await asyncio.to_thread(_app.state.model_holder.load)
     document_queue.start()
     try:
         yield
@@ -71,6 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url="/openapi.json" if docs_enabled else None,
     )
     app.state.settings = configured_settings
+    app.state.model_holder = ModelHolder(configured_settings)
     register_error_handlers(app)
     app.add_middleware(
         BodySizeLimitMiddleware,
