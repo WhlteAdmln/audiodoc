@@ -1,6 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
 import asyncio
-from importlib import import_module
 from types import SimpleNamespace
 
 import pytest
@@ -9,6 +8,8 @@ from fastapi.testclient import TestClient
 
 from backend.api.auth import check_security_settings, require_key
 from backend.config import settings
+from backend.document_engine import document_queue
+from backend.main import create_app
 
 
 def run_dependency(dependency, authorization=None):
@@ -38,32 +39,32 @@ def test_require_key_supports_two_comma_separated_rotation_keys():
 
 
 def test_missing_keys_fail_closed_by_default():
-    settings = SimpleNamespace(
+    configured_settings = SimpleNamespace(
         WHISPER_API_KEY="",
         DOCUMENT_API_KEY="document-secret",
         ALLOW_UNAUTHENTICATED=False,
     )
     with pytest.raises(RuntimeError, match="WHISPER_API_KEY"):
-        check_security_settings(settings)
+        check_security_settings(configured_settings)
 
 
 def test_missing_keys_allowed_only_when_explicitly_enabled():
-    settings = SimpleNamespace(
+    configured_settings = SimpleNamespace(
         WHISPER_API_KEY="",
         DOCUMENT_API_KEY="",
         ALLOW_UNAUTHENTICATED=True,
     )
-    check_security_settings(settings)
+    check_security_settings(configured_settings)
 
 
 def test_comma_only_key_value_is_treated_as_missing():
-    settings = SimpleNamespace(
+    configured_settings = SimpleNamespace(
         WHISPER_API_KEY=", ,",
         DOCUMENT_API_KEY="document-secret",
         ALLOW_UNAUTHENTICATED=False,
     )
     with pytest.raises(RuntimeError, match="WHISPER_API_KEY"):
-        check_security_settings(settings)
+        check_security_settings(configured_settings)
 
 
 @pytest.mark.parametrize(
@@ -77,7 +78,7 @@ def test_shared_api_keys_fail_closed(
     whisper_key: str,
     document_key: str,
 ) -> None:
-    settings = SimpleNamespace(
+    configured_settings = SimpleNamespace(
         WHISPER_API_KEY=whisper_key,
         DOCUMENT_API_KEY=document_key,
         ALLOW_UNAUTHENTICATED=False,
@@ -87,13 +88,12 @@ def test_shared_api_keys_fail_closed(
         RuntimeError,
         match="must not share any key values",
     ):
-        check_security_settings(settings)
+        check_security_settings(configured_settings)
 
 
 def test_document_route_requires_its_own_key(monkeypatch):
-    main_module = import_module("backend.main")
-    app = main_module.app
-    main_module.document_queue.start()
+    app = create_app()
+    document_queue.start()
 
     monkeypatch.setattr(settings, "DOCUMENT_API_KEY", "document-test-key")
     monkeypatch.setattr(settings, "WHISPER_API_KEY", "whisper-test-key")

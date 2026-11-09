@@ -9,9 +9,9 @@ from fastapi.testclient import TestClient
 
 import backend.main as main_module
 import backend.transcription.model as model_module
-from backend.config import settings
+from app import app
+from backend.config import Settings, settings
 from backend.errors.base import ServerBusyError
-from backend.main import app
 from backend.transcription.model import model_holder
 
 
@@ -68,6 +68,21 @@ def test_app_registers_all_expected_routes():
     assert "post" in paths["/process-document"]
 
 
+def test_create_app_does_not_mutate_global_queue(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[int] = []
+    monkeypatch.setattr(
+        main_module.document_queue,
+        "set_max_waiting",
+        calls.append,
+    )
+
+    main_module.create_app(Settings(MAX_WAITING_DOCUMENTS=2))
+
+    assert calls == []
+
+
 def test_lifespan_checks_configuration_prepares_storage_and_loads_model(
     monkeypatch, tmp_path
 ):
@@ -101,7 +116,7 @@ def test_lifespan_checks_configuration_prepares_storage_and_loads_model(
 
     assert events == [
         ("umask", 0o077),
-        ("security", settings),
+        ("security", app.state.settings),
         ("temp", tmp_path),
         ("cleanup", None),
     ]

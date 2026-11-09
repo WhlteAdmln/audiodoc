@@ -6,46 +6,43 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from backend.config.env import load_env_file
+from fastapi import FastAPI
 
-load_env_file()
-
-from fastapi import FastAPI  # noqa: E402
-
-from backend.api import register_routes  # noqa: E402
-from backend.api.auth import check_security_settings  # noqa: E402
-from backend.api.error_handlers import register_error_handlers  # noqa: E402
-from backend.api.middleware import BodySizeLimitMiddleware  # noqa: E402
-from backend.common.logging_setup import configure_logging  # noqa: E402
-from backend.common.request_id import RequestIdMiddleware  # noqa: E402
-from backend.config import settings  # noqa: E402
-from backend.document_engine import document_queue  # noqa: E402
-from backend.document_engine.limits import MAX_DOCUMENT_SIZE  # noqa: E402
-from backend.transcription.model import model_holder  # noqa: E402
-from backend.transcription.temp_files import (  # noqa: E402
-    cleanup_stale_files,
-    ensure_temp_dir,
-)
+from backend.api import register_routes
+from backend.api.auth import check_security_settings
+from backend.api.error_handlers import register_error_handlers
+from backend.api.middleware import BodySizeLimitMiddleware
+from backend.common.logging_setup import configure_logging
+from backend.common.request_id import RequestIdMiddleware
+from backend.config import Settings, get_settings
+from backend.document_engine import document_queue
+from backend.document_engine.limits import MAX_DOCUMENT_SIZE
+from backend.transcription.model import model_holder
+from backend.transcription.temp_files import cleanup_stale_files, ensure_temp_dir
 
 API_VERSION = "1"  # Increment this on every breaking API change.
-
-configure_logging(
-    settings.LOG_LEVEL,
-    [
-        part.strip()
-        for value in (settings.WHISPER_API_KEY, settings.DOCUMENT_API_KEY)
-        for part in value.split(",")
-    ],
-)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Validate access configuration and initialize storage and Whisper."""
+    configured_settings: Settings = _app.state.settings
+    configure_logging(
+        configured_settings.LOG_LEVEL,
+        [
+            part.strip()
+            for value in (
+                configured_settings.WHISPER_API_KEY,
+                configured_settings.DOCUMENT_API_KEY,
+            )
+            for part in value.split(",")
+        ],
+    )
     os.umask(0o077)
-    check_security_settings(settings)
+    check_security_settings(configured_settings)
     ensure_temp_dir()
     cleanup_stale_files()
+    document_queue.set_max_waiting(configured_settings.MAX_WAITING_DOCUMENTS)
     await asyncio.to_thread(model_holder.load)
     document_queue.start()
     try:
@@ -54,14 +51,17 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await document_queue.shutdown()
 
 
-def create_app(*, enable_docs: bool | None = None) -> FastAPI:
-    """Create the FastAPI application, middleware, and API routes.
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """Create a FastAPI application using the supplied configuration.
+
+    Args:
+        settings: Application configuration; process settings are used by default.
 
     Returns:
-        A configured FastAPI application using the backend lifespan handler.
-
+        A configured FastAPI application.
     """
-    docs_enabled = settings.ENABLE_DOCS if enable_docs is None else enable_docs
+    configured_settings = get_settings() if settings is None else settings
+    docs_enabled = configured_settings.ENABLE_DOCS
     app = FastAPI(
         title="audiodoc",
         version=API_VERSION,
@@ -70,16 +70,14 @@ def create_app(*, enable_docs: bool | None = None) -> FastAPI:
         redoc_url=None,
         openapi_url="/openapi.json" if docs_enabled else None,
     )
-    document_queue.set_max_waiting(settings.MAX_WAITING_DOCUMENTS)
+    app.state.settings = configured_settings
     register_error_handlers(app)
     app.add_middleware(
         BodySizeLimitMiddleware,
-        max_body_size=max(MAX_DOCUMENT_SIZE, settings.MAX_AUDIO_SIZE) + 1024 * 1024,
+        max_body_size=max(MAX_DOCUMENT_SIZE, configured_settings.MAX_AUDIO_SIZE)
+        + 1024 * 1024,
     )
     # Keep request ID outermost so even early body-size rejections carry it.
     app.add_middleware(RequestIdMiddleware)
     register_routes(app)
     return app
-
-
-app = create_app()
