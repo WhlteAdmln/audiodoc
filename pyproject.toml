@@ -49,6 +49,19 @@ enable_error_code = ["ignore-without-code", "redundant-expr"]
 module = ["odf", "odf.*"]
 ignore_missing_imports = true
 
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "--strict-markers --strict-config -ra"
+filterwarnings = ["error"]
+timeout = 30
+markers = [
+    "unit: isolated unit tests",
+    "integration: requires Tesseract OCR (rus/eng) and DjVuLibre native tools",
+    "contract: verifies compatibility with external interfaces",
+    "e2e: exercises complete application workflows",
+]
+
 [tool.coverage.run]
 branch = true
 source = ["backend"]

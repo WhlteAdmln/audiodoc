@@ -24,12 +24,12 @@ types:
 	$(PYTHON) -m mypy backend
 
 test:
-	$(PYTHON) -m pytest -q -rs -o addopts='' -m "not integration" \
+	$(PYTHON) -m pytest -q -rs -m "not integration" \
 		--cov=backend --cov-branch \
 		--cov-report=term-missing:skip-covered
 
 test-integration:
-	$(PYTHON) -m pytest -q -rs -o addopts='' -m integration
+	$(PYTHON) -m pytest -q -rs -m integration
 
 cov:
 	$(PYTHON) -m coverage report --show-missing
