@@ -7,6 +7,7 @@ import json
 import sys
 from pathlib import Path
 
+from backend.config import Settings
 from backend.main import create_app
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -15,7 +16,7 @@ SNAPSHOT_PATH = PROJECT_ROOT / "contract" / "openapi.json"
 
 def render_openapi() -> str:
     """Build and serialize the OpenAPI schema with stable key ordering."""
-    schema = create_app(enable_docs=True).openapi()
+    schema = create_app(Settings(ENABLE_DOCS=True)).openapi()
     return json.dumps(schema, indent=2, sort_keys=True) + "\n"
 
 

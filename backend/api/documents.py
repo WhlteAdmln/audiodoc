@@ -11,7 +11,6 @@ from backend.api.auth import require_key
 from backend.api.schemas import DocumentResponse
 from backend.common.limited_upload import read_upload_limited
 from backend.common.safe_log import log_safe
-from backend.config import settings
 from backend.document_engine import document_queue, process_document
 from backend.document_engine.limits import (
     MAX_DOCUMENT_SIZE,
@@ -23,7 +22,13 @@ from backend.errors.base import BackendError
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    dependencies=[Depends(require_key(lambda: settings.DOCUMENT_API_KEY))]
+    dependencies=[
+        Depends(
+            require_key(
+                lambda configured_settings: configured_settings.DOCUMENT_API_KEY
+            )
+        )
+    ]
 )
 
 

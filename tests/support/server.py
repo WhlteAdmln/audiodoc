@@ -13,7 +13,7 @@ import pytest
 import uvicorn
 
 from backend.api.middleware import BodySizeLimitMiddleware
-from backend.config import settings
+from backend.config import Settings, settings
 from backend.main import create_app
 from backend.transcription import model as model_module
 from backend.transcription import temp_files
@@ -90,7 +90,13 @@ def _configure_live_server_settings(
     monkeypatch.setattr(settings, "ENABLE_DOCS", options.enable_docs)
     monkeypatch.setattr(settings, "TEMP_DIR", str(temp_dir))
     monkeypatch.setattr(temp_files, "TEMP_DIR", temp_dir)
-    monkeypatch.setattr(model_module, "_build_model", _FakeWhisperModel)
+
+    def build_fake_model(
+        _configured_settings: Settings | None,
+    ) -> _FakeWhisperModel:
+        return _FakeWhisperModel()
+
+    monkeypatch.setattr(model_module, "_build_model", build_fake_model)
     monkeypatch.setattr(model_module.model_holder, "_model", None)
 
 

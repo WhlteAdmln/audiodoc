@@ -19,7 +19,7 @@ from backend.errors.transcription import (
     ModelNotReadyError,
     TranscriptionTimeoutError,
 )
-from backend.transcription.model import model_holder
+from backend.transcription.model import ModelHolder, model_holder
 
 transcription_queue = WorkQueue(
     settings.MAX_CONCURRENT_TRANSCRIPTIONS,
@@ -104,9 +104,16 @@ def _decode_audio(path: Path, deadline: Deadline) -> NDArray[np.float32]:
     return cast("NDArray[np.float32]", np.concatenate(chunks))
 
 
-def _transcribe_sync(path: Path, deadline: Deadline) -> dict[str, Any]:
+def _transcribe_sync(
+    path: Path,
+    deadline: Deadline,
+    configured_model_holder: ModelHolder | None = None,
+) -> dict[str, Any]:
+    active_model_holder = (
+        model_holder if configured_model_holder is None else configured_model_holder
+    )
     try:
-        model = model_holder.get()
+        model = active_model_holder.get()
     except RuntimeError as error:
         raise ModelNotReadyError from error
 
@@ -137,10 +144,20 @@ def _transcribe_sync(path: Path, deadline: Deadline) -> dict[str, Any]:
     return {"text": text, "language": info.language, "duration": duration}
 
 
-async def _run_transcription(path: Path) -> dict[str, Any]:
+async def _run_transcription(
+    path: Path,
+    configured_model_holder: ModelHolder | None = None,
+) -> dict[str, Any]:
     """Run the non-cancellable model thread while retaining its worker slot."""
     deadline = Deadline(settings.WHISPER_TIMEOUT)
-    worker = asyncio.create_task(asyncio.to_thread(_transcribe_sync, path, deadline))
+    worker = asyncio.create_task(
+        asyncio.to_thread(
+            _transcribe_sync,
+            path,
+            deadline,
+            configured_model_holder,
+        )
+    )
     try:
         return await asyncio.shield(worker)
     except DeadlineExceededError as error:
@@ -159,6 +176,7 @@ async def transcribe_file(
     path: Path,
     *,
     _slot_acquired: bool = False,
+    configured_model_holder: ModelHolder | None = None,
 ) -> dict[str, Any]:
     """Recognize audio outside the event loop using the bounded work queue.
 
@@ -166,7 +184,7 @@ async def transcribe_file(
     before copying the uploaded file to private temporary storage.
     """
     if _slot_acquired:
-        return await _run_transcription(path)
+        return await _run_transcription(path, configured_model_holder)
 
     async with transcription_queue.slot():
-        return await _run_transcription(path)
+        return await _run_transcription(path, configured_model_holder)

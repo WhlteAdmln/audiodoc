@@ -15,7 +15,6 @@ import pytest
 import starlette.formparsers
 
 from backend.api import ready as ready_module
-from backend.config import settings
 from tests.support.bot_client import upload_file
 from tests.support.builders import create_wav
 from tests.support.server import LiveServer, LiveServerOptions, live_server
@@ -68,22 +67,21 @@ async def test_live_socket_auth_rejects_missing_and_wrong_keys(
     assert await _upload_without_authorization(transcribe_url, audio_path) == 401
 
 
+@pytest.mark.parametrize(
+    "live_server",
+    [
+        LiveServerOptions(
+            whisper_api_key="rotated-whisper-key, test-whisper-key",
+            document_api_key="rotated-document-key, test-document-key",
+        )
+    ],
+    indirect=True,
+)
 @pytest.mark.asyncio
 async def test_live_socket_accepts_both_keys_during_rotation(
     live_server: LiveServer,
-    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.setattr(
-        settings,
-        "WHISPER_API_KEY",
-        "rotated-whisper-key, test-whisper-key",
-    )
-    monkeypatch.setattr(
-        settings,
-        "DOCUMENT_API_KEY",
-        "rotated-document-key, test-document-key",
-    )
     document_path = tmp_path / "note.txt"
     document_path.write_text("Key rotation test.", encoding="utf-8")
     audio_path = tmp_path / "voice.wav"

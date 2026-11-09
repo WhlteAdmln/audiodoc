@@ -9,7 +9,7 @@ from typing import Protocol, cast
 import numpy as np
 from numpy.typing import NDArray
 
-from backend.config import settings
+from backend.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -50,19 +50,24 @@ class _WhisperModel(Protocol):
         ...
 
 
-def _build_model() -> _WhisperModel:
-    """Construct Whisper lazily so API modules remain importable without the extra."""
+def _build_model(configured_settings: Settings | None = None) -> _WhisperModel:
+    """Construct Whisper lazily using the supplied application settings."""
     whisper_model_factory = importlib.import_module("faster_whisper").WhisperModel
 
-    model_path = settings.WHISPER_MODEL_PATH or settings.WHISPER_MODEL_SIZE
+    active_settings = (
+        get_settings() if configured_settings is None else configured_settings
+    )
+    model_path = (
+        active_settings.WHISPER_MODEL_PATH or active_settings.WHISPER_MODEL_SIZE
+    )
     return cast(
         "_WhisperModel",
         whisper_model_factory(
             model_path,
-            device=settings.WHISPER_DEVICE,
-            compute_type=settings.WHISPER_COMPUTE_TYPE,
-            cpu_threads=settings.WHISPER_CPU_THREADS,
-            local_files_only=settings.WHISPER_OFFLINE,
+            device=active_settings.WHISPER_DEVICE,
+            compute_type=active_settings.WHISPER_COMPUTE_TYPE,
+            cpu_threads=active_settings.WHISPER_CPU_THREADS,
+            local_files_only=active_settings.WHISPER_OFFLINE,
         ),
     )
 
@@ -70,8 +75,9 @@ def _build_model() -> _WhisperModel:
 class ModelHolder:
     """Owns the single Whisper model instance for this application process."""
 
-    def __init__(self) -> None:
+    def __init__(self, configured_settings: Settings | None = None) -> None:
         """Initialize an empty model holder."""
+        self._settings = configured_settings
         self._model: _WhisperModel | None = None
 
     @property
@@ -87,11 +93,19 @@ class ModelHolder:
             RuntimeError: If model construction or model download fails.
 
         """
+        configured_settings = (
+            self._settings if self._settings is not None else get_settings()
+        )
         logger.info(
             "Loading Whisper model: %s",
-            settings.WHISPER_MODEL_PATH or settings.WHISPER_MODEL_SIZE,
+            configured_settings.WHISPER_MODEL_PATH
+            or configured_settings.WHISPER_MODEL_SIZE,
         )
-        self._model = _build_model()
+        self._model = (
+            _build_model(self._settings)
+            if self._settings is not None
+            else _build_model()
+        )
         logger.info("Whisper model loaded successfully")
 
     def get(self) -> _WhisperModel:
