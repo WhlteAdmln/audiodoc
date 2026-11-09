@@ -5,12 +5,17 @@ import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from jsonschema import validate
 
 from app import app
 from backend.transcription.model import model_holder
+from scripts.export_openapi import render_openapi
 
+ROOT = Path(__file__).resolve().parents[2]
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "audiodoc_responses.json"
 CONTRACT = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+OPENAPI_PATH = ROOT / "contract" / "openapi.json"
+OPENAPI = json.loads(OPENAPI_PATH.read_text(encoding="utf-8"))
 client = TestClient(app)
 
 
@@ -68,3 +73,34 @@ def test_unsupported_file_is_not_a_success():
     )
 
     assert response.status_code != 200
+
+
+def test_openapi_snapshot_matches_application() -> None:
+    """Keep the checked-in OpenAPI snapshot synchronized with the app."""
+    assert OPENAPI_PATH.read_text(encoding="utf-8") == render_openapi(), (
+        "OpenAPI snapshot is out of date; run `make contract`"
+    )
+
+
+def test_bot_examples_validate_against_openapi_schemas() -> None:
+    """Validate every shared bot response example against its response schema."""
+    examples = {
+        "transcribe": "/transcribe",
+        "process_document": "/process-document",
+    }
+    for example_name, path in examples.items():
+        response_schema = OPENAPI["paths"][path]["post"]["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]
+        schema_name = response_schema["$ref"].rsplit("/", maxsplit=1)[-1]
+        validate(
+            instance=CONTRACT[example_name],
+            schema=OPENAPI["components"]["schemas"][schema_name],
+        )
+
+
+def test_every_openapi_path_is_mentioned_in_api_docs() -> None:
+    """Require the API documentation to mention every OpenAPI path."""
+    documentation = (ROOT / "docs" / "api.md").read_text(encoding="utf-8")
+    for path in OPENAPI["paths"]:
+        assert path in documentation, f"OpenAPI path {path} is missing from docs/api.md"

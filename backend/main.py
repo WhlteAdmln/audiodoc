@@ -31,6 +31,8 @@ from backend.transcription.temp_files import (  # noqa: E402
     ensure_temp_dir,
 )
 
+API_VERSION = "1"  # Increment this on every breaking API change.
+
 configure_logging(
     settings.LOG_LEVEL,
     [
@@ -52,19 +54,21 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-def create_app() -> FastAPI:
+def create_app(*, enable_docs: bool | None = None) -> FastAPI:
     """Create the FastAPI application, middleware, and API routes.
 
     Returns:
         A configured FastAPI application using the backend lifespan handler.
 
     """
+    docs_enabled = settings.ENABLE_DOCS if enable_docs is None else enable_docs
     app = FastAPI(
         title="audiodoc",
+        version=API_VERSION,
         lifespan=lifespan,
-        docs_url="/docs" if settings.ENABLE_DOCS else None,
+        docs_url="/docs" if docs_enabled else None,
         redoc_url=None,
-        openapi_url="/openapi.json" if settings.ENABLE_DOCS else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
     )
     document_queue.set_max_waiting(settings.MAX_WAITING_DOCUMENTS)
     register_error_handlers(app)

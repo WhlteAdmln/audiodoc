@@ -1,8 +1,9 @@
+
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 VERSION ?= dev
 PYTHON_SCRIPTS_DIR = $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_path('scripts'))")
 
-.PHONY: venv install-dev lint fix types deptry vulture import-lint test test-integration cov docs-check check build clean
+.PHONY: venv install-dev lint fix types deptry vulture import-lint test test-integration cov docs-check contract check build clean
 
 venv:
 	@if [ ! -x .venv/bin/python ]; then $(PYTHON) -m venv .venv; else echo "Virtual environment already exists"; fi
@@ -48,6 +49,9 @@ cov:
 
 docs-check:
 	@echo "Documentation checks are not configured yet."
+
+contract:
+	$(PYTHON) -m scripts.export_openapi
 
 check: lint types deptry vulture import-lint test
 
