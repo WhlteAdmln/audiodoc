@@ -155,7 +155,7 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
-    uses: ./.github/workflows/e2e.yml
+    uses: $/.github/workflows/e2e.yml
 
   audit:
     name: Dependency audit

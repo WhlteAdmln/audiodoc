@@ -24,7 +24,7 @@ jobs:
     name: Real Whisper smoke test
     permissions:
       contents: read
-    uses: ./.github/workflows/e2e.yml
+    uses: $/.github/workflows/e2e.yml
 
   release:
     name: Build and publish release

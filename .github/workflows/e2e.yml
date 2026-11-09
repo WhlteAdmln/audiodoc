@@ -35,8 +35,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-whisper-tiny-
       - name: Report Whisper cache status
+        env:
+          WHISPER_CACHE_HIT: ${{ steps.whisper-cache.outputs.cache-hit }}
         run: |
-          echo "Exact Whisper cache hit: ${{ steps.whisper-cache.outputs.cache-hit }}"
+          echo "Exact Whisper cache hit: ${WHISPER_CACHE_HIT}"
       - name: Install eSpeak NG
         run: |
           sudo apt-get update
