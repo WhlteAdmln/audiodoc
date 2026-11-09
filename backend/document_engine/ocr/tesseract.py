@@ -2,13 +2,17 @@
 """Check Tesseract and the requested language data once per process."""
 
 import importlib
+import shlex
 import shutil
+import tempfile
 from functools import lru_cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, cast
 
 if TYPE_CHECKING:
     from PIL import Image
 
+from backend.common.subprocess_runner import SubprocessTimeoutError, run_limited
 from backend.errors.documents import DependencyMissingError
 
 
@@ -51,6 +55,12 @@ def _get_pytesseract() -> _Pytesseract:
     return cast("_Pytesseract", importlib.import_module("pytesseract"))
 
 
+def _get_tesseract_command() -> str:
+    """Return the configured Tesseract executable path."""
+    module = importlib.import_module("pytesseract.pytesseract")
+    return cast("str", module.tesseract_cmd)
+
+
 class _PytesseractProxy:
     """Provide lazy access to the pytesseract API."""
 
@@ -66,13 +76,34 @@ class _PytesseractProxy:
         config: str,
         timeout: float,
     ) -> str:
-        """Recognize text in an image."""
-        return _get_pytesseract().image_to_string(
-            image,
-            lang=lang,
-            config=config,
-            timeout=timeout,
-        )
+        """Recognize text using a bounded subprocess."""
+        with tempfile.TemporaryDirectory(prefix="audiodoc-ocr-") as directory:
+            image_path = Path(directory) / "input.png"
+            image.save(image_path, format="PNG")
+
+            args = [
+                _get_tesseract_command(),
+                str(image_path),
+                "stdout",
+            ]
+            if lang:
+                args.extend(["-l", lang])
+            args.extend(shlex.split(config))
+
+            try:
+                return_code, output, stderr = run_limited(
+                    args,
+                    timeout=timeout,
+                )
+            except SubprocessTimeoutError as error:
+                message = "Tesseract process timeout"
+                raise RuntimeError(message) from error
+
+            if return_code:
+                message = stderr.decode("utf-8", errors="replace")
+                raise _get_pytesseract().TesseractError(return_code, message)
+
+            return output.decode("utf-8")
 
 
 pytesseract = _PytesseractProxy()
@@ -88,7 +119,7 @@ def _check_tesseract() -> None:
 
 
 def _check_languages(languages: str) -> None:
-    """Raise a safe dependency error when requested language files are absent."""
+    """Raise a safe dependency error when requested language data is absent."""
     try:
         available = set(pytesseract.get_languages(config=""))
     except Exception as error:
