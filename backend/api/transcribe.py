@@ -18,7 +18,11 @@ from backend.transcription.temp_files import temp_audio_file
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    dependencies=[Depends(require_key(lambda: settings.WHISPER_API_KEY))]
+    dependencies=[
+        Depends(
+            require_key(lambda configured_settings: configured_settings.WHISPER_API_KEY)
+        )
+    ]
 )
 
 

@@ -4,9 +4,9 @@
 import hmac
 from collections.abc import Awaitable, Callable
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Request
 
-from backend.config import Settings
+from backend.config import Settings, get_settings
 
 
 class _SharedAPIKeyError(RuntimeError):
@@ -20,13 +20,22 @@ class _SharedAPIKeyError(RuntimeError):
 
 
 def require_key(
-    get_expected: Callable[[], str],
+    get_expected: Callable[[Settings], str],
 ) -> Callable[..., Awaitable[None]]:
     """Return a FastAPI dependency validating Authorization: Bearer <key>."""
 
-    async def dependency(authorization: str | None = Header(default=None)) -> None:
+    async def dependency(
+        request: Request,
+        authorization: str | None = Header(default=None),
+    ) -> None:
         """Validate the request header against the current expected key value."""
-        expected = get_expected()
+        configured_settings: Settings | None = getattr(
+            request.app.state, "settings", None
+        )
+        if configured_settings is None:
+            # Preserve compatibility for routers mounted without create_app().
+            configured_settings = get_settings()
+        expected = get_expected(configured_settings)
         if not expected:
             # Startup validation permits this only for explicit local development.
             return
