@@ -15,6 +15,7 @@ class Settings:
     WHISPER_CPU_THREADS = get_int("WHISPER_CPU_THREADS", "6")
     WHISPER_LANGUAGE = os.getenv("WHISPER_LANGUAGE", "ru")
     WHISPER_BEAM_SIZE = get_int("WHISPER_BEAM_SIZE", "5")
+    WHISPER_TIMEOUT = get_int("WHISPER_TIMEOUT", "180")
     WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu").strip().lower()
     WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "int8").strip()
     WHISPER_MODEL_PATH = os.getenv("WHISPER_MODEL_PATH", "").strip()

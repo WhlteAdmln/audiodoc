@@ -5,15 +5,26 @@ The real model is not loaded: TestClient is used without starting lifespan,
 and the model object is replaced directly in the test.
 """
 
-from pathlib import Path
+import time
 from types import SimpleNamespace
 
+import pytest
 from fastapi.testclient import TestClient
 
+from backend.api import ready as ready_module
+from backend.config import settings
 from backend.main import app
+from backend.transcription import model as model_module
+from backend.transcription import service as service_module
+from backend.transcription import temp_files
 from backend.transcription.model import model_holder
+from tests.support.builders import create_wav
 
 client = TestClient(app)
+
+
+class _ModelBuildError(RuntimeError):
+    """Raised when the fake model factory fails."""
 
 
 class _UnexpectedSegmentIterationError(AssertionError):
@@ -25,19 +36,20 @@ class _UnexpectedSegmentIterationError(AssertionError):
 
 
 class FakeWhisperModel:
-    def transcribe(self, file_path, **kwargs):
-        assert Path(file_path).is_file()
+    def transcribe(self, audio, **kwargs):
+        assert audio.size > 0
         segments = [SimpleNamespace(text=" recognized speech ")]
         info = SimpleNamespace(language="ru", duration=1.5)
         return iter(segments), info
 
 
-def test_transcribe_response_shape_with_fake_model(monkeypatch):
+def test_transcribe_response_shape_with_fake_model(monkeypatch, tmp_path):
     monkeypatch.setattr(model_holder, "_model", FakeWhisperModel())
+    monkeypatch.setattr(temp_files, "TEMP_DIR", tmp_path)
 
     response = client.post(
         "/transcribe",
-        files={"file": ("voice.ogg", b"test audio bytes", "audio/ogg")},
+        files={"file": ("voice.wav", create_wav(), "audio/wav")},
     )
 
     assert response.status_code == 200
@@ -46,10 +58,11 @@ def test_transcribe_response_shape_with_fake_model(monkeypatch):
     assert isinstance(body["language"], str)
     assert isinstance(body["duration"], (int, float))
     assert body["text"] == "recognized speech"
+    assert list(tmp_path.iterdir()) == []
 
 
 class TooLongWhisperModel:
-    def transcribe(self, file_path, **kwargs):
+    def transcribe(self, audio, **kwargs):
         def segments():
             raise _UnexpectedSegmentIterationError
             yield None
@@ -58,13 +71,78 @@ class TooLongWhisperModel:
         return segments(), info
 
 
-def test_transcribe_rejects_audio_over_configured_duration(monkeypatch):
+def test_transcribe_rejects_audio_over_configured_duration(monkeypatch, tmp_path):
     monkeypatch.setattr(model_holder, "_model", TooLongWhisperModel())
+    monkeypatch.setattr(temp_files, "TEMP_DIR", tmp_path)
 
     response = client.post(
         "/transcribe",
-        files={"file": ("long.ogg", b"test audio bytes", "audio/ogg")},
+        files={"file": ("long.wav", create_wav(), "audio/wav")},
     )
 
     assert response.status_code == 400
     assert "слишком длинное" in response.json()["detail"].lower()
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_transcribe_rejects_corrupt_audio_and_removes_temp_file(monkeypatch, tmp_path):
+    monkeypatch.setattr(model_holder, "_model", FakeWhisperModel())
+    monkeypatch.setattr(temp_files, "TEMP_DIR", tmp_path)
+
+    response = client.post(
+        "/transcribe",
+        files={"file": ("corrupt.ogg", b"not an audio stream", "audio/ogg")},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c "
+        "\u043f\u0440\u043e\u0447\u0438\u0442\u0430\u0442\u044c "
+        "\u0430\u0443\u0434\u0438\u043e\u0444\u0430\u0439\u043b"
+    )
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_transcribe_returns_gateway_timeout_for_slow_model(monkeypatch, tmp_path):
+    class SlowWhisperModel:
+        def transcribe(self, audio, **kwargs):
+            time.sleep(0.2)
+            return iter([]), SimpleNamespace(language="ru", duration=0.25)
+
+    monkeypatch.setattr(model_holder, "_model", SlowWhisperModel())
+    monkeypatch.setattr(service_module.settings, "WHISPER_TIMEOUT", 0.1)
+    monkeypatch.setattr(temp_files, "TEMP_DIR", tmp_path)
+
+    response = client.post(
+        "/transcribe",
+        files={"file": ("slow.wav", create_wav(), "audio/wav")},
+    )
+
+    assert response.status_code == 504
+    assert response.json()["detail"] == "Превышено время обработки аудио"
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_ready_reports_unloaded_model_after_model_load_failure(monkeypatch):
+    def fail_build():
+        raise _ModelBuildError
+
+    monkeypatch.setattr(model_holder, "_model", None)
+    monkeypatch.setattr(model_module, "_build_model", fail_build)
+
+    with pytest.raises(_ModelBuildError):
+        model_holder.load()
+
+    monkeypatch.setattr(settings, "DOCUMENT_API_KEY", "")
+    monkeypatch.setattr(settings, "ALLOW_UNAUTHENTICATED", True)
+    monkeypatch.setattr(
+        ready_module,
+        "_available_tesseract_languages",
+        lambda: (False, []),
+    )
+    monkeypatch.setattr(ready_module.shutil, "which", lambda _name: None)
+
+    response = client.get("/ready")
+
+    assert response.status_code == 200
+    assert response.json()["model_loaded"] is False

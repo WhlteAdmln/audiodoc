@@ -2,14 +2,37 @@
 import asyncio
 import threading
 import time
+import wave
+from io import BytesIO
 from types import SimpleNamespace
 
 import pytest
 
 import backend.transcription.service as transcription_service
 from backend.common.work_queue import WorkQueue
-from backend.errors.transcription import AudioTooLongError, ModelNotReadyError
+from backend.errors.transcription import (
+    AudioTooLongError,
+    InvalidAudioError,
+    ModelNotReadyError,
+    TranscriptionTimeoutError,
+)
 from backend.transcription.model import model_holder
+from tests.support.builders import create_ocr_image, create_ogg_opus, create_wav
+
+
+def _empty_wav() -> bytes:
+    output = BytesIO()
+    with wave.open(output, "wb") as audio:
+        audio.setnchannels(1)
+        audio.setsampwidth(2)
+        audio.setframerate(16_000)
+    return output.getvalue()
+
+
+def _wrong_codec_wav() -> bytes:
+    payload = bytearray(create_wav())
+    payload[20:22] = b"\xff\xff"
+    return bytes(payload)
 
 
 class _UnexpectedSegmentIterationError(AssertionError):
@@ -33,7 +56,7 @@ class FakeModel:
 
 def test_transcribe_file_runs_model_in_worker_thread(tmp_path, monkeypatch):
     path = tmp_path / "audio.ogg"
-    path.write_bytes(b"audio")
+    path.write_bytes(create_wav())
     model = FakeModel()
     monkeypatch.setattr(model_holder, "_model", model)
     main_thread_id = threading.get_ident()
@@ -48,7 +71,7 @@ def test_transcribe_file_rejects_audio_over_duration_before_iterating_segments(
     tmp_path, monkeypatch
 ):
     path = tmp_path / "audio.ogg"
-    path.write_bytes(b"audio")
+    path.write_bytes(create_wav())
 
     class TooLongModel:
         def transcribe(self, path, **kwargs):
@@ -72,6 +95,102 @@ def test_transcribe_file_reports_model_not_ready(tmp_path, monkeypatch):
 
     with pytest.raises(ModelNotReadyError):
         asyncio.run(transcription_service.transcribe_file(path))
+
+
+@pytest.mark.parametrize(
+    ("builder", "language", "beam_size"),
+    [
+        (create_wav, "en", 3),
+        (create_ogg_opus, "ru", 7),
+    ],
+)
+def test_transcribe_file_decodes_real_audio_and_passes_whisper_settings(
+    builder, language, beam_size, tmp_path, monkeypatch
+):
+    path = tmp_path / "audio.data"
+    path.write_bytes(builder())
+    captured = {}
+
+    class RecordingModel:
+        def transcribe(self, audio, **kwargs):
+            captured["audio"] = audio
+            captured["kwargs"] = kwargs
+            return iter([SimpleNamespace(text=" decoded audio ")]), SimpleNamespace(
+                language=language,
+                duration=0.25,
+            )
+
+    monkeypatch.setattr(model_holder, "_model", RecordingModel())
+    monkeypatch.setattr(transcription_service.settings, "WHISPER_LANGUAGE", language)
+    monkeypatch.setattr(
+        transcription_service.settings,
+        "WHISPER_BEAM_SIZE",
+        beam_size,
+    )
+
+    result = asyncio.run(transcription_service.transcribe_file(path))
+
+    assert captured["audio"].size > 0
+    assert captured["audio"].ndim == 1
+    assert str(captured["audio"].dtype) == "float32"
+    assert captured["kwargs"] == {
+        "language": language,
+        "beam_size": beam_size,
+        "vad_filter": True,
+    }
+    assert result["text"] == "decoded audio"
+    assert result["language"] == language
+
+
+@pytest.mark.parametrize(
+    "audio_data",
+    [
+        pytest.param(b"", id="zero-length-file"),
+        pytest.param(_empty_wav(), id="empty-wav"),
+        pytest.param(b"not an audio container", id="corrupt-file"),
+        pytest.param(_wrong_codec_wav(), id="wrong-codec"),
+        pytest.param(create_ocr_image(), id="image-without-audio"),
+    ],
+)
+def test_transcribe_file_rejects_invalid_audio(audio_data, tmp_path, monkeypatch):
+    path = tmp_path / "invalid.audio"
+    path.write_bytes(audio_data)
+    monkeypatch.setattr(model_holder, "_model", FakeModel())
+
+    with pytest.raises(InvalidAudioError):
+        asyncio.run(transcription_service.transcribe_file(path))
+
+
+def test_transcribe_file_rejects_audio_over_decoded_duration(tmp_path, monkeypatch):
+    path = tmp_path / "long.wav"
+    path.write_bytes(create_wav())
+    monkeypatch.setattr(model_holder, "_model", FakeModel())
+    monkeypatch.setattr(transcription_service.settings, "MAX_AUDIO_DURATION", 0.1)
+
+    with pytest.raises(AudioTooLongError):
+        asyncio.run(transcription_service.transcribe_file(path))
+
+
+def test_transcribe_file_reports_deadline_exceeded_for_slow_model(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "slow.wav"
+    path.write_bytes(create_wav())
+    called = threading.Event()
+
+    class SlowModel:
+        def transcribe(self, audio, **kwargs):
+            called.set()
+            time.sleep(0.2)
+            return iter([]), SimpleNamespace(language="ru", duration=0.25)
+
+    monkeypatch.setattr(model_holder, "_model", SlowModel())
+    monkeypatch.setattr(transcription_service.settings, "WHISPER_TIMEOUT", 0.1)
+
+    with pytest.raises(TranscriptionTimeoutError):
+        asyncio.run(transcription_service.transcribe_file(path))
+
+    assert called.is_set()
 
 
 def test_transcriptions_respect_the_concurrency_semaphore(monkeypatch, tmp_path):
@@ -98,7 +217,7 @@ def test_transcriptions_respect_the_concurrency_semaphore(monkeypatch, tmp_path)
     monkeypatch.setattr(model_holder, "_model", CountingModel())
     paths = [tmp_path / "one.ogg", tmp_path / "two.ogg"]
     for path in paths:
-        path.write_bytes(b"audio")
+        path.write_bytes(create_wav())
 
     async def run_both():
         await asyncio.gather(
@@ -108,3 +227,42 @@ def test_transcriptions_respect_the_concurrency_semaphore(monkeypatch, tmp_path)
 
     asyncio.run(run_both())
     assert maximum_active == 1
+
+
+def test_cancelled_transcription_waits_for_worker_even_when_cancelled_twice(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "audio.wav"
+    path.write_bytes(create_wav())
+    started = threading.Event()
+    release = threading.Event()
+
+    class SlowModel:
+        def transcribe(self, audio, **kwargs):
+            started.set()
+            release.wait(timeout=5)
+            return [], SimpleNamespace(language="ru", duration=0.25)
+
+    monkeypatch.setattr(model_holder, "_model", SlowModel())
+
+    async def cancel_transcription():
+        task = asyncio.create_task(transcription_service.transcribe_file(path))
+        started_in_time = await asyncio.to_thread(started.wait, 2)
+        task.cancel()
+        await asyncio.sleep(0)
+        waiting_after_cancel = not task.done()
+        task.cancel()
+        await asyncio.sleep(0)
+        waiting_after_second_cancel = not task.done()
+        release.set()
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        return (
+            started_in_time,
+            waiting_after_cancel,
+            waiting_after_second_cancel,
+        )
+
+    assert asyncio.run(cancel_transcription()) == (True, True, True)
