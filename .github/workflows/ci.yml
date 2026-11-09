@@ -84,7 +84,7 @@ jobs:
           python -m pip install -r requirements.txt \
             pytest pytest-asyncio pytest-cov \
             pytest-randomly pytest-timeout httpx2 packaging aiohttp \
-            hypothesis
+            hypothesis jsonschema
       - name: Check installed dependencies
         run: python -m pip check
       - name: Run unit tests with coverage (skips are failures)
