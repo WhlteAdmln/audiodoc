@@ -135,3 +135,37 @@ def test_ready_reports_missing_programs_without_raising(monkeypatch):
         "djvulibre": False,
         "model_loaded": False,
     }
+
+
+@pytest.mark.parametrize(
+    "missing_tool",
+    ["tesseract", "djvutxt", "djvused", "ddjvu"],
+)
+def test_ready_reports_each_missing_native_tool(
+    monkeypatch: pytest.MonkeyPatch,
+    missing_tool: str,
+) -> None:
+    _install_fake_pytesseract(monkeypatch, lambda **_kwargs: ["eng"])
+
+    def fake_which(name: str) -> str | None:
+        return None if name == missing_tool else f"/usr/bin/{name}"
+
+    monkeypatch.setattr(ready_module.shutil, "which", fake_which)
+    monkeypatch.setattr(model_holder, "_model", None)
+
+    response = TestClient(create_ready_app()).get("/ready")
+
+    tesseract_available = missing_tool != "tesseract"
+    djvulibre_available = missing_tool not in {
+        "djvutxt",
+        "djvused",
+        "ddjvu",
+    }
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "tesseract": tesseract_available,
+        "languages": ["eng"] if tesseract_available else [],
+        "djvulibre": djvulibre_available,
+        "model_loaded": False,
+    }

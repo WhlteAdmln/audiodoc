@@ -51,7 +51,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     ensure_temp_dir()
     cleanup_stale_files()
     await asyncio.to_thread(model_holder.load)
-    yield
+    document_queue.start()
+    try:
+        yield
+    finally:
+        await document_queue.shutdown()
 
 
 def create_app(*, enable_docs: bool | None = None) -> FastAPI:
