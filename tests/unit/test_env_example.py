@@ -9,29 +9,26 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SETTINGS_PATH = PROJECT_ROOT / "backend" / "config" / "settings.py"
 ENV_EXAMPLE_PATH = PROJECT_ROOT / ".env.example"
 _ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-_SETTING_READERS = {"get_bool", "get_int", "get_float"}
+_SETTING_READERS = {"read_bool", "read_int", "read_str"}
 
 
 def _read_settings_environment_names() -> set[str]:
     tree = ast.parse(SETTINGS_PATH.read_text(encoding="utf-8"))
-    settings_class = next(
+    load_settings = next(
         node
         for node in tree.body
-        if isinstance(node, ast.ClassDef) and node.name == "Settings"
+        if isinstance(node, ast.FunctionDef) and node.name == "load_settings"
     )
     names: set[str] = set()
 
-    for node in ast.walk(settings_class):
+    for node in ast.walk(load_settings):
         if not isinstance(node, ast.Call) or not node.args:
             continue
 
         function = node.func
         reads_environment = (
-            isinstance(function, ast.Attribute)
-            and isinstance(function.value, ast.Name)
-            and function.value.id == "os"
-            and function.attr == "getenv"
-        ) or (isinstance(function, ast.Name) and function.id in _SETTING_READERS)
+            isinstance(function, ast.Name) and function.id in _SETTING_READERS
+        )
 
         first_argument = node.args[0]
         if (
@@ -64,7 +61,7 @@ def _read_env_example_names() -> set[str]:
     return names
 
 
-def test_env_example_matches_settings_environment_variables():
+def test_env_example_matches_settings_environment_variables() -> None:
     settings_names = _read_settings_environment_names()
     example_names = _read_env_example_names()
 

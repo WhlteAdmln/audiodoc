@@ -5,14 +5,10 @@ import asyncio
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from pathlib import Path
 
-from dotenv import load_dotenv
+from backend.config.env import load_env_file
 
-# Resolve the dotenv path before importing backend.config: its package initializer
-# eagerly imports Settings; importing config.paths here would load settings too early.
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-load_dotenv(PROJECT_ROOT / ".env", override=False)
+load_env_file()
 
 from fastapi import FastAPI  # noqa: E402
 
