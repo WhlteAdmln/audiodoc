@@ -17,6 +17,7 @@ import starlette.formparsers
 from backend.api import ready as ready_module
 from backend.config import settings
 from tests.support.bot_client import upload_file
+from tests.support.builders import create_wav
 from tests.support.server import LiveServer, LiveServerOptions, live_server
 
 if TYPE_CHECKING:
@@ -85,8 +86,8 @@ async def test_live_socket_accepts_both_keys_during_rotation(
     )
     document_path = tmp_path / "note.txt"
     document_path.write_text("Key rotation test.", encoding="utf-8")
-    audio_path = tmp_path / "voice.ogg"
-    audio_path.write_bytes(b"fake audio")
+    audio_path = tmp_path / "voice.wav"
+    audio_path.write_bytes(create_wav())
 
     for key in ("rotated-whisper-key", "test-whisper-key"):
         status, _ = await upload_file(
@@ -123,8 +124,8 @@ async def test_allow_unauthenticated_accepts_uploads_without_keys(
 ) -> None:
     document_path = tmp_path / "note.txt"
     document_path.write_text("Unauthenticated document.", encoding="utf-8")
-    audio_path = tmp_path / "voice.ogg"
-    audio_path.write_bytes(b"fake audio")
+    audio_path = tmp_path / "voice.wav"
+    audio_path.write_bytes(create_wav())
 
     assert (
         await _upload_without_authorization(
