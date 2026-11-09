@@ -67,9 +67,6 @@ def test_comma_only_key_value_is_treated_as_missing():
 
 
 def test_document_route_requires_its_own_key(monkeypatch):
-    pytest.importorskip("ebooklib")
-    pytest.importorskip("striprtf")
-
     app = import_module("backend.main").app
 
     monkeypatch.setattr(settings, "DOCUMENT_API_KEY", "document-test-key")

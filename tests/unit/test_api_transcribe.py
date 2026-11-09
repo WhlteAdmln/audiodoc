@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Integration test for the Whisper HTTP response with a fake model.
+"""Unit test for the Whisper HTTP response with a fake model.
 
 The real model is not loaded: TestClient is used without starting lifespan,
 and the model object is replaced directly in the test.
@@ -8,17 +8,10 @@ and the model object is replaced directly in the test.
 from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
+from fastapi.testclient import TestClient
 
-pytestmark = pytest.mark.integration
-
-pytest.importorskip("ebooklib")
-pytest.importorskip("striprtf")
-
-from fastapi.testclient import TestClient  # noqa: E402
-
-from backend.main import app  # noqa: E402
-from backend.transcription.model import model_holder  # noqa: E402
+from backend.main import app
+from backend.transcription.model import model_holder
 
 client = TestClient(app)
 

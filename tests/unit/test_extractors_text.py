@@ -1,11 +1,6 @@
 # Copyright (c) 2026 Nikolai Zelensky
 import pytest
 
-# The public Document Engine package imports the full extractor registry. Keep
-# collection clean on minimal environments and expose missing parser dependencies.
-pytest.importorskip("ebooklib")
-pytest.importorskip("striprtf")
-
 from backend.document_engine import process_document_sync
 from backend.errors.documents import UnsupportedFormatError
 

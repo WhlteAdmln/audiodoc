@@ -1,11 +1,6 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Изолированные тесты EPUB-экстрактора (этап A4)."""
 
-import pytest
-
-pytest.importorskip("ebooklib")
-pytest.importorskip("bs4")
-
 from backend.document_engine.extractors.epub import extract_epub
 from tests.builders import create_epub
 

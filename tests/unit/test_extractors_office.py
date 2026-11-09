@@ -1,9 +1,6 @@
 # Copyright (c) 2026 Nikolai Zelensky
 import pytest
 
-pytest.importorskip("ebooklib")
-pytest.importorskip("striprtf")
-
 from backend.document_engine import process_document_sync
 from tests.builders import (
     create_docx,

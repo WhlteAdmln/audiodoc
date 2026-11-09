@@ -3,8 +3,6 @@
 
 from importlib import import_module
 
-import pytest
-
 from backend.common.deadline import Deadline
 from backend.common.text_budget import TextBudget
 from backend.document_engine.extractors.base import ExtractContext
@@ -58,7 +56,6 @@ def test_csv_falls_back_to_excel_dialect_when_sniffer_fails(monkeypatch):
 
 
 def test_rtf_extractor_preserves_plain_text():
-    pytest.importorskip("striprtf")
     rtf_module = import_module("backend.document_engine.extractors.rtf")
     assert "RTF test" in rtf_module.extract_rtf(b"{\\rtf1 RTF test}")
 

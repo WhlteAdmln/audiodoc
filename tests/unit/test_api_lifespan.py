@@ -1,11 +1,6 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Tests for app factory wiring and lifecycle; no real model is loaded."""
 
-import pytest
-
-pytest.importorskip("ebooklib")
-pytest.importorskip("striprtf")
-
 from fastapi.testclient import TestClient
 
 import backend.main as main_module
