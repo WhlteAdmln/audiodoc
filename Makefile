@@ -42,6 +42,8 @@ test-integration:
 	$(PYTHON) -m pytest -q -rs -m integration
 
 cov:
+	$(PYTHON) -m coverage xml --fail-under=0
+	$(PYTHON) scripts/coverage_gaps.py
 	$(PYTHON) -m coverage report --show-missing
 
 docs-check:
