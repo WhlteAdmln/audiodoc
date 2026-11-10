@@ -7,6 +7,7 @@ ERROR_MESSAGES: dict[str, str] = {
     "document_rejected": "Документ не может быть обработан",
     "unsupported_format": "Формат не поддерживается Document Engine",
     "payload_too_large": "Файл слишком большой",
+    "upload_too_large": "Файл слишком большой. Максимальный размер: {limit} МБ.",
     "processing_timeout": "Превышено время обработки",
     "dependency_missing": "\u041d\u0430 сервере не установлена нужная программа",
     "invalid_audio": "\u041d\u0435 удалось прочитать аудиофайл",

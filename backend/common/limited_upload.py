@@ -5,15 +5,15 @@ from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
 
+from backend.errors.messages import ERROR_MESSAGES
+
 CHUNK_SIZE = 1024 * 1024
 
 
 def _too_large(limit: int) -> HTTPException:
     return HTTPException(
         status_code=413,
-        detail=(
-            f"Файл слишком большой. Максимальный размер: {limit // (1024 * 1024)} МБ."
-        ),
+        detail=ERROR_MESSAGES["upload_too_large"].format(limit=limit // (1024 * 1024)),
     )
 
 

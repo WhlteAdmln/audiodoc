@@ -129,6 +129,7 @@ def test_read_upload_limited_rejects_file_over_limit() -> None:
     with pytest.raises(HTTPException) as error:
         asyncio.run(read_upload_limited(upload, 5))
     assert error.value.status_code == 413
+    assert error.value.detail == "Файл слишком большой. Максимальный размер: 0 МБ."
 
 
 def test_save_upload_limited_rejects_file_over_limit(
