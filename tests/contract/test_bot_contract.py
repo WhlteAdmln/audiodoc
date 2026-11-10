@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from jsonschema import validate
 
 from app import app
+from backend.common.work_queue import WorkQueue
 from backend.transcription.model import ModelHolder
 from scripts.export_openapi import render_openapi
 
@@ -44,9 +45,11 @@ def test_transcribe_response_matches_shared_bot_contract(monkeypatch):
         *,
         _slot_acquired: bool = False,
         configured_model_holder: object | None = None,
+        queue: WorkQueue,
     ) -> dict[str, object]:
         assert _slot_acquired is True
         assert configured_model_holder is app.state.model_holder
+        assert queue is app.state.transcription_queue
         return dict(CONTRACT["transcribe"])
 
     monkeypatch.setattr("backend.api.transcribe.transcribe_file", fake_transcribe_file)

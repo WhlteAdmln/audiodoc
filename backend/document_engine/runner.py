@@ -5,21 +5,9 @@ import asyncio
 
 from backend.common.deadline import Deadline
 from backend.common.work_queue import WorkQueue
-from backend.document_engine.limits import (
-    DOCUMENT_PROCESSING_TIMEOUT,
-    MAX_CONCURRENT_DOCUMENTS,
-)
+from backend.document_engine.limits import DOCUMENT_PROCESSING_TIMEOUT
 from backend.document_engine.pipeline import process_document_sync
 from backend.document_engine.result import DocumentResult
-from backend.errors.base import ServerBusyError
-
-# The default matches Settings.MAX_WAITING_DOCUMENTS. backend.main applies the
-# environment-backed value before registering API routers.
-document_queue = WorkQueue(
-    MAX_CONCURRENT_DOCUMENTS,
-    4,
-    error_factory=ServerBusyError,
-)
 
 
 async def _run_pipeline(
@@ -57,15 +45,17 @@ async def process_document(
     filename: str,
     max_characters: int | None = None,
     *,
+    queue: WorkQueue,
     _slot_acquired: bool = False,
 ) -> DocumentResult:
     """Process a document in a worker thread with bounded admission and deadline.
 
     ``_slot_acquired`` is reserved for the HTTP layer, which acquires admission
     before reading the multipart upload. Direct callers use the queue here.
+    ``queue`` is owned by the application or direct caller.
     """
     if _slot_acquired:
         return await _run_pipeline(data, filename, max_characters)
 
-    async with document_queue.slot():
+    async with queue.slot():
         return await _run_pipeline(data, filename, max_characters)

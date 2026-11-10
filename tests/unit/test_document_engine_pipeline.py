@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from backend.common.work_queue import WorkQueue
 from backend.document_engine import (
     pipeline,
     process_document_sync,
@@ -124,7 +125,11 @@ def test_async_runner_executes_sync_pipeline_in_a_worker_thread(monkeypatch):
 
     monkeypatch.setattr(runner, "process_document_sync", fake_process)
 
-    result = asyncio.run(runner.process_document(b"body", "note.txt"))
+    result = asyncio.run(
+        runner.process_document(
+            b"body", "note.txt", queue=WorkQueue(workers=1, max_waiting=4)
+        )
+    )
 
     assert result == {
         "format": "txt",

@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from backend.common.work_queue import WorkQueue
 from backend.config import settings
 from backend.transcription.model import ModelHolder
 from backend.transcription.service import transcribe_file
@@ -67,6 +68,10 @@ def test_real_tiny_whisper_transcribes_generated_speech(
     transcription = asyncio.run(
         transcribe_file(
             audio_path,
+            queue=WorkQueue(
+                settings.MAX_CONCURRENT_TRANSCRIPTIONS,
+                settings.MAX_WAITING_TRANSCRIPTIONS,
+            ),
             configured_model_holder=configured_model_holder,
         )
     )

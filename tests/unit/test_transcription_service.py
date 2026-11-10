@@ -21,6 +21,10 @@ from backend.transcription.model import ModelHolder
 from tests.support.builders import create_ocr_image, create_ogg_opus, create_wav
 
 
+def _test_queue(max_waiting: int = 4) -> WorkQueue:
+    return WorkQueue(workers=1, max_waiting=max_waiting)
+
+
 def _loaded_model_holder(model: Any) -> ModelHolder:
     holder = ModelHolder()
     holder._model = model
@@ -72,6 +76,7 @@ def test_transcribe_file_runs_model_in_worker_thread(tmp_path):
         transcription_service.transcribe_file(
             path,
             configured_model_holder=configured_model_holder,
+            queue=_test_queue(),
         )
     )
 
@@ -101,6 +106,7 @@ def test_transcribe_file_rejects_audio_over_duration_before_iterating_segments(
             transcription_service.transcribe_file(
                 path,
                 configured_model_holder=configured_model_holder,
+                queue=_test_queue(),
             )
         )
 
@@ -115,13 +121,17 @@ def test_transcribe_file_reports_model_not_ready(tmp_path):
             transcription_service.transcribe_file(
                 path,
                 configured_model_holder=configured_model_holder,
+                queue=_test_queue(),
             )
         )
 
 
 def test_transcribe_file_requires_model_holder(tmp_path):
     with pytest.raises(TypeError, match="configured_model_holder"):
-        transcription_service.transcribe_file(tmp_path / "audio.ogg")
+        transcription_service.transcribe_file(
+            tmp_path / "audio.ogg",
+            queue=_test_queue(),
+        )
 
 
 @pytest.mark.parametrize(
@@ -159,6 +169,7 @@ def test_transcribe_file_decodes_real_audio_and_passes_whisper_settings(
         transcription_service.transcribe_file(
             path,
             configured_model_holder=configured_model_holder,
+            queue=_test_queue(),
         )
     )
 
@@ -194,6 +205,7 @@ def test_transcribe_file_rejects_invalid_audio(audio_data, tmp_path):
             transcription_service.transcribe_file(
                 path,
                 configured_model_holder=configured_model_holder,
+                queue=_test_queue(),
             )
         )
 
@@ -209,6 +221,7 @@ def test_transcribe_file_rejects_audio_over_decoded_duration(tmp_path, monkeypat
             transcription_service.transcribe_file(
                 path,
                 configured_model_holder=configured_model_holder,
+                queue=_test_queue(),
             )
         )
 
@@ -234,18 +247,15 @@ def test_transcribe_file_reports_deadline_exceeded_for_slow_model(
             transcription_service.transcribe_file(
                 path,
                 configured_model_holder=configured_model_holder,
+                queue=_test_queue(),
             )
         )
 
     assert called.is_set()
 
 
-def test_transcriptions_respect_the_concurrency_semaphore(monkeypatch, tmp_path):
-    monkeypatch.setattr(
-        transcription_service,
-        "transcription_queue",
-        WorkQueue(1, 1),
-    )
+def test_transcriptions_respect_the_concurrency_semaphore(tmp_path):
+    queue = _test_queue(max_waiting=1)
     lock = threading.Lock()
     active = 0
     maximum_active = 0
@@ -271,10 +281,12 @@ def test_transcriptions_respect_the_concurrency_semaphore(monkeypatch, tmp_path)
             transcription_service.transcribe_file(
                 paths[0],
                 configured_model_holder=configured_model_holder,
+                queue=queue,
             ),
             transcription_service.transcribe_file(
                 paths[1],
                 configured_model_holder=configured_model_holder,
+                queue=queue,
             ),
         )
 
@@ -303,6 +315,7 @@ def test_cancelled_transcription_waits_for_worker_even_when_cancelled_twice(
             transcription_service.transcribe_file(
                 path,
                 configured_model_holder=configured_model_holder,
+                queue=_test_queue(),
             )
         )
         started_in_time = await asyncio.to_thread(started.wait, 2)

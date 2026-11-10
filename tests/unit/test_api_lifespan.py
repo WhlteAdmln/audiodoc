@@ -5,13 +5,16 @@ import asyncio
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import backend.main as main_module
 import backend.transcription.model as model_module
 from app import app
 from backend.api import ready as ready_module
+from backend.common.work_queue import WorkQueue
 from backend.config import Settings, settings
+from backend.document_engine.limits import MAX_CONCURRENT_DOCUMENTS
 from backend.errors.base import ServerBusyError
 from backend.transcription.model import ModelHolder
 
@@ -108,19 +111,23 @@ def test_app_registers_all_expected_routes():
     assert "post" in paths["/process-document"]
 
 
-def test_create_app_does_not_mutate_global_queue(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[int] = []
-    monkeypatch.setattr(
-        main_module.document_queue,
-        "set_max_waiting",
-        calls.append,
+def test_create_app_builds_independent_queues_from_settings() -> None:
+    configured_settings = Settings(
+        MAX_CONCURRENT_TRANSCRIPTIONS=3,
+        MAX_WAITING_TRANSCRIPTIONS=2,
+        MAX_WAITING_DOCUMENTS=1,
     )
+    first_app = main_module.create_app(configured_settings)
+    second_app = main_module.create_app(configured_settings)
 
-    main_module.create_app(Settings(MAX_WAITING_DOCUMENTS=2))
-
-    assert calls == []
+    assert (
+        first_app.state.transcription_queue is not second_app.state.transcription_queue
+    )
+    assert first_app.state.document_queue is not second_app.state.document_queue
+    assert first_app.state.transcription_queue._workers == 3
+    assert first_app.state.transcription_queue._max_waiting == 2
+    assert first_app.state.document_queue._workers == MAX_CONCURRENT_DOCUMENTS
+    assert first_app.state.document_queue._max_waiting == 1
 
 
 def test_lifespan_creates_independent_model_holders(
@@ -135,29 +142,27 @@ def test_lifespan_creates_independent_model_holders(
         received_settings.append(configured_settings)
         return FakeModel()
 
-    async def shutdown_document_queue() -> None:
-        pass
-
     monkeypatch.setattr(main_module.os, "umask", lambda _mask: 0o022)
     monkeypatch.setattr(
         main_module, "check_security_settings", lambda _configured: None
     )
     monkeypatch.setattr(main_module, "ensure_temp_dir", lambda: tmp_path)
     monkeypatch.setattr(main_module, "cleanup_stale_files", lambda: None)
-    monkeypatch.setattr(
-        main_module.document_queue,
-        "set_max_waiting",
-        lambda _limit: None,
-    )
-    monkeypatch.setattr(main_module.document_queue, "start", lambda: None)
-    monkeypatch.setattr(main_module.document_queue, "shutdown", shutdown_document_queue)
     monkeypatch.setattr(model_module, "_build_model", build_model)
 
     first_app = main_module.create_app(first_settings)
     second_app = main_module.create_app(second_settings)
+    queues = [
+        first_app.state.transcription_queue,
+        first_app.state.document_queue,
+        second_app.state.transcription_queue,
+        second_app.state.document_queue,
+    ]
 
     assert not hasattr(first_app.state, "model_holder")
     assert not hasattr(second_app.state, "model_holder")
+    assert queues[0] is not queues[2]
+    assert queues[1] is not queues[3]
 
     async def run_lifespans() -> None:
         async with main_module.lifespan(first_app):
@@ -166,6 +171,11 @@ def test_lifespan_creates_independent_model_holders(
         async with main_module.lifespan(second_app):
             holders.append(second_app.state.model_holder)
             assert second_app.state.model_holder.is_loaded is True
+
+        for queue in queues:
+            with pytest.raises(ServerBusyError):
+                async with queue.slot():
+                    pytest.fail("Queue accepted work after its application stopped")
 
     asyncio.run(run_lifespans())
 
@@ -305,45 +315,72 @@ def test_lifespan_waits_for_running_job_before_shutdown(
         lambda _configured_settings: FakeModel(),
     )
 
-    async def run_lifecycle() -> None:
-        application = main_module.create_app()
-        job_started = asyncio.Event()
-        release_job = asyncio.Event()
-        context = main_module.lifespan(application)
-        await context.__aenter__()
+    application = main_module.create_app()
+    asyncio.run(_run_lifespan_shutdown(application))
 
-        async def running_job() -> None:
-            async with main_module.document_queue.slot():
-                job_started.set()
-                await release_job.wait()
 
-        job = asyncio.create_task(running_job())
-        shutdown: asyncio.Task[None] | None = None
+async def _hold_queue_slot(
+    queue: WorkQueue,
+    started: asyncio.Event,
+    release: asyncio.Event,
+) -> None:
+    async with queue.slot():
+        started.set()
+        await release.wait()
 
-        try:
-            await job_started.wait()
 
-            async def stop_lifespan() -> None:
-                await context.__aexit__(None, None, None)
+async def _assert_queue_rejects_work(queue: WorkQueue) -> None:
+    with pytest.raises(ServerBusyError):
+        async with queue.slot():
+            pytest.fail("Queue accepted a job during shutdown")
 
-            shutdown = asyncio.create_task(stop_lifespan())
-            await asyncio.sleep(0)
 
-            assert not shutdown.done()
+async def _run_lifespan_shutdown(application: FastAPI) -> None:
+    document_queue = application.state.document_queue
+    transcription_queue = application.state.transcription_queue
+    document_job_started = asyncio.Event()
+    transcription_job_started = asyncio.Event()
+    release_jobs = asyncio.Event()
+    context = main_module.lifespan(application)
+    await context.__aenter__()
 
-            with pytest.raises(ServerBusyError):
-                async with main_module.document_queue.slot():
-                    pytest.fail("Queue accepted a job during shutdown")
+    document_job = asyncio.create_task(
+        _hold_queue_slot(document_queue, document_job_started, release_jobs)
+    )
+    transcription_job = asyncio.create_task(
+        _hold_queue_slot(
+            transcription_queue,
+            transcription_job_started,
+            release_jobs,
+        )
+    )
+    shutdown: asyncio.Task[None] | None = None
 
-            release_job.set()
-            await job
+    try:
+        await asyncio.gather(
+            document_job_started.wait(),
+            transcription_job_started.wait(),
+        )
+
+        async def stop_lifespan() -> None:
+            await context.__aexit__(None, None, None)
+
+        shutdown = asyncio.create_task(stop_lifespan())
+        await asyncio.sleep(0)
+
+        assert not shutdown.done()
+        await asyncio.gather(
+            _assert_queue_rejects_work(document_queue),
+            _assert_queue_rejects_work(transcription_queue),
+        )
+
+        release_jobs.set()
+        await asyncio.gather(document_job, transcription_job)
+        await shutdown
+    finally:
+        release_jobs.set()
+        await asyncio.gather(document_job, transcription_job)
+        if shutdown is None:
+            await context.__aexit__(None, None, None)
+        else:
             await shutdown
-        finally:
-            release_job.set()
-            await job
-            if shutdown is None:
-                await context.__aexit__(None, None, None)
-            else:
-                await shutdown
-
-    asyncio.run(run_lifecycle())

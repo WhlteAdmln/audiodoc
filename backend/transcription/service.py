@@ -12,7 +12,6 @@ from numpy.typing import NDArray
 from backend.common.deadline import Deadline, DeadlineExceededError
 from backend.common.work_queue import WorkQueue
 from backend.config import settings
-from backend.errors.base import ServerBusyError
 from backend.errors.transcription import (
     AudioTooLongError,
     InvalidAudioError,
@@ -20,12 +19,6 @@ from backend.errors.transcription import (
     TranscriptionTimeoutError,
 )
 from backend.transcription.model import ModelHolder
-
-transcription_queue = WorkQueue(
-    settings.MAX_CONCURRENT_TRANSCRIPTIONS,
-    settings.MAX_WAITING_TRANSCRIPTIONS,
-    error_factory=ServerBusyError,
-)
 
 SAMPLE_RATE = 16_000
 
@@ -172,16 +165,18 @@ async def _run_transcription(
 async def transcribe_file(
     path: Path,
     *,
-    _slot_acquired: bool = False,
     configured_model_holder: ModelHolder,
+    queue: WorkQueue,
+    _slot_acquired: bool = False,
 ) -> dict[str, Any]:
     """Recognize audio outside the event loop using the bounded work queue.
 
     ``_slot_acquired`` is reserved for the HTTP layer, which admits the request
     before copying the uploaded file to private temporary storage.
+    ``queue`` is owned by the application or direct caller.
     """
     if _slot_acquired:
         return await _run_transcription(path, configured_model_holder)
 
-    async with transcription_queue.slot():
+    async with queue.slot():
         return await _run_transcription(path, configured_model_holder)

@@ -1,13 +1,14 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """HTTP behavior for overloaded document and transcription queues."""
 
-from contextlib import asynccontextmanager
+import asyncio
 from importlib import import_module
 
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api.error_handlers import register_error_handlers
+from backend.common.work_queue import WorkQueue
 from backend.errors.base import ServerBusyError
 from backend.transcription.model import ModelHolder
 
@@ -32,13 +33,25 @@ def _app_with_router(
     router: APIRouter,
     *,
     model_holder: ModelHolder | None = None,
+    document_queue: WorkQueue | None = None,
+    transcription_queue: WorkQueue | None = None,
 ) -> FastAPI:
     app = FastAPI()
     if model_holder is not None:
         app.state.model_holder = model_holder
+    if document_queue is not None:
+        app.state.document_queue = document_queue
+    if transcription_queue is not None:
+        app.state.transcription_queue = transcription_queue
     register_error_handlers(app)
     app.include_router(router)
     return app
+
+
+def _closed_queue() -> WorkQueue:
+    queue = WorkQueue(workers=1, max_waiting=0, error_factory=ServerBusyError)
+    asyncio.run(queue.shutdown())
+    return queue
 
 
 def test_server_busy_error_returns_retry_after_header():
@@ -56,19 +69,16 @@ def test_server_busy_error_returns_retry_after_header():
 
 def test_document_queue_rejects_before_upload_is_copied(monkeypatch):
     documents = import_module("backend.api.documents")
-
-    @asynccontextmanager
-    async def reject_slot():
-        raise ServerBusyError
-        yield
+    queue = _closed_queue()
 
     def unexpected_read(*_args, **_kwargs):
         raise _UnexpectedUploadReadError
 
-    monkeypatch.setattr(documents.document_queue, "slot", reject_slot)
     monkeypatch.setattr(documents, "read_upload_limited", unexpected_read)
 
-    response = TestClient(_app_with_router(documents.router)).post(
+    response = TestClient(
+        _app_with_router(documents.router, document_queue=queue)
+    ).post(
         "/process-document",
         files={"file": ("note.txt", b"document", "text/plain")},
     )
@@ -78,22 +88,21 @@ def test_document_queue_rejects_before_upload_is_copied(monkeypatch):
 
 def test_transcription_queue_rejects_before_temp_file_write(monkeypatch):
     transcribe = import_module("backend.api.transcribe")
-
-    @asynccontextmanager
-    async def reject_slot():
-        raise ServerBusyError
-        yield
+    queue = _closed_queue()
 
     def unexpected_write(*_args, **_kwargs):
         raise _UnexpectedAudioWriteError
 
     configured_model_holder = ModelHolder()
     monkeypatch.setattr(configured_model_holder, "_model", object())
-    monkeypatch.setattr(transcribe.transcription_queue, "slot", reject_slot)
     monkeypatch.setattr(transcribe, "save_upload_limited", unexpected_write)
 
     response = TestClient(
-        _app_with_router(transcribe.router, model_holder=configured_model_holder)
+        _app_with_router(
+            transcribe.router,
+            model_holder=configured_model_holder,
+            transcription_queue=queue,
+        )
     ).post(
         "/transcribe",
         files={"file": ("voice.ogg", b"audio", "audio/ogg")},

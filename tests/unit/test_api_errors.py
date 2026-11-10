@@ -8,6 +8,8 @@ from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api.error_handlers import register_error_handlers
+from backend.common.work_queue import WorkQueue
+from backend.errors.base import ServerBusyError
 from backend.errors.documents import DocumentRejectedError
 
 
@@ -47,6 +49,7 @@ def test_document_filename_is_sanitized_before_logging(caplog, monkeypatch):
     monkeypatch.setattr(documents, "process_document", fake_process_document)
 
     app = FastAPI()
+    app.state.document_queue = WorkQueue(1, 4, error_factory=ServerBusyError)
     register_error_handlers(app)
     app.include_router(documents.router)
     caplog.set_level(logging.INFO)
@@ -80,6 +83,7 @@ def test_typed_document_rejection_is_logged_without_raw_filename(caplog, monkeyp
 
     monkeypatch.setattr(documents, "process_document", reject_document)
     app = FastAPI()
+    app.state.document_queue = WorkQueue(1, 4, error_factory=ServerBusyError)
     register_error_handlers(app)
     app.include_router(documents.router)
     caplog.set_level(logging.WARNING)
