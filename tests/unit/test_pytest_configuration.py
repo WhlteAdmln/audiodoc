@@ -56,10 +56,11 @@ def test_pytest_configuration_is_strict() -> None:
 
 
 def test_pytest_plugins_are_pinned() -> None:
-    """Keep random ordering and timeout plugins pinned in development requirements."""
-    requirements = (
-        (PROJECT_ROOT / "requirements-dev.txt").read_text(encoding="utf-8").splitlines()
+    """Keep random ordering and timeout plugins pinned in the development extra."""
+    configuration = tomllib.loads(
+        (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     )
+    dependencies = configuration["project"]["optional-dependencies"]["dev"]
 
-    assert "pytest-randomly==5.0.0" in requirements
-    assert "pytest-timeout==2.4.0" in requirements
+    assert "pytest-randomly==5.0.0" in dependencies
+    assert "pytest-timeout==2.4.0" in dependencies
