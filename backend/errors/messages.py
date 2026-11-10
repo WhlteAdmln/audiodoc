@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Russian public messages for application errors."""
+"""Russian public messages displayed to application clients."""
 
 ERROR_MESSAGES: dict[str, str] = {
     "internal_error": "Внутренняя ошибка сервиса",
@@ -17,4 +17,9 @@ ERROR_MESSAGES: dict[str, str] = {
     ),
     "model_not_ready": "Модель Whisper ещё не загружена",
     "transcription_timeout": "Превышено время обработки аудио",
+}
+
+EXTRACTION_MESSAGES: dict[str, str] = {
+    "odf_slide_label": "--- Слайд {index} ---",
+    "odf_sheet_label": "--- Лист: {name} ---",
 }

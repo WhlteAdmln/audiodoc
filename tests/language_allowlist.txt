@@ -8,8 +8,6 @@ backend/document_engine/extractors/djvu/ocr_pages.py
 backend/document_engine/extractors/djvu/text_layer.py
 backend/document_engine/extractors/djvu/tools.py
 backend/document_engine/extractors/fb2.py
-backend/document_engine/extractors/odf/odp.py
-backend/document_engine/extractors/odf/ods.py
 backend/document_engine/extractors/pdf.py
 backend/document_engine/extractors/pptx.py
 backend/document_engine/extractors/xlsx.py

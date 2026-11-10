@@ -14,6 +14,7 @@ from backend.document_engine.extractors.base import (
     odf_elements,
 )
 from backend.document_engine.limits import MAX_SHEET_COLUMNS, MAX_SHEET_ROWS
+from backend.errors.messages import EXTRACTION_MESSAGES
 
 _TABLE_ROW_QNAME = ("urn:oasis:names:tc:opendocument:xmlns:table:1.0", "table-row")
 _TABLE_CELL_QNAME = ("urn:oasis:names:tc:opendocument:xmlns:table:1.0", "table-cell")
@@ -42,7 +43,13 @@ def extract_ods(document: object, *, context: ExtractContext | None = None) -> s
 
     for table in odf_elements(document, Table):
         ctx.check()
-        add_chunk(result, ctx, f"--- Лист: {odf_attribute(table, 'name')} ---")
+        add_chunk(
+            result,
+            ctx,
+            EXTRACTION_MESSAGES["odf_sheet_label"].format(
+                name=odf_attribute(table, "name")
+            ),
+        )
         if ctx.budget.is_truncated():
             break
 
