@@ -15,8 +15,17 @@ from backend.config import (
     reset_settings_cache,
     settings,
 )
-from backend.config.env import get_bool, get_float, get_int, load_env_file
+from backend.config.env import load_env_file as legacy_load_env_file
 from backend.config.paths import PROJECT_ROOT
+from backend.env_readers import (
+    get_bool,
+    get_float,
+    get_int,
+    get_log_level,
+    get_optional_int,
+    load_env_file,
+    parse_ids,
+)
 
 
 def test_get_bool_accepts_common_spellings_and_default(
@@ -62,6 +71,40 @@ def test_get_float_enforces_finite_value_and_bounds(
     monkeypatch.setenv("FLOAT_SETTING", "nan")
     with pytest.raises(ValueError, match="конечным числом"):
         get_float("FLOAT_SETTING", "0.5")
+
+
+def test_get_optional_int_reads_missing_blank_and_value() -> None:
+    assert get_optional_int("OPTIONAL_INT", environ={}) is None
+    assert get_optional_int("OPTIONAL_INT", environ={"OPTIONAL_INT": " "}) is None
+    assert get_optional_int("OPTIONAL_INT", environ={"OPTIONAL_INT": "3"}) == 3
+
+    with pytest.raises(ValueError, match="целым числом"):
+        get_optional_int("OPTIONAL_INT", environ={"OPTIONAL_INT": "invalid"})
+
+    with pytest.raises(ValueError, match="не меньше"):
+        get_optional_int("OPTIONAL_INT", environ={"OPTIONAL_INT": "0"})
+
+
+def test_parse_ids_reads_unique_positive_ids() -> None:
+    assert parse_ids("ALLOWED_IDS", environ={}) == set()
+    assert parse_ids("ALLOWED_IDS", environ={"ALLOWED_IDS": "1, 2,,2"}) == {1, 2}
+
+    with pytest.raises(ValueError, match="некорректный ID"):
+        parse_ids("ALLOWED_IDS", environ={"ALLOWED_IDS": "1,no"})
+
+    with pytest.raises(ValueError, match="должен быть положительным"):
+        parse_ids("ALLOWED_IDS", environ={"ALLOWED_IDS": "0"})
+
+
+def test_get_log_level_validates_values_and_warns_on_invalid_value() -> None:
+    assert get_log_level(environ={"LOG_LEVEL": " warning "}) == "WARNING"
+
+    with pytest.warns(RuntimeWarning, match="Некорректный LOG_LEVEL"):
+        assert get_log_level(environ={"LOG_LEVEL": "trace"}) == "INFO"
+
+
+def test_legacy_environment_reader_module_reexports_vendored_functions() -> None:
+    assert legacy_load_env_file is load_env_file
 
 
 def test_log_safe_removes_line_breaks_and_non_printable_characters() -> None:
@@ -250,7 +293,7 @@ def test_load_env_file_uses_project_file_without_overriding(
         calls.append((path, override))
         return True
 
-    monkeypatch.setattr("backend.config.env.load_dotenv", fake_load_dotenv)
+    monkeypatch.setattr("backend.env_readers.load_dotenv", fake_load_dotenv)
 
     load_env_file()
 

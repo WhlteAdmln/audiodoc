@@ -6,13 +6,14 @@ import sys
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.common.log_filters import SecretsFilter
+from backend.common.log_filters import SecretsFilter as LegacySecretsFilter
 from backend.common.logging_setup import configure_logging
 from backend.common.request_id import (
     RequestIdFilter,
     RequestIdMiddleware,
     request_id_var,
 )
+from backend.log_filters import SecretsFilter
 
 
 def create_app():
@@ -80,6 +81,30 @@ def test_secrets_filter_redacts_message_arguments_and_traceback():
     assert error_record.exc_text is not None
     assert sensitive_value not in error_record.exc_text
     assert "[REDACTED]" in error_record.exc_text
+
+
+def test_legacy_secrets_filter_import_is_preserved():
+    assert LegacySecretsFilter is SecretsFilter
+
+
+def test_secrets_filter_redacts_telegram_and_bearer_tokens():
+    telegram_value = "123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    bearer_value = "upstream-secret-token-987654321"
+    secrets_filter = SecretsFilter([])
+    record = logging.LogRecord(
+        "test",
+        logging.ERROR,
+        __file__,
+        1,
+        "telegram=%s bearer=Bearer %s authorization=Bearer %s",
+        (telegram_value, bearer_value, bearer_value),
+        None,
+    )
+
+    assert secrets_filter.filter(record)
+    assert record.getMessage() == (
+        "telegram=[REDACTED] bearer=Bearer [REDACTED] authorization=Bearer [REDACTED]"
+    )
 
 
 def test_logging_setup_attaches_request_and_secret_filters(monkeypatch):
