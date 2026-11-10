@@ -11,6 +11,7 @@ from backend.document_engine.extractors.base import (
 )
 from backend.document_engine.guards.xml_safe import parse_xml
 from backend.errors.documents import DocumentRejectedError
+from backend.errors.messages import ERROR_MESSAGES
 
 BLOCK_TAGS = {"title", "subtitle", "p", "v", "text-author", "date"}
 
@@ -18,7 +19,7 @@ BLOCK_TAGS = {"title", "subtitle", "p", "v", "text-author", "date"}
 class _MissingFb2BodyError(DocumentRejectedError):
     """Raised when an FB2 document does not contain a body element."""
 
-    public_message = "\u0412 FB2 не найдено содержимое книги"
+    public_message = ERROR_MESSAGES["missing_fb2_body"]
 
 
 def _iter_text_blocks(element: ET.Element) -> Iterator[str]:

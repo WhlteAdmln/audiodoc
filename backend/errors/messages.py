@@ -17,6 +17,7 @@ ERROR_MESSAGES: dict[str, str] = {
     ),
     "invalid_text_limit": "Некорректный лимит длины текста",
     "empty_document": "Документ пуст",
+    "missing_fb2_body": "\u0412 FB2 не найдено содержимое книги",
     "invalid_document_archive": (
         "Документ содержит повреждённый или недопустимый архив"
     ),
