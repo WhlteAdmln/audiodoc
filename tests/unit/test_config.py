@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from backend.common.safe_log import log_safe
-from backend.config import (
+from audiodoc.common.safe_log import log_safe
+from audiodoc.config import (
     ConfigError,
     Settings,
     get_settings,
@@ -15,9 +15,9 @@ from backend.config import (
     reset_settings_cache,
     settings,
 )
-from backend.config.env import load_env_file as legacy_load_env_file
-from backend.config.paths import PROJECT_ROOT
-from backend.env_readers import (
+from audiodoc.config.env import load_env_file as legacy_load_env_file
+from audiodoc.config.paths import PROJECT_ROOT
+from audiodoc.env_readers import (
     get_bool,
     get_float,
     get_int,
@@ -293,7 +293,7 @@ def test_load_env_file_uses_project_file_without_overriding(
         calls.append((path, override))
         return True
 
-    monkeypatch.setattr("backend.env_readers.load_dotenv", fake_load_dotenv)
+    monkeypatch.setattr("audiodoc.env_readers.load_dotenv", fake_load_dotenv)
 
     load_env_file()
 

@@ -7,7 +7,7 @@ PROJECT_ROOT = Path(__file__).parents[2]
 
 
 def test_document_engine_processor_shim_is_removed() -> None:
-    processor = PROJECT_ROOT / "backend" / "document_engine" / "processor.py"
+    processor = PROJECT_ROOT / "audiodoc" / "document_engine" / "processor.py"
     assert not processor.exists()
 
 

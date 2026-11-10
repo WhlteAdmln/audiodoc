@@ -4,7 +4,7 @@ import zipfile
 
 import pytest
 
-from backend.document_engine.detection import detect_format
+from audiodoc.document_engine.detection import detect_format
 
 
 @pytest.mark.parametrize(

@@ -18,17 +18,17 @@ import pytest
 import starlette.formparsers
 from PIL import Image
 
-from backend.common import subprocess_runner
-from backend.common.subprocess_runner import (
+from audiodoc.common import subprocess_runner
+from audiodoc.common.subprocess_runner import (
     SubprocessTimeoutError,
     run_limited,
 )
-from backend.document_engine import pipeline as pipeline_module
-from backend.document_engine.extractors import pdf as pdf_module
-from backend.document_engine.guards import zip_archive as zip_guard
-from backend.document_engine.ocr import recognize as recognize_module
-from backend.document_engine.ocr import tesseract as tesseract_module
-from backend.errors.documents import DocumentRejectedError
+from audiodoc.document_engine import pipeline as pipeline_module
+from audiodoc.document_engine.extractors import pdf as pdf_module
+from audiodoc.document_engine.guards import zip_archive as zip_guard
+from audiodoc.document_engine.ocr import recognize as recognize_module
+from audiodoc.document_engine.ocr import tesseract as tesseract_module
+from audiodoc.errors.documents import DocumentRejectedError
 from tests.support.server import LiveServer, live_server
 
 if TYPE_CHECKING:

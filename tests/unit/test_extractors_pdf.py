@@ -5,13 +5,13 @@ from types import SimpleNamespace
 
 import pytest
 
-import backend.document_engine.extractors.pdf as pdf_module
-from backend.common.deadline import Deadline
-from backend.common.text_budget import TextBudget
-from backend.document_engine.extractors.base import ExtractContext
-from backend.document_engine.extractors.pdf import extract_pdf
-from backend.document_engine.limits import MAX_DOCUMENT_PAGES
-from backend.errors.documents import DocumentRejectedError
+import audiodoc.document_engine.extractors.pdf as pdf_module
+from audiodoc.common.deadline import Deadline
+from audiodoc.common.text_budget import TextBudget
+from audiodoc.document_engine.extractors.base import ExtractContext
+from audiodoc.document_engine.extractors.pdf import extract_pdf
+from audiodoc.document_engine.limits import MAX_DOCUMENT_PAGES
+from audiodoc.errors.documents import DocumentRejectedError
 from tests.builders import create_pdf
 
 

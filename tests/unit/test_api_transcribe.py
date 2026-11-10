@@ -11,13 +11,13 @@ from types import SimpleNamespace
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.api import ready as ready_module
-from backend.config import Settings, settings
-from backend.main import create_app
-from backend.transcription import model as model_module
-from backend.transcription import service as service_module
-from backend.transcription import temp_files
-from backend.transcription.model import ModelHolder
+from audiodoc.api import ready as ready_module
+from audiodoc.config import Settings, settings
+from audiodoc.main import create_app
+from audiodoc.transcription import model as model_module
+from audiodoc.transcription import service as service_module
+from audiodoc.transcription import temp_files
+from audiodoc.transcription.model import ModelHolder
 from tests.support.builders import create_wav
 
 app = create_app(settings)

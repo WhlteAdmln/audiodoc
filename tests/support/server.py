@@ -12,11 +12,11 @@ from typing import TYPE_CHECKING
 import pytest
 import uvicorn
 
-from backend.api.middleware import BodySizeLimitMiddleware
-from backend.config import Settings, settings
-from backend.main import create_app
-from backend.transcription import model as model_module
-from backend.transcription import temp_files
+from audiodoc.api.middleware import BodySizeLimitMiddleware
+from audiodoc.config import Settings, settings
+from audiodoc.main import create_app
+from audiodoc.transcription import model as model_module
+from audiodoc.transcription import temp_files
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

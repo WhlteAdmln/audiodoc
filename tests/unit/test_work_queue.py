@@ -5,8 +5,8 @@ import asyncio
 
 import pytest
 
-from backend.common.work_queue import QueueFullError, WorkQueue
-from backend.errors.base import ServerBusyError
+from audiodoc.common.work_queue import QueueFullError, WorkQueue
+from audiodoc.errors.base import ServerBusyError
 
 
 def test_work_queue_limits_active_and_waiting_tasks():

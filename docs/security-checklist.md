@@ -1,6 +1,6 @@
 # Security checklist before production
 
-Complete this checklist on the actual machines A (bot) and B (backend/LLM). The addresses below are examples from the deployment plan (`10.8.0.1` for B, `10.8.0.2` for A); replace them with the real private/VPN addresses. Do not enable a firewall until the administrator's SSH source has an explicit allow rule. Start on a test machine.
+Complete this checklist on the actual machines A (bot) and B (audiodoc/LLM). The addresses below are examples from the deployment plan (`10.8.0.1` for B, `10.8.0.2` for A); replace them with the real private/VPN addresses. Do not enable a firewall until the administrator's SSH source has an explicit allow rule. Start on a test machine.
 
 | # | Check | How to verify | Expected |
 | ---: | --- | --- | --- |

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import backend.transcription.temp_files as temp_audio
+import audiodoc.transcription.temp_files as temp_audio
 
 
 def test_temp_audio_file_is_private_and_removed(monkeypatch, tmp_path):

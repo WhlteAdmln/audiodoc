@@ -22,7 +22,7 @@ Audio flow:
 
 ## 2. Application startup and shutdown
 
-`app.py` remains a thin entry point and the production import target is `uvicorn app:app`. `backend/main.py` loads `.env` from the project root before importing settings, configures root logging filters, creates the FastAPI app, and registers middleware, error handlers, and routers.
+`app.py` remains a thin entry point and the production import target is `uvicorn app:app`. `audiodoc/main.py` loads `.env` from the project root before importing settings, configures root logging filters, creates the FastAPI app, and registers middleware, error handlers, and routers.
 
 During lifespan startup the service sets `umask(077)`, verifies that the API keys are configured unless the explicit local-only bypass is enabled, creates a private temporary directory, removes stale service-owned audio files, and loads the Whisper model in a worker thread. The process is shut down by the ASGI server; the model is released with the process.
 
@@ -45,7 +45,7 @@ Typed `BackendError` exceptions are mapped to safe public messages and status co
 
 ## 4. Whisper
 
-`backend/transcription/model.py` provides `ModelHolder`, which loads one `faster-whisper` model. `service.py` executes model inference outside the event loop and uses a bounded `WorkQueue`. Model selection, device, compute type, thread count, language, beam size, and offline mode are configured through environment variables.
+`audiodoc/transcription/model.py` provides `ModelHolder`, which loads one `faster-whisper` model. `service.py` executes model inference outside the event loop and uses a bounded `WorkQueue`. Model selection, device, compute type, thread count, language, beam size, and offline mode are configured through environment variables.
 
 For an offline deployment, pre-download the model to a local directory and set `WHISPER_MODEL_PATH` and `WHISPER_OFFLINE=true`. `local_files_only=true` prevents an implicit model download. The machine must still have all model files and runtime dependencies installed before network egress is blocked.
 
@@ -53,7 +53,7 @@ For an offline deployment, pre-download the model to a local directory and set `
 
 ## 5. Document Engine
 
-`backend/document_engine/` is independent of the HTTP layer, transcription, and configuration packages.
+`audiodoc/document_engine/` is independent of the HTTP layer, transcription, and configuration packages.
 
 Processing order is detection → container guards → extractor registry → result. Supported formats are PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP, EPUB, FB2, DJVU, TXT, MD, HTML, XML, CSV, and RTF. PDF pages without a text layer and scanned DJVU use Tesseract OCR. Standalone images and legacy binary Office formats are unsupported.
 
@@ -85,7 +85,7 @@ The root logger uses a consistent format with the request ID. The request ID is 
 ```text
 audiodoc/
 ├── app.py
-├── backend/
+├── audiodoc/
 │   ├── api/
 │   ├── common/
 │   ├── config/

@@ -3,14 +3,14 @@
 
 import pytest
 
-from backend.common.deadline import Deadline, DeadlineExceededError
-from backend.document_engine import pipeline
-from backend.errors.documents import ProcessingTimeoutError
+from audiodoc.common.deadline import Deadline, DeadlineExceededError
+from audiodoc.document_engine import pipeline
+from audiodoc.errors.documents import ProcessingTimeoutError
 
 
 def test_deadline_reports_remaining_time_and_expires(monkeypatch):
     ticks = iter((100.0, 100.25, 101.1))
-    monkeypatch.setattr("backend.common.deadline.time.monotonic", lambda: next(ticks))
+    monkeypatch.setattr("audiodoc.common.deadline.time.monotonic", lambda: next(ticks))
     deadline = Deadline(1.0)
 
     assert deadline.remaining() == pytest.approx(0.75)

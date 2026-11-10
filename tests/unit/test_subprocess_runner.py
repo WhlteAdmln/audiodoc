@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from backend.common.subprocess_runner import (
+from audiodoc.common.subprocess_runner import (
     SubprocessOutputLimitError,
     SubprocessTimeoutError,
     run_limited,

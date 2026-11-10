@@ -5,7 +5,7 @@ from typing import Protocol, cast
 
 import pytest
 
-from backend.document_engine.extractors.pdf import extract_pdf
+from audiodoc.document_engine.extractors.pdf import extract_pdf
 from tests.builders import create_scanned_pdf
 
 pytestmark = pytest.mark.integration

@@ -7,9 +7,9 @@ import pytest
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 
-from backend.api.auth import check_security_settings, require_key
-from backend.config import Settings, settings
-from backend.main import create_app
+from audiodoc.api.auth import check_security_settings, require_key
+from audiodoc.config import Settings, settings
+from audiodoc.main import create_app
 
 
 def run_dependency(

@@ -13,7 +13,7 @@ mkdir -p dist
 rm -f dist/audiodoc-*.zip dist/SHA256SUMS
 
 git archive --format=zip --prefix="${NAME}/" -o "dist/${NAME}.zip" HEAD \
-  app.py backend deploy docs requirements.txt requirements-lock.txt \
+  app.py audiodoc deploy docs requirements.txt requirements-lock.txt \
   .env.example install.sh README.md README.ru.md LICENSE
 
 (

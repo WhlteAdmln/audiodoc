@@ -23,7 +23,7 @@ fix:
 	$(PYTHON) -m ruff format .
 
 types:
-	$(PYTHON) -m mypy backend
+	$(PYTHON) -m mypy audiodoc
 
 deptry:
 	$(PYTHON_SCRIPTS_DIR)/deptry .
@@ -36,7 +36,7 @@ import-lint:
 
 test:
 	$(PYTHON) -m pytest -q -rs -m "not integration and not e2e" \
-		--cov=backend --cov-branch \
+		--cov=audiodoc --cov-branch \
 		--cov-report=term-missing:skip-covered
 
 test-integration:

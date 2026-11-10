@@ -3,9 +3,9 @@ from types import SimpleNamespace
 
 import pytest
 
-import backend.transcription.model as model_module
-from backend.config import Settings
-from backend.transcription.model import ModelHolder
+import audiodoc.transcription.model as model_module
+from audiodoc.config import Settings
+from audiodoc.transcription.model import ModelHolder
 
 
 def test_model_holder_reports_not_loaded_and_raises_from_get():

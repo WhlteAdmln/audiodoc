@@ -3,10 +3,10 @@
 
 import pytest
 
-from backend.document_engine.extractors.fb2 import extract_fb2
-from backend.document_engine.extractors.xml_text import extract_xml_text
-from backend.document_engine.guards.xml_safe import parse_xml
-from backend.errors.documents import DocumentRejectedError
+from audiodoc.document_engine.extractors.fb2 import extract_fb2
+from audiodoc.document_engine.extractors.xml_text import extract_xml_text
+from audiodoc.document_engine.guards.xml_safe import parse_xml
+from audiodoc.errors.documents import DocumentRejectedError
 
 
 @pytest.mark.parametrize(

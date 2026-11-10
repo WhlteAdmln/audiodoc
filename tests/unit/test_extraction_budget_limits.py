@@ -3,13 +3,13 @@
 
 from typing import ClassVar
 
-import backend.document_engine.extractors.odf.ods as ods_module
-import backend.document_engine.extractors.xlsx as xlsx_module
-from backend.common.deadline import Deadline
-from backend.common.text_budget import TextBudget
-from backend.document_engine.extractors.base import ExtractContext
-from backend.document_engine.extractors.odf import extract_odf
-from backend.document_engine.extractors.xlsx import extract_xlsx
+import audiodoc.document_engine.extractors.odf.ods as ods_module
+import audiodoc.document_engine.extractors.xlsx as xlsx_module
+from audiodoc.common.deadline import Deadline
+from audiodoc.common.text_budget import TextBudget
+from audiodoc.document_engine.extractors.base import ExtractContext
+from audiodoc.document_engine.extractors.odf import extract_odf
+from audiodoc.document_engine.extractors.xlsx import extract_xlsx
 from tests.builders import create_ods
 
 

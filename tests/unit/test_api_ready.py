@@ -7,9 +7,9 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.api import ready as ready_module
-from backend.config import settings
-from backend.transcription.model import ModelHolder
+from audiodoc.api import ready as ready_module
+from audiodoc.config import settings
+from audiodoc.transcription.model import ModelHolder
 
 
 class _FakeTesseractError(RuntimeError):

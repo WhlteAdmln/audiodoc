@@ -6,9 +6,9 @@ import unicodedata
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-BACKEND_ROOT = PROJECT_ROOT / "backend"
+AUDIODOC_ROOT = PROJECT_ROOT / "audiodoc"
 TESTS_ROOT = PROJECT_ROOT / "tests"
-RUSSIAN_MESSAGES_PATH = Path("backend/errors/messages.py")
+RUSSIAN_MESSAGES_PATH = Path("audiodoc/errors/messages.py")
 
 
 def _contains_cyrillic(value: str) -> bool:
@@ -38,7 +38,7 @@ def _find_violations(path: Path) -> set[str]:
                 violations.add("docstring")
 
         if (
-            relative_path.parts[0] == "backend"
+            relative_path.parts[0] == "audiodoc"
             and relative_path != RUSSIAN_MESSAGES_PATH
             and isinstance(node, ast.Constant)
             and isinstance(node.value, str)
@@ -52,7 +52,7 @@ def _find_violations(path: Path) -> set[str]:
 def _collect_violations() -> dict[str, set[str]]:
     violations_by_path: dict[str, set[str]] = {}
 
-    for root in (BACKEND_ROOT, TESTS_ROOT):
+    for root in (AUDIODOC_ROOT, TESTS_ROOT):
         for path in sorted(root.rglob("*.py")):
             violations = _find_violations(path)
             if violations:

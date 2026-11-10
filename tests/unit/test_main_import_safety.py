@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Ensure importing backend.main does not configure logging or open files."""
+"""Ensure importing audiodoc.main does not configure logging or open files."""
 
 import builtins
 import importlib
@@ -15,18 +15,18 @@ import pytest
 
 _IMPORT_DEPENDENCIES = (
     "fastapi",
-    "backend.api",
-    "backend.api.auth",
-    "backend.api.error_handlers",
-    "backend.api.middleware",
-    "backend.common.logging_setup",
-    "backend.common.request_id",
-    "backend.config",
-    "backend.document_engine",
-    "backend.document_engine.limits",
-    "backend.logging_setup",
-    "backend.transcription.model",
-    "backend.transcription.temp_files",
+    "audiodoc.api",
+    "audiodoc.api.auth",
+    "audiodoc.api.error_handlers",
+    "audiodoc.api.middleware",
+    "audiodoc.common.logging_setup",
+    "audiodoc.common.request_id",
+    "audiodoc.config",
+    "audiodoc.document_engine",
+    "audiodoc.document_engine.limits",
+    "audiodoc.logging_setup",
+    "audiodoc.transcription.model",
+    "audiodoc.transcription.temp_files",
 )
 
 
@@ -56,14 +56,14 @@ def _check_import_safety(working_directory: str) -> None:
     root_logger = logging.getLogger()
     handlers_before = tuple(root_logger.handlers)
 
-    assert "backend.main" not in __import__("sys").modules
-    importlib.import_module("backend.main")
+    assert "audiodoc.main" not in __import__("sys").modules
+    importlib.import_module("audiodoc.main")
 
     assert tuple(root_logger.handlers) == handlers_before
     assert opened_paths == [], opened_paths
 
 
-def test_import_backend_main_has_no_side_effects(
+def test_import_audiodoc_main_has_no_side_effects(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -3,13 +3,13 @@
 
 from importlib import import_module
 
-from backend.common.deadline import Deadline
-from backend.common.text_budget import TextBudget
-from backend.document_engine.extractors.base import ExtractContext
-from backend.document_engine.extractors.csv_text import extract_csv
-from backend.document_engine.extractors.html import extract_html
-from backend.document_engine.extractors.plain import extract_plain
-from backend.document_engine.extractors.xml_text import extract_xml_text
+from audiodoc.common.deadline import Deadline
+from audiodoc.common.text_budget import TextBudget
+from audiodoc.document_engine.extractors.base import ExtractContext
+from audiodoc.document_engine.extractors.csv_text import extract_csv
+from audiodoc.document_engine.extractors.html import extract_html
+from audiodoc.document_engine.extractors.plain import extract_plain
+from audiodoc.document_engine.extractors.xml_text import extract_xml_text
 
 
 def test_plain_extracts_utf8_and_removes_bom():
@@ -46,7 +46,7 @@ def test_csv_detects_delimiter_and_joins_cells():
 
 
 def test_csv_falls_back_to_excel_dialect_when_sniffer_fails(monkeypatch):
-    csv_module = import_module("backend.document_engine.extractors.csv_text")
+    csv_module = import_module("audiodoc.document_engine.extractors.csv_text")
 
     def fail_sniff(*_args, **_kwargs):
         raise csv_module.csv.Error
@@ -56,12 +56,12 @@ def test_csv_falls_back_to_excel_dialect_when_sniffer_fails(monkeypatch):
 
 
 def test_rtf_extractor_preserves_plain_text():
-    rtf_module = import_module("backend.document_engine.extractors.rtf")
+    rtf_module = import_module("audiodoc.document_engine.extractors.rtf")
     assert "RTF test" in rtf_module.extract_rtf(b"{\\rtf1 RTF test}")
 
 
 def test_csv_marks_truncation_when_another_row_follows_an_exact_fit(monkeypatch):
-    csv_module = import_module("backend.document_engine.extractors.csv_text")
+    csv_module = import_module("audiodoc.document_engine.extractors.csv_text")
     monkeypatch.setattr(
         csv_module.csv.Sniffer, "sniff", lambda *_args, **_kwargs: csv_module.csv.excel
     )
@@ -73,7 +73,7 @@ def test_csv_marks_truncation_when_another_row_follows_an_exact_fit(monkeypatch)
 
 
 def test_csv_exact_fit_at_end_of_file_is_not_truncated(monkeypatch):
-    csv_module = import_module("backend.document_engine.extractors.csv_text")
+    csv_module = import_module("audiodoc.document_engine.extractors.csv_text")
     monkeypatch.setattr(
         csv_module.csv.Sniffer, "sniff", lambda *_args, **_kwargs: csv_module.csv.excel
     )

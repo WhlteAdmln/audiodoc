@@ -9,15 +9,15 @@ from typing import Any
 
 import pytest
 
-import backend.transcription.service as transcription_service
-from backend.common.work_queue import WorkQueue
-from backend.errors.transcription import (
+import audiodoc.transcription.service as transcription_service
+from audiodoc.common.work_queue import WorkQueue
+from audiodoc.errors.transcription import (
     AudioTooLongError,
     InvalidAudioError,
     ModelNotReadyError,
     TranscriptionTimeoutError,
 )
-from backend.transcription.model import ModelHolder
+from audiodoc.transcription.model import ModelHolder
 from tests.support.builders import create_ocr_image, create_ogg_opus, create_wav
 
 

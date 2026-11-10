@@ -4,8 +4,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-import backend.main as main_module
-from backend.config import Settings, settings
+import audiodoc.main as main_module
+from audiodoc.config import Settings, settings
 
 
 def test_docs_and_openapi_routes_are_disabled_by_default(monkeypatch):

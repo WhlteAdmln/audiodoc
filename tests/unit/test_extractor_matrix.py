@@ -12,17 +12,17 @@ from odf.opendocument import load as load_odf
 from odf.text import H
 from pptx import Presentation
 
-import backend.document_engine.extractors.djvu as djvu_module
-import backend.document_engine.extractors.djvu.text_layer as text_layer_module
-from backend.common.deadline import Deadline
-from backend.common.text_budget import TextBudget
-from backend.document_engine.extractors import REGISTRY
-from backend.document_engine.extractors.base import ExtractContext
-from backend.document_engine.extractors.djvu.tools import DjvuTools
-from backend.document_engine.extractors.odf.odp import extract_odp
-from backend.document_engine.extractors.pptx import extract_pptx
-from backend.document_engine.pipeline import process_document_sync
-from backend.errors.base import BackendError
+import audiodoc.document_engine.extractors.djvu as djvu_module
+import audiodoc.document_engine.extractors.djvu.text_layer as text_layer_module
+from audiodoc.common.deadline import Deadline
+from audiodoc.common.text_budget import TextBudget
+from audiodoc.document_engine.extractors import REGISTRY
+from audiodoc.document_engine.extractors.base import ExtractContext
+from audiodoc.document_engine.extractors.djvu.tools import DjvuTools
+from audiodoc.document_engine.extractors.odf.odp import extract_odp
+from audiodoc.document_engine.extractors.pptx import extract_pptx
+from audiodoc.document_engine.pipeline import process_document_sync
+from audiodoc.errors.base import BackendError
 from tests.builders import (
     create_csv,
     create_docx,

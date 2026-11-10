@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from backend.common.work_queue import WorkQueue
-from backend.config import settings
-from backend.transcription.model import ModelHolder
-from backend.transcription.service import transcribe_file
+from audiodoc.common.work_queue import WorkQueue
+from audiodoc.config import settings
+from audiodoc.transcription.model import ModelHolder
+from audiodoc.transcription.service import transcribe_file
 
 
 async def _generate_speech(executable: str, audio_path: Path) -> None:

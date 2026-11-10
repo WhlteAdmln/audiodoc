@@ -6,21 +6,21 @@ import io
 import pytest
 from PIL import Image
 
-import backend.document_engine.result as result_module
-from backend.document_engine.detection import detect_format
-from backend.document_engine.detection.formats import (
+import audiodoc.document_engine.result as result_module
+from audiodoc.document_engine.detection import detect_format
+from audiodoc.document_engine.detection.formats import (
     IMAGE_EXTENSIONS,
     SUPPORTED_FORMATS,
     extension_map,
 )
-from backend.document_engine.ocr import (
+from audiodoc.document_engine.ocr import (
     extract_image_text,
 )
-from backend.document_engine.ocr import preprocessing as ocr_preprocessing
-from backend.document_engine.ocr import recognize as ocr_package_recognize
-from backend.document_engine.ocr import tesseract as ocr_tesseract
-from backend.document_engine.result import build_result, limit_text
-from backend.errors.documents import DependencyMissingError, DocumentRejectedError
+from audiodoc.document_engine.ocr import preprocessing as ocr_preprocessing
+from audiodoc.document_engine.ocr import recognize as ocr_package_recognize
+from audiodoc.document_engine.ocr import tesseract as ocr_tesseract
+from audiodoc.document_engine.result import build_result, limit_text
+from audiodoc.errors.documents import DependencyMissingError, DocumentRejectedError
 
 
 def test_detection_package_exports_expected_format_collections():
@@ -138,9 +138,9 @@ def test_recognize_pages_preserves_page_headers_and_timeout(monkeypatch):
 
 
 def test_ocr_package_keeps_extract_image_text_entry_point(monkeypatch):
-    monkeypatch.setattr("backend.document_engine.ocr.ensure_ready", lambda _: None)
+    monkeypatch.setattr("audiodoc.document_engine.ocr.ensure_ready", lambda _: None)
     monkeypatch.setattr(
-        "backend.document_engine.ocr.recognize_pages",
+        "audiodoc.document_engine.ocr.recognize_pages",
         lambda image, languages, **_kwargs: "Recognized text",
     )
 

@@ -5,25 +5,25 @@ from pathlib import Path
 
 import pytest
 
-import backend.document_engine.extractors.djvu as djvu_module
-import backend.document_engine.extractors.djvu.ocr_pages as ocr_pages_module
-import backend.document_engine.extractors.djvu.text_layer as text_layer_module
-from backend.common.deadline import Deadline
-from backend.common.subprocess_runner import (
+import audiodoc.document_engine.extractors.djvu as djvu_module
+import audiodoc.document_engine.extractors.djvu.ocr_pages as ocr_pages_module
+import audiodoc.document_engine.extractors.djvu.text_layer as text_layer_module
+from audiodoc.common.deadline import Deadline
+from audiodoc.common.subprocess_runner import (
     SubprocessOutputLimitError,
     SubprocessTimeoutError,
 )
-from backend.common.text_budget import TextBudget
-from backend.document_engine.extractors.base import ExtractContext
-from backend.document_engine.extractors.djvu.ocr_pages import extract_ocr_pages
-from backend.document_engine.extractors.djvu.text_layer import extract_text_layer
-from backend.document_engine.extractors.djvu.tools import DjvuTools
-from backend.document_engine.limits import (
+from audiodoc.common.text_budget import TextBudget
+from audiodoc.document_engine.extractors.base import ExtractContext
+from audiodoc.document_engine.extractors.djvu.ocr_pages import extract_ocr_pages
+from audiodoc.document_engine.extractors.djvu.text_layer import extract_text_layer
+from audiodoc.document_engine.extractors.djvu.tools import DjvuTools
+from audiodoc.document_engine.limits import (
     DJVU_RENDER_MAX_SIZE,
     MAX_DOCUMENT_PAGES,
     SUBPROCESS_TIMEOUT,
 )
-from backend.errors.documents import (
+from audiodoc.errors.documents import (
     DependencyMissingError,
     DocumentRejectedError,
     ProcessingTimeoutError,

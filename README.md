@@ -123,7 +123,7 @@ The legacy names `WHISPER_API_KEY` and `DOCUMENT_API_KEY` remain accepted as fal
 | `ENABLE_DOCS` | `false` | Enables `/docs` and `/openapi.json`; development only |
 | `LOG_LEVEL` | `INFO` | Python logging level |
 
-Other Document Engine limits are constants in `backend/document_engine/limits.py`: 50 MiB per document, 500 pages, two million extracted characters, a 180-second processing deadline, two concurrent documents, and separate ZIP/table/image/OCR/DJVU limits.
+Other Document Engine limits are constants in `audiodoc/document_engine/limits.py`: 50 MiB per document, 500 pages, two million extracted characters, a 180-second processing deadline, two concurrent documents, and separate ZIP/table/image/OCR/DJVU limits.
 
 ## Tests
 
