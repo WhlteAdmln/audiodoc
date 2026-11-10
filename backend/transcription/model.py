@@ -121,6 +121,3 @@ class ModelHolder:
         if self._model is None:
             raise _WhisperModelNotLoadedError
         return self._model
-
-
-model_holder = ModelHolder()

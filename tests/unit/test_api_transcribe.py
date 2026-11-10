@@ -11,14 +11,17 @@ from types import SimpleNamespace
 import pytest
 from fastapi.testclient import TestClient
 
-from app import app
 from backend.api import ready as ready_module
 from backend.config import Settings, settings
+from backend.main import create_app
 from backend.transcription import model as model_module
 from backend.transcription import service as service_module
 from backend.transcription import temp_files
+from backend.transcription.model import ModelHolder
 from tests.support.builders import create_wav
 
+app = create_app(settings)
+app.state.model_holder = ModelHolder(settings)
 client = TestClient(app)
 
 

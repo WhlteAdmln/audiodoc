@@ -8,10 +8,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from backend.api.auth import require_key
+from backend.api.dependencies import get_document_queue
 from backend.api.schemas import DocumentResponse
 from backend.common.limited_upload import read_upload_limited
 from backend.common.safe_log import log_safe
-from backend.document_engine import document_queue, process_document
+from backend.common.work_queue import WorkQueue
+from backend.document_engine import process_document
 from backend.document_engine.limits import (
     MAX_DOCUMENT_SIZE,
     MAX_EXTRACTED_TEXT_LENGTH,
@@ -35,6 +37,7 @@ router = APIRouter(
 @router.post("/process-document", response_model=DocumentResponse)
 async def process_document_endpoint(
     file: Annotated[UploadFile, File()],
+    queue: Annotated[WorkQueue, Depends(get_document_queue)],
     max_characters: Annotated[
         int | None, Form(ge=1, le=MAX_EXTRACTED_TEXT_LENGTH)
     ] = None,
@@ -44,7 +47,7 @@ async def process_document_endpoint(
 
     try:
         # Reserve admission before copying multipart data into application memory.
-        async with document_queue.slot():
+        async with queue.slot():
             data = await read_upload_limited(file, MAX_DOCUMENT_SIZE)
             logger.info(
                 "Document received: filename=%s, size=%s",
@@ -53,7 +56,11 @@ async def process_document_endpoint(
             )
 
             result = await process_document(
-                data, filename, max_characters, _slot_acquired=True
+                data,
+                filename,
+                max_characters,
+                queue=queue,
+                _slot_acquired=True,
             )
             logger.info(
                 "Document processed: filename=%s, format=%s, characters=%s",

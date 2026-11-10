@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from backend.api import ready as ready_module
 from backend.config import settings
-from backend.transcription.model import model_holder
+from backend.transcription.model import ModelHolder
 
 
 class _FakeTesseractError(RuntimeError):
@@ -79,6 +79,7 @@ def test_available_tesseract_languages_propagates_unexpected_errors(
 
 def create_ready_app():
     app = FastAPI()
+    app.state.model_holder = ModelHolder()
     app.include_router(ready_module.router)
     return app
 
@@ -95,8 +96,9 @@ def test_ready_is_public_and_reports_native_dependencies(monkeypatch):
         "which",
         lambda name: f"/usr/bin/{name}",
     )
-    monkeypatch.setattr(model_holder, "_model", object())
-    client = TestClient(create_ready_app())
+    application = create_ready_app()
+    monkeypatch.setattr(application.state.model_holder, "_model", object())
+    client = TestClient(application)
 
     response = client.get("/ready")
 
@@ -121,9 +123,10 @@ def test_ready_reports_missing_programs_without_raising(monkeypatch):
         "which",
         {"djvused": "/usr/bin/djvused"}.get,
     )
-    monkeypatch.setattr(model_holder, "_model", None)
+    application = create_ready_app()
+    monkeypatch.setattr(application.state.model_holder, "_model", None)
 
-    response = TestClient(create_ready_app()).get(
+    response = TestClient(application).get(
         "/ready",
         headers={"Authorization": "Bearer document-ready-test-key"},
     )
@@ -151,9 +154,10 @@ def test_ready_reports_each_missing_native_tool(
         return None if name == missing_tool else f"/usr/bin/{name}"
 
     monkeypatch.setattr(ready_module.shutil, "which", fake_which)
-    monkeypatch.setattr(model_holder, "_model", None)
+    application = create_ready_app()
+    monkeypatch.setattr(application.state.model_holder, "_model", None)
 
-    response = TestClient(create_ready_app()).get("/ready")
+    response = TestClient(application).get("/ready")
 
     tesseract_available = missing_tool != "tesseract"
     djvulibre_available = missing_tool not in {

@@ -97,7 +97,6 @@ def _configure_live_server_settings(
         return _FakeWhisperModel()
 
     monkeypatch.setattr(model_module, "_build_model", build_fake_model)
-    monkeypatch.setattr(model_module.model_holder, "_model", None)
 
 
 def _create_live_application(options: LiveServerOptions) -> FastAPI:

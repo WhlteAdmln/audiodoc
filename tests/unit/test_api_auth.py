@@ -9,7 +9,6 @@ from fastapi.testclient import TestClient
 
 from backend.api.auth import check_security_settings, require_key
 from backend.config import Settings, settings
-from backend.document_engine import document_queue
 from backend.main import create_app
 
 
@@ -120,7 +119,6 @@ def test_document_route_requires_its_own_key():
             WHISPER_API_KEY="whisper-test-key",
         )
     )
-    document_queue.start()
 
     client = TestClient(app)
     files = {"file": ("note.txt", b"short test", "text/plain")}

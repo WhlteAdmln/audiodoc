@@ -12,20 +12,13 @@ from numpy.typing import NDArray
 from backend.common.deadline import Deadline, DeadlineExceededError
 from backend.common.work_queue import WorkQueue
 from backend.config import settings
-from backend.errors.base import ServerBusyError
 from backend.errors.transcription import (
     AudioTooLongError,
     InvalidAudioError,
     ModelNotReadyError,
     TranscriptionTimeoutError,
 )
-from backend.transcription.model import ModelHolder, model_holder
-
-transcription_queue = WorkQueue(
-    settings.MAX_CONCURRENT_TRANSCRIPTIONS,
-    settings.MAX_WAITING_TRANSCRIPTIONS,
-    error_factory=ServerBusyError,
-)
+from backend.transcription.model import ModelHolder
 
 SAMPLE_RATE = 16_000
 
@@ -107,13 +100,10 @@ def _decode_audio(path: Path, deadline: Deadline) -> NDArray[np.float32]:
 def _transcribe_sync(
     path: Path,
     deadline: Deadline,
-    configured_model_holder: ModelHolder | None = None,
+    configured_model_holder: ModelHolder,
 ) -> dict[str, Any]:
-    active_model_holder = (
-        model_holder if configured_model_holder is None else configured_model_holder
-    )
     try:
-        model = active_model_holder.get()
+        model = configured_model_holder.get()
     except RuntimeError as error:
         raise ModelNotReadyError from error
 
@@ -146,7 +136,7 @@ def _transcribe_sync(
 
 async def _run_transcription(
     path: Path,
-    configured_model_holder: ModelHolder | None = None,
+    configured_model_holder: ModelHolder,
 ) -> dict[str, Any]:
     """Run the non-cancellable model thread while retaining its worker slot."""
     deadline = Deadline(settings.WHISPER_TIMEOUT)
@@ -175,16 +165,18 @@ async def _run_transcription(
 async def transcribe_file(
     path: Path,
     *,
+    configured_model_holder: ModelHolder,
+    queue: WorkQueue,
     _slot_acquired: bool = False,
-    configured_model_holder: ModelHolder | None = None,
 ) -> dict[str, Any]:
     """Recognize audio outside the event loop using the bounded work queue.
 
     ``_slot_acquired`` is reserved for the HTTP layer, which admits the request
     before copying the uploaded file to private temporary storage.
+    ``queue`` is owned by the application or direct caller.
     """
     if _slot_acquired:
         return await _run_transcription(path, configured_model_holder)
 
-    async with transcription_queue.slot():
+    async with queue.slot():
         return await _run_transcription(path, configured_model_holder)

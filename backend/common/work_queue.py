@@ -93,13 +93,6 @@ class WorkQueue:
         """Return whether all workers and all waiting positions are occupied."""
         return self._semaphore.locked() and self._waiting >= self._max_waiting
 
-    def set_max_waiting(self, max_waiting: int) -> None:
-        """Update the waiting-room size during application startup only."""
-        self._validate_max_waiting(max_waiting)
-        if self._waiting or self._active:
-            raise _QueueReconfigurationError
-        self._max_waiting = max_waiting
-
     def start(self) -> None:
         """Open the queue for a new application lifespan."""
         if self._waiting or self._active:
