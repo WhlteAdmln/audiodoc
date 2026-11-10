@@ -1,4 +1,3 @@
-backend/api/auth.py
 backend/document_engine/__init__.py
 backend/document_engine/detection/__init__.py
 backend/document_engine/detection/formats.py

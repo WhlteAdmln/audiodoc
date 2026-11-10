@@ -65,7 +65,10 @@ def test_missing_keys_fail_closed_by_default():
         DOCUMENT_API_KEY="document-secret",
         ALLOW_UNAUTHENTICATED=False,
     )
-    with pytest.raises(RuntimeError, match="WHISPER_API_KEY"):
+    with pytest.raises(
+        RuntimeError,
+        match=r"^Missing API keys: AUDIODOC_AUDIO_KEY \(legacy: WHISPER_API_KEY\)",
+    ):
         check_security_settings(configured_settings)
 
 
@@ -84,7 +87,10 @@ def test_comma_only_key_value_is_treated_as_missing():
         DOCUMENT_API_KEY="document-secret",
         ALLOW_UNAUTHENTICATED=False,
     )
-    with pytest.raises(RuntimeError, match="WHISPER_API_KEY"):
+    with pytest.raises(
+        RuntimeError,
+        match=r"^Missing API keys: AUDIODOC_AUDIO_KEY \(legacy: WHISPER_API_KEY\)",
+    ):
         check_security_settings(configured_settings)
 
 
