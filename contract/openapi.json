@@ -71,6 +71,38 @@
         "title": "DocumentResponse",
         "type": "object"
       },
+      "ErrorResponse": {
+        "description": "Machine-readable HTTP error response.",
+        "properties": {
+          "code": {
+            "enum": [
+              "internal_error",
+              "server_busy",
+              "document_rejected",
+              "unsupported_format",
+              "payload_too_large",
+              "processing_timeout",
+              "dependency_missing",
+              "invalid_audio",
+              "audio_too_long",
+              "model_not_ready",
+              "transcription_timeout"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail",
+          "code"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -220,6 +252,26 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The document was rejected or uses an unsupported format (document_rejected, unsupported_format)."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The document payload exceeds the processing limit (payload_too_large)."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -229,6 +281,44 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected internal failure (internal_error)."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A required dependency is missing (dependency_missing), or the work queue is full (server_busy).",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Document processing timed out (processing_timeout)."
           }
         },
         "summary": "Process Document Endpoint"
@@ -298,6 +388,16 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Audio is unreadable (invalid_audio) or exceeds the duration limit (audio_too_long)."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -307,6 +407,44 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected internal failure (internal_error)."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The model is not ready (model_not_ready), or the work queue is full (server_busy).",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Transcription timed out (transcription_timeout)."
           }
         },
         "summary": "Transcribe"

@@ -109,6 +109,51 @@ def test_bot_examples_validate_against_openapi_schemas() -> None:
         )
 
 
+def test_error_responses_publish_machine_readable_codes() -> None:
+    """Keep typed error responses and their codes in the public OpenAPI contract."""
+    expected_codes = {
+        "/transcribe": {
+            "400": ("invalid_audio", "audio_too_long"),
+            "500": ("internal_error",),
+            "503": ("model_not_ready", "server_busy"),
+            "504": ("transcription_timeout",),
+        },
+        "/process-document": {
+            "400": ("document_rejected", "unsupported_format"),
+            "413": ("payload_too_large",),
+            "500": ("internal_error",),
+            "503": ("dependency_missing", "server_busy"),
+            "504": ("processing_timeout",),
+        },
+    }
+    error_schema = OPENAPI["components"]["schemas"]["ErrorResponse"]
+    assert set(error_schema["required"]) == {"detail", "code"}
+    assert set(error_schema["properties"]["code"]["enum"]) == {
+        "internal_error",
+        "server_busy",
+        "document_rejected",
+        "unsupported_format",
+        "payload_too_large",
+        "processing_timeout",
+        "dependency_missing",
+        "invalid_audio",
+        "audio_too_long",
+        "model_not_ready",
+        "transcription_timeout",
+    }
+
+    for path, path_errors in expected_codes.items():
+        operation = OPENAPI["paths"][path]["post"]
+        for status_code, codes in path_errors.items():
+            response = operation["responses"][status_code]
+            assert response["content"]["application/json"]["schema"] == {
+                "$ref": "#/components/schemas/ErrorResponse"
+            }
+            assert all(code in response["description"] for code in codes)
+
+        assert "Retry-After" in operation["responses"]["503"]["headers"]
+
+
 def test_every_openapi_path_is_mentioned_in_api_docs() -> None:
     """Require the API documentation to mention every OpenAPI path."""
     documentation = (ROOT / "docs" / "api.md").read_text(encoding="utf-8")

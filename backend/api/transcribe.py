@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from backend.api.auth import require_key
 from backend.api.dependencies import get_model_holder, get_transcription_queue
-from backend.api.schemas import TranscribeResponse
+from backend.api.schemas import ErrorResponse, TranscribeResponse
 from backend.common.limited_upload import save_upload_limited
 from backend.common.work_queue import WorkQueue
 from backend.config import settings
@@ -43,6 +43,36 @@ router = APIRouter(
         "    HTTPException: For missing model, invalid duration, oversized audio, or\n"
         "        an internal transcription failure."
     ),
+    responses={
+        400: {
+            "model": ErrorResponse,
+            "description": (
+                "Audio is unreadable (invalid_audio) or exceeds the duration "
+                "limit (audio_too_long)."
+            ),
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Unexpected internal failure (internal_error).",
+        },
+        503: {
+            "model": ErrorResponse,
+            "description": (
+                "The model is not ready (model_not_ready), or the work queue "
+                "is full (server_busy)."
+            ),
+            "headers": {
+                "Retry-After": {
+                    "description": "Seconds to wait before retrying.",
+                    "schema": {"type": "string"},
+                }
+            },
+        },
+        504: {
+            "model": ErrorResponse,
+            "description": "Transcription timed out (transcription_timeout).",
+        },
+    },
 )
 async def transcribe(
     file: Annotated[UploadFile, File()],

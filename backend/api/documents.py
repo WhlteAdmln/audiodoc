@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from backend.api.auth import require_key
 from backend.api.dependencies import get_document_queue
-from backend.api.schemas import DocumentResponse
+from backend.api.schemas import DocumentResponse, ErrorResponse
 from backend.common.limited_upload import read_upload_limited
 from backend.common.safe_log import log_safe
 from backend.common.work_queue import WorkQueue
@@ -34,7 +34,46 @@ router = APIRouter(
 )
 
 
-@router.post("/process-document", response_model=DocumentResponse)
+@router.post(
+    "/process-document",
+    response_model=DocumentResponse,
+    responses={
+        400: {
+            "model": ErrorResponse,
+            "description": (
+                "The document was rejected or uses an unsupported format "
+                "(document_rejected, unsupported_format)."
+            ),
+        },
+        413: {
+            "model": ErrorResponse,
+            "description": (
+                "The document payload exceeds the processing limit (payload_too_large)."
+            ),
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Unexpected internal failure (internal_error).",
+        },
+        503: {
+            "model": ErrorResponse,
+            "description": (
+                "A required dependency is missing (dependency_missing), "
+                "or the work queue is full (server_busy)."
+            ),
+            "headers": {
+                "Retry-After": {
+                    "description": "Seconds to wait before retrying.",
+                    "schema": {"type": "string"},
+                }
+            },
+        },
+        504: {
+            "model": ErrorResponse,
+            "description": "Document processing timed out (processing_timeout).",
+        },
+    },
+)
 async def process_document_endpoint(
     file: Annotated[UploadFile, File()],
     queue: Annotated[WorkQueue, Depends(get_document_queue)],
