@@ -2,6 +2,7 @@
 """Tests for app factory wiring and lifecycle; no real model is loaded."""
 
 import asyncio
+from collections.abc import Iterable
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,7 @@ import backend.transcription.model as model_module
 from app import app
 from backend.api import ready as ready_module
 from backend.common.work_queue import WorkQueue
-from backend.config import Settings, settings
+from backend.config import Settings, load_settings, settings
 from backend.document_engine.limits import MAX_CONCURRENT_DOCUMENTS
 from backend.errors.base import ServerBusyError
 from backend.transcription.model import ModelHolder
@@ -230,6 +231,49 @@ def test_lifespan_checks_configuration_prepares_storage_and_loads_model(
     ]
 
 
+def test_lifespan_logs_one_legacy_key_warning_and_redacts_new_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    configured_settings = load_settings(
+        {
+            "WHISPER_API_KEY": "legacy-audio",
+            "DOCUMENT_API_KEY": "legacy-document",
+        }
+    )
+    application = main_module.create_app(configured_settings)
+    logging_calls: list[tuple[str, tuple[str, ...]]] = []
+
+    def capture_logging(level: str, secrets: Iterable[str]) -> None:
+        logging_calls.append((level, tuple(secrets)))
+
+    monkeypatch.setattr(main_module, "configure_logging", capture_logging)
+    monkeypatch.setattr(main_module.os, "umask", lambda _mask: 0o077)
+    monkeypatch.setattr(main_module, "ensure_temp_dir", lambda: tmp_path)
+    monkeypatch.setattr(main_module, "cleanup_stale_files", lambda: None)
+    monkeypatch.setattr(
+        model_module,
+        "_build_model",
+        lambda _configured_settings: FakeModel(),
+    )
+
+    with caplog.at_level("WARNING"), TestClient(application):
+        pass
+
+    warning_lines = [
+        record.getMessage()
+        for record in caplog.records
+        if "Deprecated API key environment variables" in record.getMessage()
+    ]
+    assert len(warning_lines) == 1
+    assert "WHISPER_API_KEY" in warning_lines[0]
+    assert "DOCUMENT_API_KEY" in warning_lines[0]
+    assert logging_calls == [
+        ("INFO", ("legacy-audio", "legacy-document")),
+    ]
+
+
 @pytest.mark.parametrize(
     ("whisper_key", "document_key", "expected_message"),
     [
@@ -248,8 +292,8 @@ def test_lifespan_rejects_invalid_api_keys(
     expected_message: str,
 ) -> None:
     monkeypatch.setattr(main_module.os, "umask", lambda _mask: 0o022)
-    monkeypatch.setattr(settings, "WHISPER_API_KEY", whisper_key)
-    monkeypatch.setattr(settings, "DOCUMENT_API_KEY", document_key)
+    monkeypatch.setattr(settings, "AUDIODOC_AUDIO_KEY", whisper_key)
+    monkeypatch.setattr(settings, "AUDIODOC_DOCUMENT_KEY", document_key)
     monkeypatch.setattr(settings, "ALLOW_UNAUTHENTICATED", False)
 
     with (

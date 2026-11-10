@@ -20,22 +20,24 @@ bot-obormot (машина A)
 Обычно машина B размещает одновременно audiodoc и LLM-сервер.
 ```
 
-Бот должен иметь доступ к полным URL эндпоинтов. Он не добавляет пути `/transcribe` и `/process-document` самостоятельно.
+Бот формирует пути эндпоинтов на основе `AUDIODOC_URL`. Укажите только базовый URL (например, `http://10.8.0.1:8000`), без `/transcribe` и `/process-document`.
 
 ## 2. Соответствие настроек
 
 | Назначение | `bot-obormot` | `audiodoc` | Примечание |
 | --- | --- | --- | --- |
-| URL распознавания | `WHISPER_API_URL` | host/port Uvicorn | Полный URL, включая `/transcribe` |
-| URL документов | `DOCUMENT_API_URL` | host/port Uvicorn | Полный URL, включая `/process-document` |
-| Ключ распознавания | `WHISPER_API_KEY` | `WHISPER_API_KEY` | Значения должны совпадать |
-| Ключ документов | `DOCUMENT_API_KEY` | `DOCUMENT_API_KEY` | Значения должны совпадать и отличаться от ключа распознавания |
+| Базовый URL | `AUDIODOC_URL` | host/port Uvicorn | Только базовый URL; бот добавляет пути эндпоинтов |
+| Ключ распознавания | `AUDIODOC_AUDIO_KEY` | `AUDIODOC_AUDIO_KEY` | Значения должны совпадать |
+| Ключ документов | `AUDIODOC_DOCUMENT_KEY` | `AUDIODOC_DOCUMENT_KEY` | Значения должны совпадать и отличаться от ключа аудио |
+| Тайм-ауты запросов | `AUDIODOC_AUDIO_TIMEOUT`, `AUDIODOC_DOCUMENT_TIMEOUT` | — | В секундах; настройки только для бота |
 | Ротация ключей | Один активный ключ | Несколько ключей через запятую | Позволяет выполнить переключение без окна отказа |
 | Поле загрузки | `file` | `file` | `multipart/form-data` |
 | Ответ распознавания | Бот читает `text` | `{text, language, duration}` | Все три поля входят в контракт ответа |
 | Ответ документа | Бот проверяет `format`, `text`, `characters` и обрабатывает `truncated` | `{format, text, characters, truncated}` | При `truncated=true` бот сообщает, что документ слишком большой |
 
-`GET /health` не требует ключа. Для `GET /ready` и `POST /process-document` нужен `DOCUMENT_API_KEY`; для `POST /transcribe` — `WHISPER_API_KEY`. Используйте разные ключи. В production оставляйте `ALLOW_UNAUTHENTICATED=false`.
+`GET /health` не требует ключа. Для `GET /ready` и `POST /process-document` нужен `AUDIODOC_DOCUMENT_KEY`; для `POST /transcribe` — `AUDIODOC_AUDIO_KEY`. Используйте разные ключи. В production оставляйте `ALLOW_UNAUTHENTICATED=false`.
+
+Для миграции audiodoc читает `WHISPER_API_KEY` и `DOCUMENT_API_KEY` как запасные значения, если соответствующий новый ключ пуст. Бот сохраняет совместимость с `WHISPER_API_URL`, `DOCUMENT_API_URL`, `WHISPER_API_KEY`, `DOCUMENT_API_KEY`, `WHISPER_TIMEOUT` и `DOCUMENT_TIMEOUT` в течение двух минорных релизов. Новая настройка имеет приоритет над старой. При использовании старого имени при запуске выводится предупреждение об устаревании.
 
 ## 3. Действующие лимиты
 
@@ -60,8 +62,8 @@ bot-obormot (машина A)
 `audiodoc/.env`:
 
 ```ini
-WHISPER_API_KEY=REPLACE_WITH_RANDOM_KEY_1
-DOCUMENT_API_KEY=REPLACE_WITH_RANDOM_KEY_2
+AUDIODOC_AUDIO_KEY=REPLACE_WITH_RANDOM_KEY_1
+AUDIODOC_DOCUMENT_KEY=REPLACE_WITH_RANDOM_KEY_2
 ALLOW_UNAUTHENTICATED=false
 ```
 
@@ -75,10 +77,9 @@ uvicorn app:app --host 127.0.0.1 --port 8000
 
 ```ini
 LLM_BASE_URL=http://127.0.0.1:8080/v1
-WHISPER_API_URL=http://127.0.0.1:8000/transcribe
-WHISPER_API_KEY=REPLACE_WITH_RANDOM_KEY_1
-DOCUMENT_API_URL=http://127.0.0.1:8000/process-document
-DOCUMENT_API_KEY=REPLACE_WITH_RANDOM_KEY_2
+AUDIODOC_URL=http://127.0.0.1:8000
+AUDIODOC_AUDIO_KEY=REPLACE_WITH_RANDOM_KEY_1
+AUDIODOC_DOCUMENT_KEY=REPLACE_WITH_RANDOM_KEY_2
 ```
 
 Замените оба заполнителя разными случайными значениями. Соответствующие значения в конфигурациях бота и audiodoc должны совпадать.
@@ -99,10 +100,9 @@ uvicorn app:app --host 10.8.0.1 --port 8000
 
 ```ini
 LLM_BASE_URL=http://10.8.0.1:8080/v1
-WHISPER_API_URL=http://10.8.0.1:8000/transcribe
-WHISPER_API_KEY=REPLACE_WITH_RANDOM_KEY_1
-DOCUMENT_API_URL=http://10.8.0.1:8000/process-document
-DOCUMENT_API_KEY=REPLACE_WITH_RANDOM_KEY_2
+AUDIODOC_URL=http://10.8.0.1:8000
+AUDIODOC_AUDIO_KEY=REPLACE_WITH_RANDOM_KEY_1
+AUDIODOC_DOCUMENT_KEY=REPLACE_WITH_RANDOM_KEY_2
 ```
 
 Используйте те же два ключа в `audiodoc/.env` на машине B. Обычный HTTP внутри WireGuard допустим: VPN-туннель шифрует трафик между узлами.
@@ -112,8 +112,7 @@ DOCUMENT_API_KEY=REPLACE_WITH_RANDOM_KEY_2
 Оставьте Uvicorn привязанным к loopback на машине B, а TLS завершайте на nginx. Настройте allow-list IP-адреса бота и используйте сертификат, которому доверяет системное/Python-окружение бота.
 
 ```ini
-WHISPER_API_URL=https://backend.example.internal/transcribe
-DOCUMENT_API_URL=https://backend.example.internal/process-document
+AUDIODOC_URL=https://backend.example.internal
 ```
 
 Оставьте те же совпадающие Bearer-ключи, что заданы в audiodoc. Не отключайте проверку сертификата в боте. LLM-сервер также должен использовать защищённый канал или приватную сеть; не открывайте его напрямую в интернет.
@@ -129,8 +128,8 @@ LLM и Whisper на общей машине B могут конкурирова�
 Задайте ключи в текущем shell для тестового сеанса. Не вставляйте настоящие ключи в задачи, логи или общие записи терминала:
 
 ```bash
-export DOCUMENT_API_KEY='your-document-key'
-export WHISPER_API_KEY='your-whisper-key'
+export AUDIODOC_DOCUMENT_KEY='your-document-key'
+export AUDIODOC_AUDIO_KEY='your-audio-key'
 ```
 
 1. Liveness, ключ не нужен. После загрузки модели ожидается `loaded: true`:
@@ -143,7 +142,7 @@ curl -fsS http://10.8.0.1:8000/health
 
 ```bash
 curl -fsS http://10.8.0.1:8000/ready \
-  -H "Authorization: Bearer ${DOCUMENT_API_KEY}"
+  -H "Authorization: Bearer ${AUDIODOC_DOCUMENT_KEY}"
 ```
 
 1. Извлечение документа. Ожидаются поля `format`, `text`, `characters` и `truncated`:
@@ -151,7 +150,7 @@ curl -fsS http://10.8.0.1:8000/ready \
 ```bash
 echo 'Example document text.' > /tmp/audiodoc-sample.txt
 curl -fsS \
-  -H "Authorization: Bearer ${DOCUMENT_API_KEY}" \
+  -H "Authorization: Bearer ${AUDIODOC_DOCUMENT_KEY}" \
   -F "file=@/tmp/audiodoc-sample.txt" \
   -F "max_characters=11264" \
   http://10.8.0.1:8000/process-document
@@ -161,7 +160,7 @@ curl -fsS \
 
 ```bash
 curl -fsS \
-  -H "Authorization: Bearer ${WHISPER_API_KEY}" \
+  -H "Authorization: Bearer ${AUDIODOC_AUDIO_KEY}" \
   -F "file=@voice.ogg" \
   http://10.8.0.1:8000/transcribe
 ```
@@ -184,7 +183,7 @@ API audiodoc принимает несколько действующих клю
 | --- | --- | --- |
 | Бот не может связаться с сервисом | Неверный host/port, сервис остановлен, файрвол блокирует трафик или Uvicorn слушает только loopback | Вызовите `/health` с машины A; проверьте `ss -tlnp` и правила UFW на B |
 | HTTP `404` | В URL отсутствует путь эндпоинта | Добавьте `/transcribe` или `/process-document` в URL бота |
-| HTTP `401` | Ключи не совпадают или перепутана группа ключей | Сверьте Whisper-ключ бота с `WHISPER_API_KEY`, а ключ документов — с `DOCUMENT_API_KEY`, не раскрывая их значения |
+| HTTP `401` | Ключи не совпадают или перепутана группа ключей | Сверьте ключ аудио бота с `AUDIODOC_AUDIO_KEY`, а ключ документов — с `AUDIODOC_DOCUMENT_KEY`, не раскрывая их значения |
 | HTTP `503` | Whisper ещё не загружен или заполнена ограниченная очередь | Проверьте `/health`, логи сервиса и `Retry-After`; снизьте нагрузку или осторожно настройте лимиты очереди |
 | HTTP `413` | Файл превышает лимит бота или сервера | Проверьте лимит бота 20 МиБ и лимиты audiodoc 25/50 МиБ |
 | HTTP `400` для аудио | Аудио некорректно или длиннее серверного лимита | Сейчас бот отклоняет аудио длиннее 300 секунд; по умолчанию audiodoc допускает до 600 секунд |

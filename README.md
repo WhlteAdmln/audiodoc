@@ -56,7 +56,7 @@ cp .env.example .env
 chmod 600 .env
 ```
 
-Edit `.env` and set two different, long random secrets: `WHISPER_API_KEY` and `DOCUMENT_API_KEY`. Configure the matching values in the bot's environment. Do not enable `ALLOW_UNAUTHENTICATED` on a production server.
+Edit `.env` and set two different, long random secrets: `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`. Configure the matching values in the bot's environment. Do not enable `ALLOW_UNAUTHENTICATED` on a production server.
 
 Generate a key with:
 
@@ -79,7 +79,7 @@ On first use, `faster-whisper` may download a model. For an isolated server, pre
 ```bash
 curl -i http://127.0.0.1:8000/health
 curl -i http://127.0.0.1:8000/ready \
-  -H "Authorization: Bearer $DOCUMENT_API_KEY"
+  -H "Authorization: Bearer $AUDIODOC_DOCUMENT_KEY"
 ```
 
 `/health` is an unauthenticated liveness endpoint. `/ready` reports native document-processing dependencies and requires the document key. `/docs` and `/openapi.json` are disabled by default.
@@ -93,16 +93,18 @@ curl -i \
   http://127.0.0.1:8000/process-document
 ```
 
-For the bot, configure the complete `/transcribe` and `/process-document` paths in its URLs. Avoid putting production secrets directly into shell command arguments.
+For the bot, set `AUDIODOC_URL` to the base URL without an endpoint path; the bot appends `/transcribe` and `/process-document`. Avoid putting production secrets directly into shell command arguments.
 
 ## Environment settings
 
 The `.env.example` file lists all environment-backed settings and their defaults.
 
+The legacy names `WHISPER_API_KEY` and `DOCUMENT_API_KEY` remain accepted as fallbacks when the corresponding new setting is empty. The new setting takes precedence. Legacy-name use produces a deprecation warning at startup; migrate within two minor releases.
+
 | Variable | Default | Purpose |
 | --- | ---: | --- |
-| `WHISPER_API_KEY` | empty | Dedicated Bearer key for `/transcribe`; empty only with local auth bypass |
-| `DOCUMENT_API_KEY` | empty | Dedicated Bearer key for `/process-document` and `/ready` |
+| `AUDIODOC_AUDIO_KEY` | empty | Dedicated Bearer key for `/transcribe`; empty only with local auth bypass |
+| `AUDIODOC_DOCUMENT_KEY` | empty | Dedicated Bearer key for `/process-document` and `/ready` |
 | `ALLOW_UNAUTHENTICATED` | `false` | Local development bypass; never enable on a production server |
 | `BACKEND_TEMP_DIR` | `tmp/` in the project root | Private temporary-file directory |
 | `MAX_AUDIO_SIZE` | `26214400` | Maximum audio upload size in bytes (25 MiB) |

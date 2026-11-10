@@ -15,7 +15,8 @@ class _SharedAPIKeyError(RuntimeError):
     def __init__(self) -> None:
         """Initialize the shared API key error."""
         super().__init__(
-            "WHISPER_API_KEY and DOCUMENT_API_KEY must not share any key values."
+            "AUDIODOC_AUDIO_KEY and AUDIODOC_DOCUMENT_KEY "
+            "must not share any key values."
         )
 
 
@@ -62,15 +63,18 @@ def check_security_settings(settings: Settings) -> None:
     """Fail closed when API keys are absent or shared between APIs."""
     missing: list[str] = []
     configured_keys: dict[str, set[str]] = {}
+    key_settings = (
+        ("AUDIODOC_AUDIO_KEY", "WHISPER_API_KEY"),
+        ("AUDIODOC_DOCUMENT_KEY", "DOCUMENT_API_KEY"),
+    )
 
-    for name in ("WHISPER_API_KEY", "DOCUMENT_API_KEY"):
-        configured = {
-            key.strip() for key in getattr(settings, name, "").split(",") if key.strip()
-        }
+    for name, legacy_name in key_settings:
+        value = getattr(settings, name, "") or getattr(settings, legacy_name, "")
+        configured = {key.strip() for key in value.split(",") if key.strip()}
         configured_keys[name] = configured
 
         if not configured:
-            missing.append(name)
+            missing.append(f"{name} (legacy: {legacy_name})")
 
     if missing and not settings.ALLOW_UNAUTHENTICATED:
         raise RuntimeError(
@@ -79,5 +83,5 @@ def check_security_settings(settings: Settings) -> None:
             "или поставьте ALLOW_UNAUTHENTICATED=true только для локальной разработки."
         )
 
-    if configured_keys["WHISPER_API_KEY"] & configured_keys["DOCUMENT_API_KEY"]:
+    if configured_keys["AUDIODOC_AUDIO_KEY"] & configured_keys["AUDIODOC_DOCUMENT_KEY"]:
         raise _SharedAPIKeyError

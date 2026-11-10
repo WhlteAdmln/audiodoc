@@ -668,8 +668,8 @@ key_document = secrets.token_urlsafe(32)
 while key_document == key_whisper:
     key_document = secrets.token_urlsafe(32)
 updates = {
-    "WHISPER_API_KEY": key_whisper,
-    "DOCUMENT_API_KEY": key_document,
+    "AUDIODOC_AUDIO_KEY": key_whisper,
+    "AUDIODOC_DOCUMENT_KEY": key_document,
     "WHISPER_MODEL_SIZE": model,
     "WHISPER_MODEL_PATH": model_path,
     "WHISPER_DEVICE": device,
@@ -712,10 +712,9 @@ base_url = f"http://{connect_host}:{port}"
 content = (
     "# Copy these values into bot-obormot/.env. Keep the two keys separate.\n"
     + note + "\n"
-    + f"WHISPER_API_URL={base_url}/transcribe\n"
-    + f"WHISPER_API_KEY={key_whisper}\n"
-    + f"DOCUMENT_API_URL={base_url}/process-document\n"
-    + f"DOCUMENT_API_KEY={key_document}\n"
+    + f"AUDIODOC_URL={base_url}\n"
+    + f"AUDIODOC_AUDIO_KEY={key_whisper}\n"
+    + f"AUDIODOC_DOCUMENT_KEY={key_document}\n"
 )
 snippet = Path(snippet_path)
 snippet.write_text(content, encoding="utf-8")

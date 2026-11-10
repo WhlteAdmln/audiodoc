@@ -2,6 +2,7 @@
 """FastAPI application factory and application lifecycle."""
 
 import asyncio
+import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -26,6 +27,8 @@ from backend.transcription.temp_files import cleanup_stale_files, ensure_temp_di
 
 API_VERSION = "1"  # Increment this on every breaking API change.
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -38,12 +41,18 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         [
             part.strip()
             for value in (
-                configured_settings.WHISPER_API_KEY,
-                configured_settings.DOCUMENT_API_KEY,
+                configured_settings.AUDIODOC_AUDIO_KEY,
+                configured_settings.AUDIODOC_DOCUMENT_KEY,
             )
             for part in value.split(",")
         ],
     )
+    if configured_settings.deprecated_environment_names:
+        logger.warning(
+            "Deprecated API key environment variables are in use: %s. "
+            "Replace them with AUDIODOC_AUDIO_KEY and AUDIODOC_DOCUMENT_KEY.",
+            ", ".join(configured_settings.deprecated_environment_names),
+        )
     os.umask(0o077)
     check_security_settings(configured_settings)
     ensure_temp_dir()
