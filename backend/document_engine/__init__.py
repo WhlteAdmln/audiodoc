@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Публичный интерфейс Document Engine."""
+"""Public Document Engine interface."""
 
 from backend.document_engine.pipeline import process_document_sync
 from backend.document_engine.runner import process_document

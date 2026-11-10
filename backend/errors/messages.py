@@ -15,6 +15,15 @@ ERROR_MESSAGES: dict[str, str] = {
     "audio_too_long_with_limit": (
         "Аудио слишком длинное. Максимальная длительность: " + "{limit} \u0441."
     ),
+    "invalid_text_limit": "Некорректный лимит длины текста",
+    "empty_document": "Документ пуст",
+    "invalid_document_archive": (
+        "Документ содержит повреждённый или недопустимый архив"
+    ),
+    "document_extraction_failed": (
+        "\u041d\u0435 удалось прочитать документ: файл повреждён или имеет "
+        "неподдерживаемую структуру"
+    ),
     "model_not_ready": "Модель Whisper ещё не загружена",
     "transcription_timeout": "Превышено время обработки аудио",
 }

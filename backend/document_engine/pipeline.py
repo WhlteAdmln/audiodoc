@@ -22,6 +22,7 @@ from backend.errors.documents import (
     ProcessingTimeoutError,
     UnsupportedFormatError,
 )
+from backend.errors.messages import ERROR_MESSAGES
 
 logger = logging.getLogger(__name__)
 
@@ -31,28 +32,25 @@ ZIP_FORMATS = {"docx", "xlsx", "pptx", "epub", "odt", "ods", "odp"}
 class _InvalidTextLimitError(DocumentRejectedError):
     """Raised when the requested extraction text limit is invalid."""
 
-    public_message = "Некорректный лимит длины текста"
+    public_message = ERROR_MESSAGES["invalid_text_limit"]
 
 
 class _EmptyDocumentError(DocumentRejectedError):
     """Raised when the uploaded document is empty."""
 
-    public_message = "Документ пуст"
+    public_message = ERROR_MESSAGES["empty_document"]
 
 
 class _InvalidDocumentArchiveError(DocumentRejectedError):
     """Raised when a document contains an invalid archive."""
 
-    public_message = "Документ содержит повреждённый или недопустимый архив"
+    public_message = ERROR_MESSAGES["invalid_document_archive"]
 
 
 class _DocumentExtractionFailedError(DocumentRejectedError):
     """Raised when an extractor cannot read a document."""
 
-    public_message = (
-        "\u041d\u0435 удалось прочитать документ: файл повреждён или имеет "
-        "неподдерживаемую структуру"
-    )
+    public_message = ERROR_MESSAGES["document_extraction_failed"]
 
 
 def process_document_sync(

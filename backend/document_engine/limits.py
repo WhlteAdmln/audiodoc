@@ -1,32 +1,32 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Central limits for document uploads, extraction, tables, OCR, and tools."""
 
-# Входные документы
+# Input documents
 MAX_DOCUMENT_SIZE = 50 * 1024 * 1024
 MAX_DOCUMENT_PAGES = 500
 
-# Результат извлечения
+# Extraction output
 MAX_EXTRACTED_TEXT_LENGTH = 2_000_000
 
-# Табличные форматы: защита от огромных и разреженных диапазонов
+# Tabular formats: protection against oversized and sparse ranges
 MAX_SHEET_ROWS = 100_000
 MAX_SHEET_COLUMNS = 256
 
-# ZIP-архивы: DOCX, XLSX, PPTX, EPUB, ODT, ODS, ODP
+# ZIP archives: DOCX, XLSX, PPTX, EPUB, ODT, ODS, ODP
 MAX_ARCHIVE_FILES = 100
 MAX_ARCHIVE_UNPACKED_SIZE = 200 * 1024 * 1024
 MAX_ARCHIVE_FILE_SIZE = 50 * 1024 * 1024
 MAX_ARCHIVE_COMPRESSION_RATIO = 100
 
-# Время обработки
+# Processing time
 DOCUMENT_PROCESSING_TIMEOUT = 180
 OCR_PAGE_TIMEOUT = 60
 SUBPROCESS_TIMEOUT = 60
 
-# Параллельная обработка
+# Concurrent processing
 MAX_CONCURRENT_DOCUMENTS = 2
 
-# Чтение файлов
+# File reading
 READ_CHUNK_SIZE = 1024 * 1024
 
 # OCR
