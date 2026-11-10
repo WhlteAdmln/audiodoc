@@ -1,7 +1,6 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Centralized application configuration and environment readers."""
 
-from backend.config.env import load_env_file
 from backend.config.settings import (
     ConfigError,
     Settings,
@@ -10,6 +9,7 @@ from backend.config.settings import (
     reset_settings_cache,
     settings,
 )
+from backend.env_readers import load_env_file
 
 __all__ = [
     "ConfigError",

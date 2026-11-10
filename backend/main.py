@@ -13,7 +13,6 @@ from backend.api import register_routes
 from backend.api.auth import check_security_settings
 from backend.api.error_handlers import register_error_handlers
 from backend.api.middleware import BodySizeLimitMiddleware
-from backend.common.logging_setup import configure_logging
 from backend.common.request_id import RequestIdMiddleware
 from backend.common.work_queue import WorkQueue
 from backend.config import Settings, get_settings
@@ -22,6 +21,7 @@ from backend.document_engine.limits import (
     MAX_DOCUMENT_SIZE,
 )
 from backend.errors.base import ServerBusyError
+from backend.logging_setup import configure_logging
 from backend.transcription.model import ModelHolder
 from backend.transcription.temp_files import cleanup_stale_files, ensure_temp_dir
 
