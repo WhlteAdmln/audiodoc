@@ -12,9 +12,6 @@ backend/document_engine/extractors/xlsx.py
 backend/document_engine/guards/__init__.py
 backend/document_engine/guards/xml_safe.py
 backend/document_engine/guards/zip_archive.py
-backend/document_engine/ocr/__init__.py
-backend/document_engine/ocr/preprocessing.py
-backend/document_engine/ocr/recognize.py
 tests/conftest.py
 tests/unit/test_document_engine_packages.py
 tests/unit/test_document_engine_pipeline.py

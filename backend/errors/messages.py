@@ -17,6 +17,9 @@ ERROR_MESSAGES: dict[str, str] = {
     ),
     "invalid_text_limit": "Некорректный лимит длины текста",
     "empty_document": "Документ пуст",
+    "empty_image": "Изображение пустое",
+    "image_recognition_failed": "\u041d\u0435 удалось распознать страницу изображения",
+    "image_too_large": "Изображение слишком большое: превышен лимит пикселей",
     "missing_fb2_body": "\u0412 FB2 не найдено содержимое книги",
     "invalid_document_archive": (
         "Документ содержит повреждённый или недопустимый архив"
@@ -26,10 +29,14 @@ ERROR_MESSAGES: dict[str, str] = {
         "неподдерживаемую структуру"
     ),
     "model_not_ready": "Модель Whisper ещё не загружена",
+    "too_many_image_frames": "\u0412 изображении слишком много страниц",
     "transcription_timeout": "Превышено время обработки аудио",
+    "unknown_image_format": "\u041d\u0435 удалось определить формат изображения",
+    "unsupported_ocr_image_format": "Формат изображения не поддерживается для OCR",
 }
 
 EXTRACTION_MESSAGES: dict[str, str] = {
     "odf_slide_label": "--- Слайд {index} ---",
     "odf_sheet_label": "--- Лист: {name} ---",
+    "ocr_page_label": "--- Страница {index} ---\n",
 }

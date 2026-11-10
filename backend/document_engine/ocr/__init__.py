@@ -11,6 +11,7 @@ from backend.document_engine.ocr.preprocessing import SUPPORTED_IMAGE_FORMATS
 from backend.document_engine.ocr.recognize import recognize_pages
 from backend.document_engine.ocr.tesseract import DEFAULT_OCR_LANGUAGES, ensure_ready
 from backend.errors.documents import DocumentRejectedError
+from backend.errors.messages import ERROR_MESSAGES
 
 logger = logging.getLogger(__name__)
 
@@ -18,19 +19,19 @@ logger = logging.getLogger(__name__)
 class _EmptyImageError(DocumentRejectedError):
     """Raised when OCR receives empty image data."""
 
-    public_message = "Изображение пустое"
+    public_message = ERROR_MESSAGES["empty_image"]
 
 
 class _UnknownImageFormatError(DocumentRejectedError):
     """Raised when the image format cannot be identified."""
 
-    public_message = "\u041d\u0435 удалось определить формат изображения"
+    public_message = ERROR_MESSAGES["unknown_image_format"]
 
 
 class _UnsupportedOcrImageFormatError(DocumentRejectedError):
     """Raised when an image format is unsupported by OCR."""
 
-    public_message = "Формат изображения не поддерживается для OCR"
+    public_message = ERROR_MESSAGES["unsupported_ocr_image_format"]
 
 
 def extract_image_text(

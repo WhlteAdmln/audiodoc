@@ -16,18 +16,19 @@ from backend.document_engine.ocr.preprocessing import (
 )
 from backend.document_engine.ocr.tesseract import pytesseract
 from backend.errors.documents import DocumentRejectedError
+from backend.errors.messages import ERROR_MESSAGES, EXTRACTION_MESSAGES
 
 
 class _TooManyImageFramesError(DocumentRejectedError):
     """Raised when an image contains more frames than allowed."""
 
-    public_message = "\u0412 изображении слишком много страниц"
+    public_message = ERROR_MESSAGES["too_many_image_frames"]
 
 
 class _ImageRecognitionFailedError(DocumentRejectedError):
     """Raised when Tesseract cannot recognize an image page."""
 
-    public_message = "\u041d\u0435 удалось распознать страницу изображения"
+    public_message = ERROR_MESSAGES["image_recognition_failed"]
 
 
 def recognize_pages(
@@ -101,5 +102,9 @@ def _recognize_page(
     if not text:
         return ""
 
-    prefix = f"--- Страница {page_index + 1} ---\n" if page_count > 1 else ""
+    prefix = (
+        EXTRACTION_MESSAGES["ocr_page_label"].format(index=page_index + 1)
+        if page_count > 1
+        else ""
+    )
     return (prefix + text)[:remaining_characters]
