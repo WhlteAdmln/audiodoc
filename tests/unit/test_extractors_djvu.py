@@ -365,3 +365,59 @@ def test_ocr_pages_maps_subprocess_failures(
             "/usr/bin/djvused",
             "/usr/bin/ddjvu",
         )
+
+
+@pytest.mark.parametrize(
+    ("error_type", "expected_message"),
+    [
+        (
+            ocr_pages_module._DjvuOutputTooLargeError,
+            "Результат программы DjVuLibre слишком большой",
+        ),
+        (
+            ocr_pages_module._DjvuProcessingTimeoutError,
+            "Превышено время обработки DJVU",
+        ),
+        (
+            ocr_pages_module._DjvuPageCountUnavailableError,
+            "\u041d\u0435 удалось определить количество страниц DJVU",
+        ),
+        (
+            ocr_pages_module._InvalidDjvuPageCountError,
+            "Некорректное количество страниц DJVU",
+        ),
+        (
+            ocr_pages_module._DjvuNoPagesError,
+            "\u0412 DJVU не найдено страниц",
+        ),
+        (
+            ocr_pages_module._DjvuTooManyPagesError,
+            "\u0412 DJVU слишком много страниц",
+        ),
+        (
+            ocr_pages_module._DjvuPageRenderError,
+            "\u041d\u0435 удалось отобразить страницу DJVU",
+        ),
+        (
+            ocr_pages_module._DjvuPageTooLargeError,
+            "Страница DJVU слишком велика для OCR",
+        ),
+        (
+            text_layer_module._DjvuTextTooLargeError,
+            "Текстовый слой DJVU слишком большой",
+        ),
+        (
+            text_layer_module._DjvuTextLayerTimeoutError,
+            "Превышено время извлечения текста DJVU",
+        ),
+        (
+            text_layer_module._DjvuTextLayerReadError,
+            "\u041d\u0435 удалось прочитать DJVU",
+        ),
+    ],
+)
+def test_djvu_public_error_messages_are_unchanged(
+    error_type: type[Exception],
+    expected_message: str,
+) -> None:
+    assert error_type.public_message == expected_message

@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Поиск внешних инструментов DjVuLibre."""
+"""Locate external DjVuLibre tools."""
 
 import shutil
 from dataclasses import dataclass
@@ -9,7 +9,7 @@ from backend.errors.documents import DependencyMissingError
 
 @dataclass(frozen=True)
 class DjvuTools:
-    """Пути к исполняемым файлам DjVuLibre."""
+    """Paths to DjVuLibre executables."""
 
     djvutxt: str | None
     djvused: str | None
@@ -17,7 +17,7 @@ class DjvuTools:
 
 
 def find_djvu_tools() -> DjvuTools:
-    """Находит djvutxt, djvused и ddjvu в PATH."""
+    """Find djvutxt, djvused, and ddjvu on PATH."""
     return DjvuTools(
         djvutxt=shutil.which("djvutxt"),
         djvused=shutil.which("djvused"),
@@ -26,7 +26,7 @@ def find_djvu_tools() -> DjvuTools:
 
 
 def require_djvutxt(tools: DjvuTools) -> str:
-    """Проверяет наличие инструмента чтения текстового слоя."""
+    """Require the DjVu text-layer reader."""
     if tools.djvutxt is None:
         raise DependencyMissingError
     return tools.djvutxt

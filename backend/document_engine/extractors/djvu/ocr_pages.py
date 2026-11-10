@@ -23,6 +23,7 @@ from backend.document_engine.limits import (
 )
 from backend.document_engine.ocr import extract_image_text
 from backend.errors.documents import DocumentRejectedError, ProcessingTimeoutError
+from backend.errors.messages import ERROR_MESSAGES, EXTRACTION_MESSAGES
 
 logger = logging.getLogger(__name__)
 
@@ -30,49 +31,49 @@ logger = logging.getLogger(__name__)
 class _DjvuOutputTooLargeError(DocumentRejectedError):
     """Raised when a DjVuLibre command produces excessive output."""
 
-    public_message = "Результат программы DjVuLibre слишком большой"
+    public_message = ERROR_MESSAGES["djvu_output_too_large"]
 
 
 class _DjvuProcessingTimeoutError(ProcessingTimeoutError):
     """Raised when a DjVuLibre command exceeds its processing deadline."""
 
-    public_message = "Превышено время обработки DJVU"
+    public_message = ERROR_MESSAGES["djvu_processing_timeout"]
 
 
 class _DjvuPageCountUnavailableError(DocumentRejectedError):
     """Raised when the DjVu page count cannot be determined."""
 
-    public_message = "\u041d\u0435 удалось определить количество страниц DJVU"
+    public_message = ERROR_MESSAGES["djvu_page_count_unavailable"]
 
 
 class _InvalidDjvuPageCountError(DocumentRejectedError):
     """Raised when the DjVu page count is malformed."""
 
-    public_message = "Некорректное количество страниц DJVU"
+    public_message = ERROR_MESSAGES["invalid_djvu_page_count"]
 
 
 class _DjvuNoPagesError(DocumentRejectedError):
     """Raised when a DjVu document contains no pages."""
 
-    public_message = "\u0412 DJVU не найдено страниц"
+    public_message = ERROR_MESSAGES["djvu_no_pages"]
 
 
 class _DjvuTooManyPagesError(DocumentRejectedError):
     """Raised when a DjVu document exceeds the page limit."""
 
-    public_message = "\u0412 DJVU слишком много страниц"
+    public_message = ERROR_MESSAGES["djvu_too_many_pages"]
 
 
 class _DjvuPageRenderError(DocumentRejectedError):
     """Raised when a DjVu page cannot be rendered."""
 
-    public_message = "\u041d\u0435 удалось отобразить страницу DJVU"
+    public_message = ERROR_MESSAGES["djvu_page_render_failed"]
 
 
 class _DjvuPageTooLargeError(DocumentRejectedError):
     """Raised when a rendered DjVu page exceeds the OCR size limit."""
 
-    public_message = "Страница DJVU слишком велика для OCR"
+    public_message = ERROR_MESSAGES["djvu_page_too_large"]
 
 
 def _run_djvu_command(
@@ -183,7 +184,8 @@ def extract_ocr_pages(
                 add_chunk(
                     result,
                     ctx,
-                    f"--- Страница {page_number} ---\n{page_text}",
+                    EXTRACTION_MESSAGES["djvu_page_label"].format(index=page_number)
+                    + page_text,
                     separator_length=2,
                 )
         finally:

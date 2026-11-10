@@ -1,6 +1,3 @@
-backend/document_engine/extractors/djvu/ocr_pages.py
-backend/document_engine/extractors/djvu/text_layer.py
-backend/document_engine/extractors/djvu/tools.py
 tests/conftest.py
 tests/unit/test_document_engine_packages.py
 tests/unit/test_document_engine_pipeline.py

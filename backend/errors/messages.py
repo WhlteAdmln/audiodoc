@@ -30,6 +30,19 @@ ERROR_MESSAGES: dict[str, str] = {
         "\u041d\u0435 удалось прочитать документ: файл повреждён или имеет "
         "неподдерживаемую структуру"
     ),
+    "djvu_output_too_large": "Результат программы DjVuLibre слишком большой",
+    "djvu_processing_timeout": "Превышено время обработки DJVU",
+    "djvu_page_count_unavailable": (
+        "\u041d\u0435 удалось определить количество страниц DJVU"
+    ),
+    "invalid_djvu_page_count": "Некорректное количество страниц DJVU",
+    "djvu_no_pages": "\u0412 DJVU не найдено страниц",
+    "djvu_too_many_pages": "\u0412 DJVU слишком много страниц",
+    "djvu_page_render_failed": "\u041d\u0435 удалось отобразить страницу DJVU",
+    "djvu_page_too_large": "Страница DJVU слишком велика для OCR",
+    "djvu_text_too_large": "Текстовый слой DJVU слишком большой",
+    "djvu_text_layer_timeout": "Превышено время извлечения текста DJVU",
+    "djvu_text_layer_read_failed": "\u041d\u0435 удалось прочитать DJVU",
     "model_not_ready": "Модель Whisper ещё не загружена",
     "too_many_image_frames": "\u0412 изображении слишком много страниц",
     "transcription_timeout": "Превышено время обработки аудио",
@@ -47,4 +60,5 @@ EXTRACTION_MESSAGES: dict[str, str] = {
     "xlsx_sheet_label": "--- Лист: {name} ---",
     "ocr_page_label": "--- Страница {index} ---\n",
     "pdf_page_label": "--- Страница {index} ---\n",
+    "djvu_page_label": "--- Страница {index} ---\n",
 }
