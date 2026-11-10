@@ -19,7 +19,7 @@ from backend.errors.transcription import (
     ModelNotReadyError,
     TranscriptionTimeoutError,
 )
-from backend.transcription.model import ModelHolder, model_holder
+from backend.transcription.model import ModelHolder
 
 transcription_queue = WorkQueue(
     settings.MAX_CONCURRENT_TRANSCRIPTIONS,
@@ -107,13 +107,10 @@ def _decode_audio(path: Path, deadline: Deadline) -> NDArray[np.float32]:
 def _transcribe_sync(
     path: Path,
     deadline: Deadline,
-    configured_model_holder: ModelHolder | None = None,
+    configured_model_holder: ModelHolder,
 ) -> dict[str, Any]:
-    active_model_holder = (
-        model_holder if configured_model_holder is None else configured_model_holder
-    )
     try:
-        model = active_model_holder.get()
+        model = configured_model_holder.get()
     except RuntimeError as error:
         raise ModelNotReadyError from error
 
@@ -146,7 +143,7 @@ def _transcribe_sync(
 
 async def _run_transcription(
     path: Path,
-    configured_model_holder: ModelHolder | None = None,
+    configured_model_holder: ModelHolder,
 ) -> dict[str, Any]:
     """Run the non-cancellable model thread while retaining its worker slot."""
     deadline = Deadline(settings.WHISPER_TIMEOUT)
@@ -176,7 +173,7 @@ async def transcribe_file(
     path: Path,
     *,
     _slot_acquired: bool = False,
-    configured_model_holder: ModelHolder | None = None,
+    configured_model_holder: ModelHolder,
 ) -> dict[str, Any]:
     """Recognize audio outside the event loop using the bounded work queue.
 
