@@ -41,7 +41,7 @@ Start from `.env.example`; do not store real values in archives or source contro
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-Copy the generated values into `WHISPER_API_KEY` and `DOCUMENT_API_KEY` in the backend `.env`, and set the corresponding same values in the bot's environment. Keep `ALLOW_UNAUTHENTICATED=false`.
+Copy the generated values into `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY` in the backend `.env`, and set the same corresponding values in the bot's environment. Keep `ALLOW_UNAUTHENTICATED=false`. The old `WHISPER_API_KEY` and `DOCUMENT_API_KEY` names remain temporary fallbacks when the new names are empty and produce a deprecation warning at startup.
 
 For a manually managed service user:
 
@@ -112,11 +112,11 @@ sudo systemctl restart audiodoc
 curl -i http://127.0.0.1:8000/health
 ```
 
-`GET /ready` is protected by `DOCUMENT_API_KEY`. It reports `tesseract`, the discovered `languages`, `djvulibre` (true only when all three programs are found), and `model_loaded`:
+`GET /ready` is protected by `AUDIODOC_DOCUMENT_KEY`. It reports `tesseract`, the discovered `languages`, `djvulibre` (true only when all three programs are found), and `model_loaded`:
 
 ```bash
 curl -i http://127.0.0.1:8000/ready \
-  -H "Authorization: Bearer <DOCUMENT_API_KEY>"
+  -H "Authorization: Bearer <AUDIODOC_DOCUMENT_KEY>"
 ```
 
 Interpretation:
@@ -147,7 +147,7 @@ For persistent journal storage, review `/etc/systemd/journald.conf` and consider
 
 | Symptom / HTTP status | Likely cause | Action |
 | --- | --- | --- |
-| Startup fails with missing-key message | One or both API keys are empty | Set distinct `WHISPER_API_KEY` and `DOCUMENT_API_KEY`; keep bypass disabled |
+| Startup fails with missing-key message | One or both API keys are empty | Set distinct `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`; old names are temporary fallbacks; keep bypass disabled |
 | `401 Unauthorized` | Key missing, incorrect, or sent to the wrong endpoint | Verify the matching bot/backend key pair and Bearer header; do not paste the key into logs |
 | `400` for a document | Corrupt, unsupported, or prohibited input | Try a valid supported file; do not disable archive/XML guards |
 | `413` | File or request exceeds a configured limit | Check the file size and `MAX_AUDIO_SIZE` / document size limit |

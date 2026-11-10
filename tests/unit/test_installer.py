@@ -59,3 +59,17 @@ def test_installer_rejects_invalid_host_before_installation() -> None:
 
     assert result.returncode != 0
     assert "Invalid host address" in result.stderr
+
+
+def test_installer_uses_shared_audiodoc_environment_names() -> None:
+    source = INSTALLER.read_text(encoding="utf-8")
+
+    assert '"AUDIODOC_AUDIO_KEY": key_whisper' in source
+    assert '"AUDIODOC_DOCUMENT_KEY": key_document' in source
+    assert 'f"AUDIODOC_URL={base_url}\\n"' in source
+    assert 'f"AUDIODOC_AUDIO_KEY={key_whisper}\\n"' in source
+    assert 'f"AUDIODOC_DOCUMENT_KEY={key_document}\\n"' in source
+    assert '"WHISPER_API_KEY": key_whisper' not in source
+    assert '"DOCUMENT_API_KEY": key_document' not in source
+    assert "WHISPER_API_URL={base_url}" not in source
+    assert "DOCUMENT_API_URL={base_url}" not in source
