@@ -2,27 +2,22 @@
 """Unauthenticated liveness endpoint that reports Whisper model state."""
 
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 
+from backend.api.dependencies import get_model_holder
 from backend.config import settings
-from backend.transcription.model import ModelHolder, model_holder
+from backend.transcription.model import ModelHolder
 
 router = APIRouter()
 
 
-def _get_model_holder(request: Request) -> ModelHolder:
-    """Return the loaded application model, falling back during migration."""
-    configured_holder: ModelHolder | None = getattr(
-        request.app.state, "model_holder", None
-    )
-    if configured_holder is not None:
-        return configured_holder
-    return model_holder
-
-
 @router.get("/health")
-async def health(request: Request) -> dict[str, object]:
+async def health(
+    request: Request,
+    configured_model_holder: Annotated[ModelHolder, Depends(get_model_holder)],
+) -> dict[str, object]:
     """Return service liveness, configured model name, and load state.
 
     Returns:
@@ -39,5 +34,5 @@ async def health(request: Request) -> dict[str, object]:
     return {
         "status": "ok",
         "model": model_name,
-        "loaded": _get_model_holder(request).is_loaded,
+        "loaded": configured_model_holder.is_loaded,
     }

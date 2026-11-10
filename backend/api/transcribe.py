@@ -4,14 +4,15 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from backend.api.auth import require_key
+from backend.api.dependencies import get_model_holder
 from backend.api.schemas import TranscribeResponse
 from backend.common.limited_upload import save_upload_limited
 from backend.config import settings
 from backend.errors.base import BackendError
-from backend.transcription.model import ModelHolder, model_holder
+from backend.transcription.model import ModelHolder
 from backend.transcription.service import transcribe_file, transcription_queue
 from backend.transcription.temp_files import temp_audio_file
 
@@ -24,14 +25,6 @@ router = APIRouter(
         )
     ]
 )
-
-
-def _get_model_holder(request: Request) -> ModelHolder:
-    """Return the model holder owned by this application."""
-    configured_holder: ModelHolder | None = getattr(
-        request.app.state, "model_holder", None
-    )
-    return model_holder if configured_holder is None else configured_holder
 
 
 @router.post(
@@ -49,13 +42,14 @@ def _get_model_holder(request: Request) -> ModelHolder:
     ),
 )
 async def transcribe(
-    file: Annotated[UploadFile, File()], request: Request
+    file: Annotated[UploadFile, File()],
+    configured_model_holder: Annotated[ModelHolder, Depends(get_model_holder)],
 ) -> dict[str, object]:
     """Save an audio upload and return its Whisper transcription.
 
     Args:
         file: Multipart audio file from the client.
-        request: Incoming HTTP request containing application resources.
+        configured_model_holder: Application-owned Whisper model holder.
 
     Returns:
         The recognized text, detected language, and audio duration.
@@ -65,7 +59,6 @@ async def transcribe(
             an internal transcription failure.
 
     """
-    configured_model_holder = _get_model_holder(request)
     if not configured_model_holder.is_loaded:
         raise HTTPException(status_code=503, detail="Whisper model is not loaded")
 
