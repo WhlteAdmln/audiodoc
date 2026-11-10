@@ -22,7 +22,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     dependencies=[
         Depends(
-            require_key(lambda configured_settings: configured_settings.WHISPER_API_KEY)
+            require_key(
+                lambda configured_settings: configured_settings.AUDIODOC_AUDIO_KEY
+            )
         )
     ]
 )

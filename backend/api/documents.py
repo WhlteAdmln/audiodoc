@@ -27,7 +27,7 @@ router = APIRouter(
     dependencies=[
         Depends(
             require_key(
-                lambda configured_settings: configured_settings.DOCUMENT_API_KEY
+                lambda configured_settings: configured_settings.AUDIODOC_DOCUMENT_KEY
             )
         )
     ]
