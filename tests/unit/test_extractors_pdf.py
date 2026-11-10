@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Изолированные тесты PDF-экстрактора (этап A4)."""
+"""Isolated tests for the PDF extractor (A4 stage)."""
 
 from types import SimpleNamespace
 

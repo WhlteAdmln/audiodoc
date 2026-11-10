@@ -35,6 +35,9 @@ ERROR_MESSAGES: dict[str, str] = {
     "transcription_timeout": "Превышено время обработки аудио",
     "unknown_image_format": "\u041d\u0435 удалось определить формат изображения",
     "unsupported_ocr_image_format": "Формат изображения не поддерживается для OCR",
+    "invalid_pdf_page_size": "Размер страницы PDF некорректен",
+    "pdf_page_too_large": "Страница PDF слишком велика для безопасного OCR",
+    "pdf_too_many_pages": "\u0412 PDF слишком много страниц",
 }
 
 EXTRACTION_MESSAGES: dict[str, str] = {
@@ -43,4 +46,5 @@ EXTRACTION_MESSAGES: dict[str, str] = {
     "odf_sheet_label": "--- Лист: {name} ---",
     "xlsx_sheet_label": "--- Лист: {name} ---",
     "ocr_page_label": "--- Страница {index} ---\n",
+    "pdf_page_label": "--- Страница {index} ---\n",
 }
