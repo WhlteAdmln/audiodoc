@@ -226,7 +226,8 @@ async def test_zip_abuse_returns_clean_error_and_removes_upload(
 
     assert status == 400, attack
     assert payload == {
-        "detail": "Документ содержит повреждённый или недопустимый архив"
+        "detail": "Документ содержит повреждённый или недопустимый архив",
+        "code": "document_rejected",
     }
     _assert_upload_clean(opened, live_server.temp_dir)
 
@@ -329,7 +330,10 @@ async def test_xml_entity_attacks_return_clean_error_and_remove_upload(
     status, result = await _post_document(live_server, payload, "attack.xml")
 
     assert status == 400
-    assert result == {"detail": "XML содержит запрещённые конструкции"}
+    assert result == {
+        "detail": "XML содержит запрещённые конструкции",
+        "code": "document_rejected",
+    }
     _assert_upload_clean(opened, live_server.temp_dir)
 
 
@@ -376,7 +380,10 @@ async def test_huge_pdf_page_returns_clean_error_and_removes_upload(
     status, result = await _post_document(live_server, b"fake-pdf", "huge.pdf")
 
     assert status == 400
-    assert result == {"detail": "Страница PDF слишком велика для безопасного OCR"}
+    assert result == {
+        "detail": "Страница PDF слишком велика для безопасного OCR",
+        "code": "document_rejected",
+    }
     _assert_upload_clean(opened, live_server.temp_dir)
 
 
