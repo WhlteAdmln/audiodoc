@@ -298,3 +298,21 @@ def test_load_env_file_uses_project_file_without_overriding(
     load_env_file()
 
     assert calls == [(PROJECT_ROOT / ".env", False)]
+
+
+def test_load_env_file_uses_explicit_path_without_overriding(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    calls: list[tuple[Path, bool]] = []
+    env_file = tmp_path / "custom.env"
+
+    def fake_load_dotenv(path: Path, *, override: bool) -> bool:
+        calls.append((path, override))
+        return True
+
+    monkeypatch.setattr("audiodoc.env_readers.load_dotenv", fake_load_dotenv)
+
+    load_env_file(env_file)
+
+    assert calls == [(env_file, False)]

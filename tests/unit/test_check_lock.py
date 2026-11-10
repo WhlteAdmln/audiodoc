@@ -54,18 +54,38 @@ def test_check_lock_reports_out_of_range_version(tmp_path: Path) -> None:
 
 def test_cli_loads_environment_before_running_uvicorn(monkeypatch) -> None:
     calls: list[object] = []
-    monkeypatch.setattr(cli, "load_env_file", lambda: calls.append("environment"))
-    monkeypatch.setattr(
-        cli.uvicorn,
-        "run",
-        lambda application, *, factory: calls.append((application, factory)),
-    )
 
-    cli.main()
+    def record_settings(_environ):
+        calls.append("settings")
+        return cli.Settings()
+
+    def record_uvicorn(application, **kwargs):
+        calls.append((application, kwargs))
+
+    monkeypatch.setattr(
+        cli, "load_env_file", lambda _env_file=None: calls.append("environment")
+    )
+    monkeypatch.setattr(cli, "load_settings", record_settings)
+    monkeypatch.setattr(
+        cli, "configure_logging", lambda _level, _secrets: calls.append("logging")
+    )
+    monkeypatch.setattr(cli.uvicorn, "run", record_uvicorn)
+
+    assert cli.main(["run"]) == 0
 
     assert calls == [
         "environment",
-        ("audiodoc.main:create_app", True),
+        "settings",
+        "logging",
+        (
+            "audiodoc.main:create_app",
+            {
+                "factory": True,
+                "host": "127.0.0.1",
+                "port": 8000,
+                "server_header": False,
+            },
+        ),
     ]
 
 
