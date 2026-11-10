@@ -39,6 +39,7 @@ ERROR_MESSAGES: dict[str, str] = {
 
 EXTRACTION_MESSAGES: dict[str, str] = {
     "odf_slide_label": "--- Слайд {index} ---",
+    "pptx_slide_label": "--- Слайд {slide_number} ---",
     "odf_sheet_label": "--- Лист: {name} ---",
     "xlsx_sheet_label": "--- Лист: {name} ---",
     "ocr_page_label": "--- Страница {index} ---\n",
