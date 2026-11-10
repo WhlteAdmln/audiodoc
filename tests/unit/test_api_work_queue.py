@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from backend.api.error_handlers import register_error_handlers
 from backend.errors.base import ServerBusyError
+from backend.transcription.model import ModelHolder
 
 
 class _UnexpectedUploadReadError(AssertionError):
@@ -27,8 +28,14 @@ class _UnexpectedAudioWriteError(AssertionError):
         super().__init__("audio must not be copied when the queue is full")
 
 
-def _app_with_router(router):
+def _app_with_router(
+    router: APIRouter,
+    *,
+    model_holder: ModelHolder | None = None,
+) -> FastAPI:
     app = FastAPI()
+    if model_holder is not None:
+        app.state.model_holder = model_holder
     register_error_handlers(app)
     app.include_router(router)
     return app
@@ -80,11 +87,14 @@ def test_transcription_queue_rejects_before_temp_file_write(monkeypatch):
     def unexpected_write(*_args, **_kwargs):
         raise _UnexpectedAudioWriteError
 
-    monkeypatch.setattr(transcribe.model_holder, "_model", object())
+    configured_model_holder = ModelHolder()
+    monkeypatch.setattr(configured_model_holder, "_model", object())
     monkeypatch.setattr(transcribe.transcription_queue, "slot", reject_slot)
     monkeypatch.setattr(transcribe, "save_upload_limited", unexpected_write)
 
-    response = TestClient(_app_with_router(transcribe.router)).post(
+    response = TestClient(
+        _app_with_router(transcribe.router, model_holder=configured_model_holder)
+    ).post(
         "/transcribe",
         files={"file": ("voice.ogg", b"audio", "audio/ogg")},
     )
