@@ -12,6 +12,9 @@ ERROR_MESSAGES: dict[str, str] = {
     "dependency_missing": "\u041d\u0430 сервере не установлена нужная программа",
     "invalid_audio": "\u041d\u0435 удалось прочитать аудиофайл",
     "audio_too_long": "Аудио слишком длинное",
+    "audio_too_long_with_limit": (
+        "Аудио слишком длинное. Максимальная длительность: " + "{limit} \u0441."
+    ),
     "model_not_ready": "Модель Whisper ещё не загружена",
     "transcription_timeout": "Превышено время обработки аудио",
 }

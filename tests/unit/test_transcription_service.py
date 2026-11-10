@@ -101,7 +101,7 @@ def test_transcribe_file_rejects_audio_over_duration_before_iterating_segments(
     configured_model_holder = _loaded_model_holder(TooLongModel())
     monkeypatch.setattr(transcription_service.settings, "MAX_AUDIO_DURATION", 600)
 
-    with pytest.raises(AudioTooLongError):
+    with pytest.raises(AudioTooLongError) as error:
         asyncio.run(
             transcription_service.transcribe_file(
                 path,
@@ -109,6 +109,10 @@ def test_transcribe_file_rejects_audio_over_duration_before_iterating_segments(
                 queue=_test_queue(),
             )
         )
+
+    assert error.value.public_message == (
+        "Аудио слишком длинное. Максимальная длительность: 600 \u0441."
+    )
 
 
 def test_transcribe_file_reports_model_not_ready(tmp_path):
@@ -216,7 +220,7 @@ def test_transcribe_file_rejects_audio_over_decoded_duration(tmp_path, monkeypat
     configured_model_holder = _loaded_model_holder(FakeModel())
     monkeypatch.setattr(transcription_service.settings, "MAX_AUDIO_DURATION", 0.1)
 
-    with pytest.raises(AudioTooLongError):
+    with pytest.raises(AudioTooLongError) as error:
         asyncio.run(
             transcription_service.transcribe_file(
                 path,
@@ -224,6 +228,10 @@ def test_transcribe_file_rejects_audio_over_decoded_duration(tmp_path, monkeypat
                 queue=_test_queue(),
             )
         )
+
+    assert error.value.public_message == (
+        "Аудио слишком длинное. Максимальная длительность: 0.1 \u0441."
+    )
 
 
 def test_transcribe_file_reports_deadline_exceeded_for_slow_model(
