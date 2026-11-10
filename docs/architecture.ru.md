@@ -31,9 +31,9 @@ audiodoc — отдельный FastAPI-сервис для Telegram-бота. �
 | Метод и путь | Назначение | Авторизация |
 | --- | --- | --- |
 | `GET /health` | Liveness и состояние загрузки Whisper | Не требуется |
-| `GET /ready` | Tesseract, языки OCR, DjVuLibre и состояние модели | `DOCUMENT_API_KEY` |
-| `POST /transcribe` | Распознавание аудио | `WHISPER_API_KEY` |
-| `POST /process-document` | Извлечение текста из документа | `DOCUMENT_API_KEY` |
+| `GET /ready` | Tesseract, языки OCR, DjVuLibre и состояние модели | `AUDIODOC_DOCUMENT_KEY` |
+| `POST /transcribe` | Распознавание аудио | `AUDIODOC_AUDIO_KEY` |
+| `POST /process-document` | Извлечение текста из документа | `AUDIODOC_DOCUMENT_KEY` |
 
 Оба POST-маршрута принимают `multipart/form-data` с обязательным полем `file`. `/process-document` также принимает необязательное `max_characters`, которое может только уменьшить серверный бюджет символов. Обязательные поля успешных ответов сохраняют совместимость с ботом; дополнительное `truncated` обратно совместимо.
 

@@ -31,9 +31,9 @@ During lifespan startup the service sets `umask(077)`, verifies that the API key
 | Method and path | Purpose | Authentication |
 | --- | --- | --- |
 | `GET /health` | Liveness and Whisper model state | None |
-| `GET /ready` | Tesseract, OCR languages, DjVuLibre and model diagnostics | `DOCUMENT_API_KEY` |
-| `POST /transcribe` | Audio transcription | `WHISPER_API_KEY` |
-| `POST /process-document` | Document text extraction | `DOCUMENT_API_KEY` |
+| `GET /ready` | Tesseract, OCR languages, DjVuLibre and model diagnostics | `AUDIODOC_DOCUMENT_KEY` |
+| `POST /transcribe` | Audio transcription | `AUDIODOC_AUDIO_KEY` |
+| `POST /process-document` | Document text extraction | `AUDIODOC_DOCUMENT_KEY` |
 
 The two POST routes accept `multipart/form-data` with a required `file` field. `/process-document` also accepts optional `max_characters`, which can reduce the server's extraction budget. Successful response models retain the bot-required fields; the optional `truncated` field is additive.
 

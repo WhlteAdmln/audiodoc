@@ -18,7 +18,7 @@ This endpoint does not check Tesseract or DjVuLibre. Use `/ready` for that diagn
 
 ## `GET /ready`
 
-Requires `DOCUMENT_API_KEY` in `Authorization: Bearer <key>`. Reports whether Tesseract is installed, which language data it can see, whether all required DjVuLibre programs are on `PATH`, and whether the Whisper model is loaded.
+Requires `AUDIODOC_DOCUMENT_KEY` in `Authorization: Bearer <key>`. Reports whether Tesseract is installed, which language data it can see, whether all required DjVuLibre programs are on `PATH`, and whether the Whisper model is loaded.
 
 Example response (actual booleans/languages depend on the host):
 
@@ -30,13 +30,13 @@ An absent tool or language is reported as a diagnostic value; the endpoint does 
 
 ## `POST /transcribe`
 
-Recognizes an audio file. Authentication key: `WHISPER_API_KEY`.
+Recognizes an audio file. Authentication key: `AUDIODOC_AUDIO_KEY`.
 
 Request:
 
 ```bash
 curl -X POST \
-  -H "Authorization: Bearer <WHISPER_API_KEY>" \
+  -H "Authorization: Bearer <AUDIODOC_AUDIO_KEY>" \
   -F "file=@voice.ogg" \
   http://HOST:8000/transcribe
 ```
@@ -50,20 +50,20 @@ Response `200`:
 | Status | Meaning |
 | ---: | --- |
 | 400 | Audio is unreadable or exceeds `MAX_AUDIO_DURATION` |
-| 401 | Missing or invalid Whisper key |
+| 401 | Missing or invalid audio key |
 | 413 | Upload exceeds `MAX_AUDIO_SIZE` or request-body limit |
 | 503 | Whisper model is not loaded or the bounded work queue is full (`Retry-After: 30` for a full queue) |
 | 500 | Unexpected internal failure; implementation details are not returned |
 
 ## `POST /process-document`
 
-Extracts text from a supported document. Authentication key: `DOCUMENT_API_KEY`.
+Extracts text from a supported document. Authentication key: `AUDIODOC_DOCUMENT_KEY`.
 
 Request without the optional text budget:
 
 ```bash
 curl -X POST \
-  -H "Authorization: Bearer <DOCUMENT_API_KEY>" \
+  -H "Authorization: Bearer <AUDIODOC_DOCUMENT_KEY>" \
   -F "file=@document.pdf" \
   http://HOST:8000/process-document
 ```
@@ -72,7 +72,7 @@ Optional multipart field `max_characters` is an integer between 1 and the server
 
 ```bash
 curl -X POST \
-  -H "Authorization: Bearer <DOCUMENT_API_KEY>" \
+  -H "Authorization: Bearer <AUDIODOC_DOCUMENT_KEY>" \
   -F "file=@document.pdf" \
   -F "max_characters=12288" \
   http://HOST:8000/process-document
@@ -108,7 +108,8 @@ A client may send an identifier containing 8–64 ASCII letters, digits, dots, u
 ## Authentication and compatibility
 
 - `/health` is intentionally unauthenticated.
-- `/ready` and `/process-document` use `DOCUMENT_API_KEY`.
-- `/transcribe` uses `WHISPER_API_KEY`.
+- `/ready` and `/process-document` use `AUDIODOC_DOCUMENT_KEY`.
+- `/transcribe` uses `AUDIODOC_AUDIO_KEY`.
+- During migration, `WHISPER_API_KEY` and `DOCUMENT_API_KEY` are fallbacks only when their corresponding new keys are empty. New keys take precedence; using legacy names produces a startup deprecation warning.
 - `ALLOW_UNAUTHENTICATED=true` is only for isolated local development and must remain `false` in production.
 - The bot's established paths, multipart field `file`, and required successful response fields remain unchanged.
