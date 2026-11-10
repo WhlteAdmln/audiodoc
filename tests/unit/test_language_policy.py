@@ -8,7 +8,6 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_ROOT = PROJECT_ROOT / "backend"
 TESTS_ROOT = PROJECT_ROOT / "tests"
-ALLOWLIST_PATH = TESTS_ROOT / "language_allowlist.txt"
 RUSSIAN_MESSAGES_PATH = Path("backend/errors/messages.py")
 
 
@@ -63,26 +62,11 @@ def _collect_violations() -> dict[str, set[str]]:
     return violations_by_path
 
 
-def test_python_language_policy_allowlist_is_current() -> None:
-    allowlist = {
-        line.strip()
-        for line in ALLOWLIST_PATH.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    }
+def test_python_language_policy_is_clean() -> None:
     violations = _collect_violations()
-    violating_paths = set(violations)
-
-    missing_paths = sorted(violating_paths - allowlist)
-    stale_paths = sorted(allowlist - violating_paths)
-    missing_details = ", ".join(
-        f"{path} ({', '.join(sorted(violations[path]))})" for path in missing_paths
+    details = ", ".join(
+        f"{path} ({', '.join(sorted(reasons))})"
+        for path, reasons in sorted(violations.items())
     )
 
-    assert not missing_paths, (
-        "Python files violate the language policy but are not allowlisted: "
-        f"{missing_details}"
-    )
-    assert not stale_paths, (
-        "Allowlisted files no longer violate the language policy: "
-        + ", ".join(stale_paths)
-    )
+    assert not violations, f"Python files violate the language policy: {details}"

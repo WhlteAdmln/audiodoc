@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Изолированные unit-тесты экстракторов текстовых форматов этапа A4."""
+"""Isolated unit tests for text format extractors from stage A4."""
 
 from importlib import import_module
 

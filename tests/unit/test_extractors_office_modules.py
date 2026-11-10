@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Изолированные тесты экстракторов DOCX, XLSX и PPTX."""
+"""Isolated tests for DOCX, XLSX, and PPTX extractors."""
 
 from io import BytesIO
 

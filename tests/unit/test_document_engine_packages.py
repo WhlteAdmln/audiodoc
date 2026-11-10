@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Unit-проверки разнесённых пакетов Document Engine и OCR."""
+"""Unit tests for the split Document Engine and OCR packages."""
 
 import io
 

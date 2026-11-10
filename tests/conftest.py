@@ -1,8 +1,8 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Общая конфигурация тестов бэкенда.
+"""Shared backend test configuration.
 
-Переменные окружения задаются до импорта app: настройки приложения загружаются
-при создании приложения.
+Set environment variables before importing app because application settings are loaded
+when the application is created.
 """
 
 import os
