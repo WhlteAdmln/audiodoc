@@ -63,7 +63,10 @@ def test_server_busy_error_returns_retry_after_header():
 
     response = TestClient(_app_with_router(router)).get("/busy")
     assert response.status_code == 503
-    assert response.json() == {"detail": "Сервис занят. Повторите запрос позже"}
+    assert response.json() == {
+        "detail": "Сервис занят. Повторите запрос позже",
+        "code": "server_busy",
+    }
     assert response.headers["Retry-After"] == "30"
 
 

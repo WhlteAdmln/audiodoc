@@ -7,7 +7,7 @@ from typing import cast
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from backend.errors.base import BackendError
+from backend.errors.base import AppError
 
 logger = logging.getLogger(__name__)
 
@@ -16,12 +16,12 @@ async def handle_backend_error(
     _request: Request,
     error: Exception,
 ) -> JSONResponse:
-    """Return the public error message, status code, and optional headers."""
-    backend_error = cast("BackendError", error)
+    """Return the public error message, code, status, and optional headers."""
+    app_error = cast("AppError", error)
     return JSONResponse(
-        {"detail": backend_error.public_message},
-        status_code=backend_error.status_code,
-        headers=backend_error.headers,
+        {"detail": app_error.public_message, "code": app_error.code},
+        status_code=app_error.status_code,
+        headers=app_error.headers,
     )
 
 
@@ -35,12 +35,12 @@ async def handle_unexpected_error(
         exc_info=(type(error), error, error.__traceback__),
     )
     return JSONResponse(
-        {"detail": "Internal server error"},
+        {"detail": "Internal server error", "code": "internal_error"},
         status_code=500,
     )
 
 
 def register_error_handlers(app: FastAPI) -> None:
     """Register handlers for typed errors and unexpected exceptions."""
-    app.add_exception_handler(BackendError, handle_backend_error)
+    app.add_exception_handler(AppError, handle_backend_error)
     app.add_exception_handler(Exception, handle_unexpected_error)
