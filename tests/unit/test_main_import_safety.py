@@ -24,6 +24,7 @@ _IMPORT_DEPENDENCIES = (
     "backend.config",
     "backend.document_engine",
     "backend.document_engine.limits",
+    "backend.logging_setup",
     "backend.transcription.model",
     "backend.transcription.temp_files",
 )

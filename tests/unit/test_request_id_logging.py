@@ -7,13 +7,14 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.common.log_filters import SecretsFilter as LegacySecretsFilter
-from backend.common.logging_setup import configure_logging
+from backend.common.logging_setup import configure_logging as legacy_configure_logging
 from backend.common.request_id import (
     RequestIdFilter,
     RequestIdMiddleware,
     request_id_var,
 )
 from backend.log_filters import SecretsFilter
+from backend.logging_setup import configure_logging
 
 
 def create_app():
@@ -85,6 +86,10 @@ def test_secrets_filter_redacts_message_arguments_and_traceback():
 
 def test_legacy_secrets_filter_import_is_preserved():
     assert LegacySecretsFilter is SecretsFilter
+
+
+def test_legacy_logging_setup_import_is_preserved() -> None:
+    assert legacy_configure_logging is configure_logging
 
 
 def test_secrets_filter_redacts_telegram_and_bearer_tokens():

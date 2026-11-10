@@ -7,8 +7,8 @@ from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from typing import Any, cast
 
-from backend.config.env import get_bool, get_int
 from backend.config.paths import PROJECT_ROOT
+from backend.env_readers import get_bool, get_int
 
 
 class ConfigError(ValueError):
