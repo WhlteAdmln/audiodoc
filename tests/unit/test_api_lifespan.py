@@ -13,7 +13,7 @@ from app import app
 from backend.api import ready as ready_module
 from backend.config import Settings, settings
 from backend.errors.base import ServerBusyError
-from backend.transcription.model import model_holder
+from backend.transcription.model import ModelHolder
 
 
 class FakeModel:
@@ -29,11 +29,11 @@ class _TempDirectoryPermissionError(PermissionError):
         super().__init__("Temporary directory is not writable")
 
 
-def test_health_route_reports_model_state_without_starting_lifespan(monkeypatch):
+def test_health_route_reports_model_state_without_starting_lifespan():
     application = main_module.create_app(
         Settings(WHISPER_MODEL_SIZE="small-test", WHISPER_MODEL_PATH="")
     )
-    monkeypatch.setattr(application.state.model_holder, "_model", None)
+    application.state.model_holder = ModelHolder(application.state.settings)
 
     response = TestClient(application).get("/health")
 
@@ -45,11 +45,11 @@ def test_health_route_reports_model_state_without_starting_lifespan(monkeypatch)
     }
 
 
-def test_health_route_reports_local_model_directory_name(monkeypatch):
+def test_health_route_reports_local_model_directory_name():
     application = main_module.create_app(
         Settings(WHISPER_MODEL_PATH="/srv/audiodoc/models/custom-whisper")
     )
-    monkeypatch.setattr(application.state.model_holder, "_model", None)
+    application.state.model_holder = ModelHolder(application.state.settings)
 
     response = TestClient(application).get("/health")
 
@@ -60,9 +60,10 @@ def test_health_route_reports_local_model_directory_name(monkeypatch):
 def test_health_and_ready_use_application_model_holder(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(model_holder, "_model", None)
-
     loaded_application = main_module.create_app()
+    loaded_application.state.model_holder = ModelHolder(
+        loaded_application.state.settings
+    )
     monkeypatch.setattr(loaded_application.state.model_holder, "_model", object())
 
     monkeypatch.setattr(
@@ -83,7 +84,9 @@ def test_health_and_ready_use_application_model_holder(
     assert ready_response.json()["model_loaded"] is True
 
     unloaded_application = main_module.create_app()
-    monkeypatch.setattr(model_holder, "_model", object())
+    unloaded_application.state.model_holder = ModelHolder(
+        unloaded_application.state.settings
+    )
     monkeypatch.setattr(unloaded_application.state.model_holder, "_model", None)
 
     other_client = TestClient(unloaded_application)
@@ -120,30 +123,56 @@ def test_create_app_does_not_mutate_global_queue(
     assert calls == []
 
 
-def test_create_app_creates_independent_model_holders(
-    monkeypatch: pytest.MonkeyPatch,
+def test_lifespan_creates_independent_model_holders(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     first_settings = Settings(WHISPER_MODEL_SIZE="tiny")
     second_settings = Settings(WHISPER_MODEL_SIZE="base")
     received_settings: list[Settings] = []
+    holders: list[ModelHolder] = []
 
     def build_model(configured_settings: Settings) -> FakeModel:
         received_settings.append(configured_settings)
         return FakeModel()
 
+    async def shutdown_document_queue() -> None:
+        pass
+
+    monkeypatch.setattr(main_module.os, "umask", lambda _mask: 0o022)
+    monkeypatch.setattr(
+        main_module, "check_security_settings", lambda _configured: None
+    )
+    monkeypatch.setattr(main_module, "ensure_temp_dir", lambda: tmp_path)
+    monkeypatch.setattr(main_module, "cleanup_stale_files", lambda: None)
+    monkeypatch.setattr(
+        main_module.document_queue,
+        "set_max_waiting",
+        lambda _limit: None,
+    )
+    monkeypatch.setattr(main_module.document_queue, "start", lambda: None)
+    monkeypatch.setattr(main_module.document_queue, "shutdown", shutdown_document_queue)
     monkeypatch.setattr(model_module, "_build_model", build_model)
 
     first_app = main_module.create_app(first_settings)
     second_app = main_module.create_app(second_settings)
 
-    assert first_app.state.model_holder is not second_app.state.model_holder
-    assert first_app.state.model_holder is not model_holder
-    assert first_app.state.model_holder.is_loaded is False
-    assert second_app.state.model_holder.is_loaded is False
+    assert not hasattr(first_app.state, "model_holder")
+    assert not hasattr(second_app.state, "model_holder")
 
-    first_app.state.model_holder.load()
-    second_app.state.model_holder.load()
+    async def run_lifespans() -> None:
+        async with main_module.lifespan(first_app):
+            holders.append(first_app.state.model_holder)
+            assert first_app.state.model_holder.is_loaded is True
+        async with main_module.lifespan(second_app):
+            holders.append(second_app.state.model_holder)
+            assert second_app.state.model_holder.is_loaded is True
 
+    asyncio.run(run_lifespans())
+
+    first_holder, second_holder = holders
+    assert first_holder is not second_holder
+    assert first_app.state.model_holder is first_holder
+    assert second_app.state.model_holder is second_holder
     assert received_settings == [first_settings, second_settings]
 
 

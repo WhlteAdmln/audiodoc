@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from backend.config import settings
-from backend.transcription.model import model_holder
+from backend.transcription.model import ModelHolder
 from backend.transcription.service import transcribe_file
 
 
@@ -61,10 +61,15 @@ def test_real_tiny_whisper_transcribes_generated_speech(
     monkeypatch.setattr(settings, "WHISPER_CPU_THREADS", 2)
     monkeypatch.setattr(settings, "WHISPER_OFFLINE", True)
     monkeypatch.setenv("HF_HUB_OFFLINE", "1")
-    monkeypatch.setattr(model_holder, "_model", None)
 
-    model_holder.load()
-    transcription = asyncio.run(transcribe_file(audio_path))
+    configured_model_holder = ModelHolder(settings)
+    configured_model_holder.load()
+    transcription = asyncio.run(
+        transcribe_file(
+            audio_path,
+            configured_model_holder=configured_model_holder,
+        )
+    )
     recognized_words = re.findall(r"[a-z]+", transcription["text"].casefold())
 
     assert any(
