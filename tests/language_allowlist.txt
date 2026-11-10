@@ -1,8 +1,3 @@
-backend/document_engine/detection/__init__.py
-backend/document_engine/detection/formats.py
-backend/document_engine/detection/signatures.py
-backend/document_engine/detection/text_probe.py
-backend/document_engine/detection/zip_formats.py
 backend/document_engine/extractors/djvu/ocr_pages.py
 backend/document_engine/extractors/djvu/text_layer.py
 backend/document_engine/extractors/djvu/tools.py

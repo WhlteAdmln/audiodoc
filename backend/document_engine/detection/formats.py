@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Списки поддерживаемых форматов и расширений Document Engine."""
+"""Supported Document Engine formats and extensions."""
 
 SUPPORTED_FORMATS = {
     "pdf",
