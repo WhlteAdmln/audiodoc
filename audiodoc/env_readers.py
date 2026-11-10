@@ -13,9 +13,10 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def load_env_file() -> None:
-    """Load the project environment file without overriding exported variables."""
-    load_dotenv(PROJECT_ROOT / ".env", override=False)
+def load_env_file(env_file: str | Path | None = None) -> None:
+    """Load an environment file without overriding exported variables."""
+    dotenv_path = PROJECT_ROOT / ".env" if env_file is None else Path(env_file)
+    load_dotenv(dotenv_path, override=False)
 
 
 def get_bool(
