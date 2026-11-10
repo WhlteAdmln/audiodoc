@@ -10,13 +10,45 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+def get_home_dir(environ: Mapping[str, str] | None = None) -> Path:
+    """Return the application home directory."""
+    source = os.environ if environ is None else environ
+    configured_home = source.get("AUDIODOC_HOME", "").strip()
+    configured_user_home = source.get("HOME", "").strip()
+    user_home = (
+        Path(configured_user_home).expanduser() if configured_user_home else Path.home()
+    )
+    home = (
+        Path(configured_home).expanduser()
+        if configured_home
+        else user_home / "audiodoc"
+    )
+    return home if home.is_absolute() else Path.cwd() / home
+
+
+def resolve_home_path(value: str, home: Path) -> Path:
+    """Resolve a configured path relative to the application home."""
+    path = Path(value).expanduser()
+    return path if path.is_absolute() else home / path
 
 
 def load_env_file(env_file: str | Path | None = None) -> None:
-    """Load an environment file without overriding exported variables."""
-    dotenv_path = PROJECT_ROOT / ".env" if env_file is None else Path(env_file)
-    load_dotenv(dotenv_path, override=False)
+    """Load environment files in precedence order without overriding existing values."""
+    loaded_paths: set[Path] = set()
+
+    if env_file is not None:
+        explicit_path = Path(env_file).expanduser()
+        load_dotenv(explicit_path, override=False)
+        loaded_paths.add(explicit_path.resolve())
+
+    dotenv_paths = (get_home_dir() / ".env", Path.cwd() / ".env")
+    for dotenv_path in dotenv_paths:
+        resolved_path = dotenv_path.resolve()
+        if resolved_path in loaded_paths:
+            continue
+        load_dotenv(dotenv_path, override=False)
+        loaded_paths.add(resolved_path)
 
 
 def get_bool(

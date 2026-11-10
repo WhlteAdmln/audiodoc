@@ -5,12 +5,9 @@ from importlib import import_module
 
 from fastapi import FastAPI
 
-from audiodoc.config import load_env_file
-
 
 def _create_compatibility_app() -> FastAPI:
-    """Load the legacy environment file before creating the Uvicorn app."""
-    load_env_file()
+    """Create the Uvicorn app without loading environment files."""
     main_module = import_module("audiodoc.main")
     return main_module.create_app()
 

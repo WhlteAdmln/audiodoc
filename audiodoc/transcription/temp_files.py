@@ -10,14 +10,18 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from audiodoc.config import settings
-from audiodoc.config.paths import PROJECT_ROOT
+from audiodoc.env_readers import get_home_dir, resolve_home_path
 
-DEFAULT_TEMP_DIR = PROJECT_ROOT / "tmp"
+DEFAULT_TEMP_DIR = get_home_dir() / "tmp"
 
 
 def _resolve_temp_dir(value: str | None) -> Path:
     configured = (value or "").strip()
-    return Path(configured).expanduser() if configured else DEFAULT_TEMP_DIR
+    return (
+        resolve_home_path(configured, get_home_dir())
+        if configured
+        else DEFAULT_TEMP_DIR
+    )
 
 
 TEMP_DIR = _resolve_temp_dir(settings.TEMP_DIR)

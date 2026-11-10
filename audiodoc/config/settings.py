@@ -7,8 +7,12 @@ from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from typing import Any, cast
 
-from audiodoc.config.paths import PROJECT_ROOT
-from audiodoc.env_readers import get_bool, get_int
+from audiodoc.env_readers import (
+    get_bool,
+    get_home_dir,
+    get_int,
+    resolve_home_path,
+)
 
 
 class ConfigError(ValueError):
@@ -36,7 +40,7 @@ class Settings:
     WHISPER_OFFLINE: bool = False
     ENABLE_DOCS: bool = False
     LOG_LEVEL: str = "INFO"
-    TEMP_DIR: str = str(PROJECT_ROOT / "tmp")
+    TEMP_DIR: str = field(default_factory=lambda: str(get_home_dir() / "tmp"))
 
     # Authentication and resource limits.
     WHISPER_API_KEY: str = ""
@@ -73,7 +77,8 @@ class Settings:
 def load_settings(environ: Mapping[str, str]) -> Settings:
     """Build settings from an environment mapping and collect validation errors."""
     errors: list[str] = []
-    defaults = Settings()
+    home = get_home_dir(environ)
+    defaults = Settings(TEMP_DIR=str(home / "tmp"))
 
     def read_str(
         name: str, default: str, *, strip: bool = False, lower: bool = False
@@ -103,6 +108,13 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
         read_str("AUDIODOC_DOCUMENT_KEY", defaults.AUDIODOC_DOCUMENT_KEY, strip=True),
     )
 
+    model_path = read_str("WHISPER_MODEL_PATH", defaults.WHISPER_MODEL_PATH, strip=True)
+    if model_path:
+        model_path = str(resolve_home_path(model_path, home))
+
+    temp_dir = read_str("BACKEND_TEMP_DIR", defaults.TEMP_DIR, strip=True)
+    temp_dir = str(resolve_home_path(temp_dir, home)) if temp_dir else defaults.TEMP_DIR
+
     result = Settings(
         WHISPER_MODEL_SIZE=read_str("WHISPER_MODEL_SIZE", defaults.WHISPER_MODEL_SIZE),
         WHISPER_CPU_THREADS=read_int(
@@ -117,13 +129,11 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
         WHISPER_COMPUTE_TYPE=read_str(
             "WHISPER_COMPUTE_TYPE", defaults.WHISPER_COMPUTE_TYPE, strip=True
         ),
-        WHISPER_MODEL_PATH=read_str(
-            "WHISPER_MODEL_PATH", defaults.WHISPER_MODEL_PATH, strip=True
-        ),
+        WHISPER_MODEL_PATH=model_path,
         WHISPER_OFFLINE=read_bool("WHISPER_OFFLINE", defaults.WHISPER_OFFLINE),
         ENABLE_DOCS=read_bool("ENABLE_DOCS", defaults.ENABLE_DOCS),
         LOG_LEVEL=read_str("LOG_LEVEL", defaults.LOG_LEVEL),
-        TEMP_DIR=read_str("BACKEND_TEMP_DIR", defaults.TEMP_DIR),
+        TEMP_DIR=temp_dir,
         ALLOW_UNAUTHENTICATED=read_bool(
             "ALLOW_UNAUTHENTICATED", defaults.ALLOW_UNAUTHENTICATED
         ),
