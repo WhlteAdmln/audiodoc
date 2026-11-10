@@ -78,9 +78,9 @@ def check_security_settings(settings: Settings) -> None:
 
     if missing and not settings.ALLOW_UNAUTHENTICATED:
         raise RuntimeError(
-            "\u041d\u0435 заданы ключи: " + ", ".join(missing) + ". "
-            "Задайте их в .env (те же значения, что в .env бота) "
-            "или поставьте ALLOW_UNAUTHENTICATED=true только для локальной разработки."
+            "Missing API keys: " + ", ".join(missing) + ". "
+            "Set them in .env (using the same values as in the bot's .env) "
+            "or set ALLOW_UNAUTHENTICATED=true for local development only."
         )
 
     if configured_keys["AUDIODOC_AUDIO_KEY"] & configured_keys["AUDIODOC_DOCUMENT_KEY"]:

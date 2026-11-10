@@ -11,6 +11,7 @@ from backend.document_engine.extractors.base import (
     make_context,
     odf_elements,
 )
+from backend.errors.messages import EXTRACTION_MESSAGES
 
 
 def extract_odp(document: object, *, context: ExtractContext | None = None) -> str:
@@ -20,7 +21,11 @@ def extract_odp(document: object, *, context: ExtractContext | None = None) -> s
 
     for index, page in enumerate(odf_elements(document, Page)):
         ctx.check()
-        add_chunk(result, ctx, f"--- Слайд {index + 1} ---")
+        add_chunk(
+            result,
+            ctx,
+            EXTRACTION_MESSAGES["odf_slide_label"].format(index=index + 1),
+        )
         if ctx.budget.is_truncated():
             break
 

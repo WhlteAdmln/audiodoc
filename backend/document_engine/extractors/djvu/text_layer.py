@@ -13,6 +13,7 @@ from backend.common.subprocess_runner import (
 from backend.document_engine.extractors.base import ExtractContext, make_context
 from backend.document_engine.limits import MAX_EXTRACTED_TEXT_LENGTH, SUBPROCESS_TIMEOUT
 from backend.errors.documents import DocumentRejectedError, ProcessingTimeoutError
+from backend.errors.messages import ERROR_MESSAGES
 
 logger = logging.getLogger(__name__)
 
@@ -20,19 +21,19 @@ logger = logging.getLogger(__name__)
 class _DjvuTextTooLargeError(DocumentRejectedError):
     """Raised when the embedded DjVu text layer exceeds its size limit."""
 
-    public_message = "Текстовый слой DJVU слишком большой"
+    public_message = ERROR_MESSAGES["djvu_text_too_large"]
 
 
 class _DjvuTextLayerTimeoutError(ProcessingTimeoutError):
     """Raised when extracting the DjVu text layer exceeds its deadline."""
 
-    public_message = "Превышено время извлечения текста DJVU"
+    public_message = ERROR_MESSAGES["djvu_text_layer_timeout"]
 
 
 class _DjvuTextLayerReadError(DocumentRejectedError):
     """Raised when the embedded DjVu text layer cannot be read."""
 
-    public_message = "\u041d\u0435 удалось прочитать DJVU"
+    public_message = ERROR_MESSAGES["djvu_text_layer_read_failed"]
 
 
 def extract_text_layer(

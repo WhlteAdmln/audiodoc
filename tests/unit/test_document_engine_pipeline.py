@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Проверки реестра, синхронного pipeline и публичных импортов."""
+"""Tests for the registry, synchronous pipeline, and public imports."""
 
 import asyncio
 import threading

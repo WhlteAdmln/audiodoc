@@ -237,7 +237,7 @@ def test_zip_rejects_nonempty_member_with_zero_compressed_size() -> None:
     item.file_size = 1
     item.compress_size = 0
 
-    with pytest.raises(ValueError, match="Подозрительный размер сжатого файла"):
+    with pytest.raises(ValueError, match="Suspicious compressed file size"):
         zip_guard._validate_archive_entry(item, 0)
 
 
@@ -258,7 +258,7 @@ def test_zip_rejects_nonempty_member_with_zero_compressed_size() -> None:
             2,
             3,
             10,
-            "Превышен общий лимит распакованного размера архива",
+            "Total unpacked archive size exceeds the limit",
         ),
         (
             "MAX_ARCHIVE_COMPRESSION_RATIO",

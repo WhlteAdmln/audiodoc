@@ -16,5 +16,5 @@ def test_validate_zip_archive_accepts_small_valid_archive():
 
 
 def test_validate_zip_archive_rejects_non_zip_data():
-    with pytest.raises(ValueError, match="Некорректный ZIP-контейнер"):
+    with pytest.raises(ValueError, match="Invalid ZIP container"):
         validate_zip_archive(b"not a zip archive")

@@ -21,6 +21,7 @@ from backend.document_engine.limits import (
 )
 from backend.document_engine.ocr import extract_image_text
 from backend.errors.documents import DocumentRejectedError
+from backend.errors.messages import ERROR_MESSAGES, EXTRACTION_MESSAGES
 
 logger = logging.getLogger(__name__)
 
@@ -28,19 +29,19 @@ logger = logging.getLogger(__name__)
 class _InvalidPdfPageSizeError(DocumentRejectedError):
     """Raised when a PDF page has invalid dimensions."""
 
-    public_message = "Размер страницы PDF некорректен"
+    public_message = ERROR_MESSAGES["invalid_pdf_page_size"]
 
 
 class _PdfPageTooLargeError(DocumentRejectedError):
     """Raised when a PDF page exceeds the safe OCR pixel limit."""
 
-    public_message = "Страница PDF слишком велика для безопасного OCR"
+    public_message = ERROR_MESSAGES["pdf_page_too_large"]
 
 
 class _PdfTooManyPagesError(DocumentRejectedError):
     """Raised when a PDF document exceeds the page limit."""
 
-    public_message = "\u0412 PDF слишком много страниц"
+    public_message = ERROR_MESSAGES["pdf_too_many_pages"]
 
 
 class _PageRect(Protocol):
@@ -111,7 +112,10 @@ def extract_pdf(
                 add_chunk(
                     result,
                     ctx,
-                    f"--- Страница {index + 1} ---\n{text}",
+                    (
+                        EXTRACTION_MESSAGES["pdf_page_label"].format(index=index + 1)
+                        + text
+                    ),
                     separator_length=2,
                 )
             if ctx.budget.truncated:

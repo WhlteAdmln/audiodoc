@@ -11,6 +11,7 @@ from backend.document_engine.extractors.base import (
     make_context,
 )
 from backend.document_engine.limits import MAX_SHEET_COLUMNS, MAX_SHEET_ROWS
+from backend.errors.messages import EXTRACTION_MESSAGES
 
 
 def extract_xlsx(data: bytes, *, context: ExtractContext | None = None) -> str:
@@ -22,7 +23,11 @@ def extract_xlsx(data: bytes, *, context: ExtractContext | None = None) -> str:
     try:
         for sheet in workbook.worksheets:
             ctx.check()
-            add_chunk(result, ctx, f"--- Лист: {sheet.title} ---")
+            add_chunk(
+                result,
+                ctx,
+                EXTRACTION_MESSAGES["xlsx_sheet_label"].format(name=sheet.title),
+            )
             if ctx.budget.is_truncated():
                 break
 

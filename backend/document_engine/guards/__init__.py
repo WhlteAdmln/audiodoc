@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Защитные проверки контейнеров и структурированных данных."""
+"""Guards for containers and structured data."""
 
 from backend.document_engine.guards.zip_archive import validate_zip_archive
 

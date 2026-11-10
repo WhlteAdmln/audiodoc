@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
+
 import pytest
 
 from backend.document_engine import process_document_sync
@@ -44,4 +45,6 @@ def test_office_and_pdf_formats(
 
     assert result["format"] == expected_format
     assert expected_text in result["text"]
+    if expected_format == "pptx":
+        assert "--- Слайд 1 ---" in result["text"]
     assert result["characters"] == len(result["text"])

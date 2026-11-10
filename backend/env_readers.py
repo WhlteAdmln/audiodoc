@@ -34,7 +34,7 @@ def get_bool(
     if normalized in {"0", "false", "no", "off"}:
         return False
 
-    message = f"Настройка {name} должна быть true или false. Получено: {value!r}"
+    message = f"Setting {name} must be true or false. Got: {value!r}"
     raise ValueError(message)
 
 
@@ -52,12 +52,12 @@ def get_int(
     try:
         result = int(value)
     except (TypeError, ValueError) as error:
-        message = f"Настройка {name} должна быть целым числом. Получено: {value!r}"
+        message = f"Setting {name} must be an integer. Got: {value!r}"
         raise ValueError(message) from error
 
     if result < minimum:
-        message = f"Настройка {name} должна быть не меньше {minimum}."
-        message += f" Получено: {result}"
+        message = f"Setting {name} must be at least {minimum}."
+        message += f" Got: {result}"
         raise ValueError(message)
 
     return result
@@ -79,12 +79,12 @@ def get_optional_int(
     try:
         result = int(value)
     except (TypeError, ValueError) as error:
-        message = f"Настройка {name} должна быть целым числом. Получено: {value!r}"
+        message = f"Setting {name} must be an integer. Got: {value!r}"
         raise ValueError(message) from error
 
     if result < minimum:
-        message = f"Настройка {name} должна быть не меньше {minimum}."
-        message += f" Получено: {result}"
+        message = f"Setting {name} must be at least {minimum}."
+        message += f" Got: {result}"
         raise ValueError(message)
 
     return result
@@ -105,22 +105,22 @@ def get_float(
     try:
         result = float(value)
     except (TypeError, ValueError) as error:
-        message = f"Настройка {name} должна быть числом. Получено: {value!r}"
+        message = f"Setting {name} must be a number. Got: {value!r}"
         raise ValueError(message) from error
 
     if not math.isfinite(result):
-        message = f"Настройка {name} должна быть конечным числом."
-        message += f" Получено: {value!r}"
+        message = f"Setting {name} must be a finite number."
+        message += f" Got: {value!r}"
         raise ValueError(message)
 
     if minimum is not None and result < minimum:
-        message = f"Настройка {name} должна быть не меньше {minimum}."
-        message += f" Получено: {result}"
+        message = f"Setting {name} must be at least {minimum}."
+        message += f" Got: {result}"
         raise ValueError(message)
 
     if maximum is not None and result > maximum:
-        message = f"Настройка {name} должна быть не больше {maximum}."
-        message += f" Получено: {result}"
+        message = f"Setting {name} must be at most {maximum}."
+        message += f" Got: {result}"
         raise ValueError(message)
 
     return result
@@ -134,7 +134,7 @@ def get_log_level(*, environ: Mapping[str, str] | None = None) -> str:
     allowed_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
     if value not in allowed_levels:
         warnings.warn(
-            f"Некорректный LOG_LEVEL={value!r}. Используется уровень INFO.",
+            f"Invalid LOG_LEVEL={value!r}. Falling back to INFO.",
             RuntimeWarning,
             stacklevel=2,
         )
@@ -160,11 +160,11 @@ def parse_ids(name: str, *, environ: Mapping[str, str] | None = None) -> set[int
         try:
             user_id = int(item)
         except ValueError as error:
-            message = f"Настройка {name} содержит некорректный ID: {item!r}"
+            message = f"Setting {name} contains an invalid ID: {item!r}"
             raise ValueError(message) from error
 
         if user_id <= 0:
-            message = f"ID в настройке {name} должен быть положительным: {user_id}"
+            message = f"ID in setting {name} must be positive: {user_id}"
             raise ValueError(message)
 
         result.add(user_id)

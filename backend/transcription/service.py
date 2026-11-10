@@ -12,6 +12,7 @@ from numpy.typing import NDArray
 from backend.common.deadline import Deadline, DeadlineExceededError
 from backend.common.work_queue import WorkQueue
 from backend.config import settings
+from backend.errors.messages import ERROR_MESSAGES
 from backend.errors.transcription import (
     AudioTooLongError,
     InvalidAudioError,
@@ -35,9 +36,8 @@ def _collect_audio_frames(
         deadline.check()
         sample_count += frame.samples
         if sample_count > maximum_samples:
-            message = (
-                "Аудио слишком длинное. Максимальная длительность: "
-                f"{settings.MAX_AUDIO_DURATION} \u0441."
+            message = ERROR_MESSAGES["audio_too_long_with_limit"].format(
+                limit=settings.MAX_AUDIO_DURATION
             )
             raise AudioTooLongError(message)
         samples = np.asarray(
@@ -118,9 +118,8 @@ def _transcribe_sync(
     deadline.check()
     duration = float(info.duration)
     if duration > settings.MAX_AUDIO_DURATION:
-        message = (
-            "Аудио слишком длинное. Максимальная длительность: "
-            f"{settings.MAX_AUDIO_DURATION} \u0441."
+        message = ERROR_MESSAGES["audio_too_long_with_limit"].format(
+            limit=settings.MAX_AUDIO_DURATION
         )
         raise AudioTooLongError(message)
 

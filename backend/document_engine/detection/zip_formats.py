@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Определение форматов ZIP-контейнеров по внутренним файлам."""
+"""Detect ZIP container formats from their internal files."""
 
 import io
 import zipfile
@@ -19,10 +19,10 @@ _MEMBER_FORMATS: dict[str, str] = {
 
 
 def _detect_zip_format(data: bytes) -> str | None:
-    """Определяет формат ZIP-контейнера по внутренним файлам.
+    """Detect the ZIP container format from its internal files.
 
-    Член mimetype читается не более чем на 200 байт, чтобы не распаковывать
-    потенциально огромный элемент до проверки всего архива.
+    The mimetype member is read at most 200 bytes to avoid extracting a
+    potentially huge member before checking the entire archive.
     """
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:

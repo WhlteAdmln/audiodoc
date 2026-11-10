@@ -17,6 +17,7 @@ from backend.document_engine.extractors.base import (
     add_chunk,
     make_context,
 )
+from backend.errors.messages import EXTRACTION_MESSAGES
 
 
 def extract_pptx(data: bytes, *, context: ExtractContext | None = None) -> str:
@@ -40,7 +41,11 @@ def _extract_slide_text(
     result: list[str],
 ) -> bool:
     ctx.check()
-    add_chunk(result, ctx, f"--- Слайд {slide_number} ---")
+    add_chunk(
+        result,
+        ctx,
+        EXTRACTION_MESSAGES["pptx_slide_label"].format(slide_number=slide_number),
+    )
     if ctx.budget.is_truncated():
         return True
 

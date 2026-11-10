@@ -1,16 +1,17 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Подготовка изображений перед распознаванием текста."""
+"""Prepare images before text recognition."""
 
 from PIL import Image, ImageOps
 
 from backend.document_engine.limits import MAX_IMAGE_PIXELS
 from backend.errors.documents import DocumentRejectedError
+from backend.errors.messages import ERROR_MESSAGES
 
 
 class _ImageTooLargeError(DocumentRejectedError):
     """Raised when an image exceeds the OCR pixel limit."""
 
-    public_message = "Изображение слишком большое: превышен лимит пикселей"
+    public_message = ERROR_MESSAGES["image_too_large"]
 
 
 SUPPORTED_IMAGE_FORMATS = {
@@ -23,14 +24,14 @@ SUPPORTED_IMAGE_FORMATS = {
 
 
 def _prepare_image(image: Image.Image) -> Image.Image:
-    """Подготавливает изображение для OCR."""
+    """Prepare an image for OCR."""
     if image.width * image.height > MAX_IMAGE_PIXELS:
         raise _ImageTooLargeError
 
-    # Исправляем ориентацию по EXIF.
+    # Correct the EXIF orientation.
     image = ImageOps.exif_transpose(image)
 
-    # Учитываем прозрачность.
+    # Handle transparency.
     if image.mode in ("RGBA", "LA"):
         rgba = image.convert("RGBA")
         background = Image.new(
@@ -48,5 +49,5 @@ def _prepare_image(image: Image.Image) -> Image.Image:
     # Convert the image to grayscale.
     image = ImageOps.grayscale(image)
 
-    # Улучшаем контраст.
+    # Improve contrast.
     return ImageOps.autocontrast(image)

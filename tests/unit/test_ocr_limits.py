@@ -3,9 +3,12 @@
 
 import pytest
 
+import backend.document_engine.ocr as ocr_module
+import backend.document_engine.ocr.preprocessing as preprocessing_module
 import backend.document_engine.ocr.recognize as recognize_module
 import backend.document_engine.ocr.tesseract as tesseract_module
 from backend.errors.documents import DocumentRejectedError
+from backend.errors.messages import EXTRACTION_MESSAGES
 
 
 class _UnexpectedImageCopyError(AssertionError):
@@ -26,6 +29,31 @@ class _OversizedImage:
 
     def copy(self):
         raise _UnexpectedImageCopyError
+
+
+def test_ocr_public_messages_remain_unchanged() -> None:
+    assert ocr_module._EmptyImageError.public_message == "Изображение пустое"
+    assert (
+        ocr_module._UnknownImageFormatError.public_message
+        == "\u041d\u0435 удалось определить формат изображения"
+    )
+    assert (
+        ocr_module._UnsupportedOcrImageFormatError.public_message
+        == "Формат изображения не поддерживается для OCR"
+    )
+    assert (
+        preprocessing_module._ImageTooLargeError.public_message
+        == "Изображение слишком большое: превышен лимит пикселей"
+    )
+    assert (
+        recognize_module._TooManyImageFramesError.public_message
+        == "\u0412 изображении слишком много страниц"
+    )
+    assert (
+        recognize_module._ImageRecognitionFailedError.public_message
+        == "\u041d\u0435 удалось распознать страницу изображения"
+    )
+    assert EXTRACTION_MESSAGES["ocr_page_label"] == "--- Страница {index} ---\n"
 
 
 def test_ocr_rejects_oversized_frame_before_copy(monkeypatch):

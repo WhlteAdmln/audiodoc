@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Изолированные тесты экстракторов ODT, ODS и ODP (этап A4)."""
+"""Isolated tests for ODT, ODS, and ODP extractors (stage A4)."""
 
 import io
 

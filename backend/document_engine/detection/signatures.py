@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Проверки сигнатур документов."""
+"""Document signature checks."""
 
 
 def detect_pdf_signature(data: bytes) -> str | None:
@@ -36,7 +36,7 @@ def detect_ole_signature(
     data: bytes,
     file_extension: str,
 ) -> str | None:
-    """Определяет старые форматы Office в OLE Compound File."""
+    """Detect legacy Office formats in an OLE Compound File."""
     if not data.startswith(bytes.fromhex("D0CF11E0A1B11AE1")):
         return None
 

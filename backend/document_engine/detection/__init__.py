@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Определение формата документа по содержимому и расширению."""
+"""Document format detection by content and extension."""
 
 from pathlib import Path
 
@@ -34,7 +34,7 @@ def detect_format(
     if data:
         file_extension = Path(filename or "").suffix.lower()
 
-        # Изображения обрабатываются отдельным Vision Engine.
+        # Images are handled by the separate Vision Engine.
         if file_extension not in IMAGE_EXTENSIONS:
             detected = detect_pdf_signature(data)
             if not detected:
@@ -42,19 +42,19 @@ def detect_format(
             if not detected:
                 detected = detect_ole_signature(data, file_extension)
 
-            # ZIP-контейнеры: DOCX, XLSX, PPTX, EPUB, ODT и другие.
+            # ZIP containers: DOCX, XLSX, PPTX, EPUB, ODT, and others.
             if not detected and data.startswith(b"PK"):
                 detected = _detect_zip_format(data)
 
             if not detected:
                 detected = detect_rtf_signature(data)
 
-            # Текстовые форматы: проверяем расширение.
+            # Text formats: check the extension.
             if not detected:
                 extension = file_extension.lstrip(".")
                 if extension in extension_map:
                     detected = extension_map[extension]
-                # Проверка, похоже ли содержимое на текст.
+                # Check whether the content looks like text.
                 elif looks_like_text(data):
                     detected = "txt"
 

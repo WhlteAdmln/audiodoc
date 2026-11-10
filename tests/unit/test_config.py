@@ -58,7 +58,7 @@ def test_get_int_reads_default_environment_and_minimum(
     monkeypatch.setenv("INT_SETTING", "12")
     assert get_int("INT_SETTING", "6") == 12
 
-    with pytest.raises(ValueError, match="не меньше"):
+    with pytest.raises(ValueError, match="at least"):
         get_int("INT_SETTING", "6", minimum=13)
 
 
@@ -69,7 +69,7 @@ def test_get_float_enforces_finite_value_and_bounds(
     assert get_float("FLOAT_SETTING", "0.5", minimum=0, maximum=1) == 0.75
 
     monkeypatch.setenv("FLOAT_SETTING", "nan")
-    with pytest.raises(ValueError, match="конечным числом"):
+    with pytest.raises(ValueError, match="finite number"):
         get_float("FLOAT_SETTING", "0.5")
 
 
@@ -78,10 +78,10 @@ def test_get_optional_int_reads_missing_blank_and_value() -> None:
     assert get_optional_int("OPTIONAL_INT", environ={"OPTIONAL_INT": " "}) is None
     assert get_optional_int("OPTIONAL_INT", environ={"OPTIONAL_INT": "3"}) == 3
 
-    with pytest.raises(ValueError, match="целым числом"):
+    with pytest.raises(ValueError, match="integer"):
         get_optional_int("OPTIONAL_INT", environ={"OPTIONAL_INT": "invalid"})
 
-    with pytest.raises(ValueError, match="не меньше"):
+    with pytest.raises(ValueError, match="at least"):
         get_optional_int("OPTIONAL_INT", environ={"OPTIONAL_INT": "0"})
 
 
@@ -89,17 +89,17 @@ def test_parse_ids_reads_unique_positive_ids() -> None:
     assert parse_ids("ALLOWED_IDS", environ={}) == set()
     assert parse_ids("ALLOWED_IDS", environ={"ALLOWED_IDS": "1, 2,,2"}) == {1, 2}
 
-    with pytest.raises(ValueError, match="некорректный ID"):
+    with pytest.raises(ValueError, match="invalid ID"):
         parse_ids("ALLOWED_IDS", environ={"ALLOWED_IDS": "1,no"})
 
-    with pytest.raises(ValueError, match="должен быть положительным"):
+    with pytest.raises(ValueError, match="must be positive"):
         parse_ids("ALLOWED_IDS", environ={"ALLOWED_IDS": "0"})
 
 
 def test_get_log_level_validates_values_and_warns_on_invalid_value() -> None:
     assert get_log_level(environ={"LOG_LEVEL": " warning "}) == "WARNING"
 
-    with pytest.warns(RuntimeWarning, match="Некорректный LOG_LEVEL"):
+    with pytest.warns(RuntimeWarning, match="Invalid LOG_LEVEL"):
         assert get_log_level(environ={"LOG_LEVEL": "trace"}) == "INFO"
 
 
