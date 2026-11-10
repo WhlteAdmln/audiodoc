@@ -1,8 +1,8 @@
 # Copyright (c) 2026 Nikolai Zelensky
 import pytest
 
-from backend.document_engine import process_document_sync
-from backend.errors.documents import UnsupportedFormatError
+from audiodoc.document_engine import process_document_sync
+from audiodoc.errors.documents import UnsupportedFormatError
 
 CASES = [
     (b"Hello! This is a TXT test.", "test.txt", "txt", "TXT test"),

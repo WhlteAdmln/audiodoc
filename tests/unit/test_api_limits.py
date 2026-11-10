@@ -9,12 +9,12 @@ from starlette.datastructures import UploadFile
 from starlette.exceptions import HTTPException
 from starlette.types import Message, Receive, Scope, Send
 
-import backend.common.limited_upload as upload_limits
-from backend.api.middleware import (
+import audiodoc.common.limited_upload as upload_limits
+from audiodoc.api.middleware import (
     BodySizeLimitMiddleware,
     _RequestBodyTooLargeError,
 )
-from backend.common.limited_upload import read_upload_limited, save_upload_limited
+from audiodoc.common.limited_upload import read_upload_limited, save_upload_limited
 
 
 def test_body_size_middleware_rejects_content_length_before_route() -> None:

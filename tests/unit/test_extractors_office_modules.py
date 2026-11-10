@@ -5,12 +5,12 @@ from io import BytesIO
 
 from docx import Document
 
-from backend.common.deadline import Deadline
-from backend.common.text_budget import TextBudget
-from backend.document_engine.extractors.base import ExtractContext
-from backend.document_engine.extractors.docx import extract_docx
-from backend.document_engine.extractors.pptx import extract_pptx
-from backend.document_engine.extractors.xlsx import extract_xlsx
+from audiodoc.common.deadline import Deadline
+from audiodoc.common.text_budget import TextBudget
+from audiodoc.document_engine.extractors.base import ExtractContext
+from audiodoc.document_engine.extractors.docx import extract_docx
+from audiodoc.document_engine.extractors.pptx import extract_pptx
+from audiodoc.document_engine.extractors.xlsx import extract_xlsx
 from tests.builders import create_docx, create_pptx, create_xlsx
 
 

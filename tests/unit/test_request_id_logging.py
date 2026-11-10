@@ -6,15 +6,15 @@ import sys
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.common.log_filters import SecretsFilter as LegacySecretsFilter
-from backend.common.logging_setup import configure_logging as legacy_configure_logging
-from backend.common.request_id import (
+from audiodoc.common.log_filters import SecretsFilter as LegacySecretsFilter
+from audiodoc.common.logging_setup import configure_logging as legacy_configure_logging
+from audiodoc.common.request_id import (
     RequestIdFilter,
     RequestIdMiddleware,
     request_id_var,
 )
-from backend.log_filters import SecretsFilter
-from backend.logging_setup import configure_logging
+from audiodoc.log_filters import SecretsFilter
+from audiodoc.logging_setup import configure_logging
 
 
 def create_app():

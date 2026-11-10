@@ -7,8 +7,8 @@ import json
 import sys
 from pathlib import Path
 
-from backend.config import Settings
-from backend.main import create_app
+from audiodoc.config import Settings
+from audiodoc.main import create_app
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT_PATH = PROJECT_ROOT / "contract" / "openapi.json"

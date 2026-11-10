@@ -3,7 +3,7 @@
 
 import pytest
 
-from backend.common.text_budget import TextBudget
+from audiodoc.common.text_budget import TextBudget
 
 
 def test_text_budget_truncates_a_single_oversized_chunk():

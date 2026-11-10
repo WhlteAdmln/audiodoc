@@ -590,13 +590,13 @@ base = Path(sys.argv[1])
 matches = set()
 for app_file in base.rglob("app.py"):
     root = app_file.parent
-    if ((root / "backend" / "main.py").is_file()
+    if ((root / "audiodoc" / "main.py").is_file()
             and (root / ".env.example").is_file()
             and (root / "requirements-lock.txt").is_file()):
         matches.add(root)
 if len(matches) != 1:
     raise SystemExit(
-        "Expected exactly one audiodoc project root containing app.py, backend/main.py, "
+        "Expected exactly one audiodoc project root containing app.py, audiodoc/main.py, "
         ".env.example and requirements-lock.txt; found {}".format(len(matches))
     )
 print(next(iter(matches)))
@@ -724,7 +724,7 @@ PY
 log "Checking that the application and installed dependencies import successfully."
 (
 	cd "$INSTALL_DIR"
-	"$INSTALL_DIR/.venv/bin/python" -c 'import backend.main'
+	"$INSTALL_DIR/.venv/bin/python" -c 'import audiodoc.main'
 ) || die "Application import check failed. Review the Python dependency installation and release contents."
 
 if [ "$CREATE_SYSTEMD" -eq 1 ]; then

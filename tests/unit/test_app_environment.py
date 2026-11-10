@@ -26,7 +26,7 @@ def test_app_loads_environment_before_importing_main(
     main_module = SimpleNamespace(create_app=create_app)
 
     def import_module(name: str) -> SimpleNamespace:
-        assert name == "backend.main"
+        assert name == "audiodoc.main"
         events.append("import_main")
         return main_module
 

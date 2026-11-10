@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SETTINGS_PATH = PROJECT_ROOT / "backend" / "config" / "settings.py"
+SETTINGS_PATH = PROJECT_ROOT / "audiodoc" / "config" / "settings.py"
 ENV_EXAMPLE_PATH = PROJECT_ROOT / ".env.example"
 _ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _SETTING_READERS = {"read_bool", "read_int", "read_str"}
@@ -69,10 +69,10 @@ def test_env_example_matches_settings_environment_variables() -> None:
     extra = sorted(example_names - settings_names)
 
     assert not missing, (
-        ".env.example and backend/config/settings.py are out of sync. "
+        ".env.example and audiodoc/config/settings.py are out of sync. "
         f"Missing from .env.example: {missing}"
     )
     assert not extra, (
-        ".env.example and backend/config/settings.py are out of sync. "
+        ".env.example and audiodoc/config/settings.py are out of sync. "
         f"not read by Settings: {extra}"
     )

@@ -8,8 +8,8 @@ from fastapi.testclient import TestClient
 from jsonschema import validate
 
 from app import app
-from backend.common.work_queue import WorkQueue
-from backend.transcription.model import ModelHolder
+from audiodoc.common.work_queue import WorkQueue
+from audiodoc.transcription.model import ModelHolder
 from scripts.export_openapi import render_openapi
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -52,7 +52,7 @@ def test_transcribe_response_matches_shared_bot_contract(monkeypatch):
         assert queue is app.state.transcription_queue
         return dict(CONTRACT["transcribe"])
 
-    monkeypatch.setattr("backend.api.transcribe.transcribe_file", fake_transcribe_file)
+    monkeypatch.setattr("audiodoc.api.transcribe.transcribe_file", fake_transcribe_file)
 
     response = client.post(
         "/transcribe",

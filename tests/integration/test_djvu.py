@@ -8,7 +8,7 @@ from typing import Protocol, cast
 import pytest
 from PIL import Image
 
-from backend.document_engine.extractors.djvu import extract_djvu
+from audiodoc.document_engine.extractors.djvu import extract_djvu
 from tests.builders import create_ocr_image
 
 pytestmark = pytest.mark.integration

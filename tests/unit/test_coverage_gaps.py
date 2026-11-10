@@ -8,7 +8,7 @@ from scripts.coverage_gaps import find_coverage_gaps, main
 
 def _write_report(path: Path, classes: str) -> None:
     path.write_text(
-        "<coverage><sources><source>/repo/backend</source></sources>"
+        "<coverage><sources><source>/repo/audiodoc</source></sources>"
         "<packages><package><classes>"
         f"{classes}"
         "</classes></package></packages></coverage>",
@@ -41,8 +41,8 @@ def test_find_coverage_gaps_combines_statement_and_branch_coverage(
     )
 
     assert find_coverage_gaps(report) == [
-        (50.0, "backend/plain.py"),
-        (60.0, "backend/branchy.py"),
+        (50.0, "audiodoc/plain.py"),
+        (60.0, "audiodoc/branchy.py"),
     ]
 
 
@@ -59,7 +59,7 @@ def test_find_coverage_gaps_returns_at_most_fifteen_files(tmp_path: Path):
 
     assert len(results) == 15
     assert [filename for _, filename in results] == [
-        f"backend/file_{index:02d}.py" for index in range(15)
+        f"audiodoc/file_{index:02d}.py" for index in range(15)
     ]
 
 
@@ -125,5 +125,5 @@ def test_main_prints_requested_number_of_files(
 
     assert main() == 0
     assert capsys.readouterr().out == (
-        "Files with lowest coverage (up to 1):\n 50.000% backend/plain.py\n"
+        "Files with lowest coverage (up to 1):\n 50.000% audiodoc/plain.py\n"
     )

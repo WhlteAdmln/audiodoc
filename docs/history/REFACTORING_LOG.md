@@ -6,7 +6,7 @@
 | --- | --- | --- | --- | --- |
 | 0 | Приёмка и страховка | принято | Созданы `tests/`, pytest-конфигурация, контрактные и integration-тесты; исправление `00-r2` принято пользователем (30 passed, 4 integration passed) | нет |
 | 1 | Срочная защита (в старой структуре) | принято | Bearer-аутентификация, лимиты HTTP и аудиозагрузки, потоковый Whisper с пределом параллельности и длительности, приватные временные файлы, ограниченное чтение ZIP `mimetype`; пользователь подтвердил 49 passed и 5 integration passed | Настройка ключей и сетевых мер D.1/D.2 остаётся эксплуатационной задачей пользователя |
-| 2 | Каркас проекта | принято | Создан пакет `backend/`; перенесены Document Engine, API, загрузки и Whisper; добавлены `config/`, `errors/`, `common/`; пользователь подтвердил 54 passed и 5 integration passed, Whisper small загружена, `/health` отвечает 200 | нет |
+| 2 | Каркас проекта | принято | Создан пакет `audiodoc/`; перенесены Document Engine, API, загрузки и Whisper; добавлены `config/`, `errors/`, `common/`; пользователь подтвердил 54 passed и 5 integration passed, Whisper small загружена, `/health` отвечает 200 | нет |
 | 3 | Ядро Document Engine (A2 + A3) | принято | Созданы пакеты `detection/`, `guards/`, `ocr/`, `result.py`; удалены старые монолитные `detector.py`, `archive_guard.py`, `ocr.py`; пользователь подтвердил 65 passed и 5 integration passed, импорты и запуск Uvicorn успешны | нет |
 | 4 | Текстовые форматы, часть 1 (A4) | принято | TXT/MD, HTML, XML, CSV и RTF вынесены в `extractors/`; пользователь подтвердил 72 passed и 5 integration passed, запуск Uvicorn успешен | нет |
 | 5 | Форматы Office, часть 2 (A4) | принято | DOCX, XLSX и PPTX вынесены в отдельные экстракторы; пользователь подтвердил 75 passed и 5 integration passed, запуск Uvicorn и штатное завершение | нет |
@@ -38,15 +38,15 @@
 - Whisper выполняется через `asyncio.to_thread`; лимит параллельности защищает CPU машины, общей с LLM.
 - Временные аудиофайлы размещаются в `TEMP_DIR` (по умолчанию `whisper-server/tmp` или путь `BACKEND_TEMP_DIR`), каталог имеет права `0700`, файл — `0600`; забытые файлы старше часа удаляются при старте. Очистка затрагивает только файлы с UUID-именами, созданные этим модулем.
 - ZIP-детектор читает не более 200 байт из члена `mimetype`; порядок и остальные проверки определения формата сохранены.
-- Конфигурация теперь централизована в `backend.config.settings.settings`; `.env` загружается из корня проекта до импорта настроек.
+- Конфигурация теперь централизована в `audiodoc.config.settings.settings`; `.env` загружается из корня проекта до импорта настроек.
 - Импорты рабочих модулей и тестов используют единый префикс `backend.*`; точка запуска `uvicorn app:app` и импорт `from app import app` сохранены.
 
 ## Известные отклонения от плана
 
-- Модули аутентификации и HTTP-лимитов из поставки 1 перенесены сразу в `backend/api/`, ограниченные операции с загрузками — в `backend/common/`, а Whisper и временные файлы — в `backend/transcription/`. Это сохраняет изменения безопасности до последующего структурного разбиения API и Document Engine.
-- `backend/common/` содержит `text_budget.py`, `deadline.py`, `subprocess_runner.py`, `logging_setup.py`, `work_queue.py`, `request_id.py`, `log_filters.py` и другие небольшие общие инструменты; фильтры логов и X-Request-ID реализованы в поставке 15.
-- В `backend/errors/` добавлены классы из A1, а также `AudioTooLongError` и `ModelNotReadyError`, ранее находившиеся в сервисе Whisper.
-- `app.py` является тонкой точкой входа; приложение и lifecycle находятся в `backend/main.py` и используют FastAPI lifespan.
+- Модули аутентификации и HTTP-лимитов из поставки 1 перенесены сразу в `audiodoc/api/`, ограниченные операции с загрузками — в `audiodoc/common/`, а Whisper и временные файлы — в `audiodoc/transcription/`. Это сохраняет изменения безопасности до последующего структурного разбиения API и Document Engine.
+- `audiodoc/common/` содержит `text_budget.py`, `deadline.py`, `subprocess_runner.py`, `logging_setup.py`, `work_queue.py`, `request_id.py`, `log_filters.py` и другие небольшие общие инструменты; фильтры логов и X-Request-ID реализованы в поставке 15.
+- В `audiodoc/errors/` добавлены классы из A1, а также `AudioTooLongError` и `ModelNotReadyError`, ранее находившиеся в сервисе Whisper.
+- `app.py` является тонкой точкой входа; приложение и lifecycle находятся в `audiodoc/main.py` и используют FastAPI lifespan.
 - В среде ассистента отсутствуют `faster-whisper`, `EbookLib` и `striprtf`: связанные тесты пропускаются. Настоящая модель Whisper не запускалась.
 - Сетевые меры D.1/D.2 (приватный адрес, VPN/TLS, файрвол, фактическая установка и ротация секретов) не выполняются из архива; это действия пользователя на машинах A и B.
 
@@ -60,7 +60,7 @@
 
 - `python -m pytest -q` → 35 passed, 7 skipped, 1 deselected.
 - `python -m pytest -q -m integration` → 1 passed, 6 skipped, 36 deselected.
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Проверка наличия целевой структуры, отсутствия прежних корневых модулей и старых импортов → успешно.
 
 ## Проверки поставки 2 (принята пользователем)
@@ -68,15 +68,15 @@
 - `python -m pytest -q` → пользователь сообщил: 54 passed, 5 deselected.
 - `python -m pytest -q -m integration` → пользователь сообщил: 5 passed, 54 deselected.
 - Запуск Uvicorn → Whisper small загружена; `/health` → `{"status":"ok","model":"small","loaded":true}`.
-- Импорт `backend.document_engine.detector` → OK на проверочной машине пользователя (позднее модуль перенесён в `backend.document_engine.detection`).
+- Импорт `audiodoc.document_engine.detector` → OK на проверочной машине пользователя (позднее модуль перенесён в `audiodoc.document_engine.detection`).
 
 ## Проверки поставки 3
 
 - `python -m pytest -q` → 46 passed, 7 skipped, 1 deselected.
 - `python -m pytest -q -m integration` → 1 passed, 6 skipped, 47 deselected.
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Проверка импортов новых пакетов `detection`, `guards`, `ocr`, `result` → успешно.
-- Проверка старых импортов `backend.document_engine.detector`, `backend.document_engine.archive_guard` и старого модуля `backend.document_engine.ocr.py` → остаточных ссылок нет; старые файлы удалены.
+- Проверка старых импортов `audiodoc.document_engine.detector`, `audiodoc.document_engine.archive_guard` и старого модуля `audiodoc.document_engine.ocr.py` → остаточных ссылок нет; старые файлы удалены.
 - Проверка централизованных констант `MAX_IMAGE_PIXELS` и `OCR_PAGE_TIMEOUT` → определения остались только в `limits.py`.
 - Реальный запуск приложения/Whisper в среде ассистента не выполнялся: здесь отсутствуют `faster-whisper`, `EbookLib` и `striprtf`; пользователь сможет повторить проверку после распаковки архива.
 
@@ -91,7 +91,7 @@
 
 - `python -m pytest -q` → 52 passed, 8 skipped, 1 deselected.
 - `python -m pytest -q -m integration` → 1 passed, 6 skipped, 54 deselected.
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Изолированные проверки TXT/MD, HTML, XML и CSV → успешно; RTF-тест пропущен, так как в среде ассистента отсутствует `striprtf`.
 - Smoke-проверка маршрутизации `process_document_sync` для TXT, MD, HTML, XML и CSV → успешно. Для импорта монолитного `processor.py` отсутствующие optional-пакеты `ebooklib` и `striprtf` временно подменялись тестовыми модулями в одноразовом процессе; эти заглушки в проект/архив не добавлялись.
 - `processor.py` больше не содержит реализаций пяти вынесенных экстракторов; новые функции имеют сигнатуру `(data: bytes) -> str`.
@@ -102,7 +102,7 @@
 
 - `python -m pytest -q` → 55 passed, 8 skipped, 1 deselected.
 - `python -m pytest -q -m integration` → 1 passed, 6 skipped, 57 deselected.
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Изолированные unit-тесты новых DOCX/XLSX/PPTX-экстракторов → успешно.
 - Сравнение результатов новых экстракторов с функциями из предыдущего `processor.py` на одних и тех же сгенерированных документах → точное совпадение текстового результата для DOCX (45 символов), XLSX (62 символа), PPTX (48 символов).
 - Старые `_extract_docx`, `_extract_xlsx`, `_extract_pptx` удалены; `processor.py` импортирует новые `extract_docx`, `extract_xlsx`, `extract_pptx` и использует их в существующей диспетчеризации.
@@ -119,7 +119,7 @@
 
 - `python -m pytest -q` → 59 passed, 8 skipped, 1 deselected.
 - `python -m pytest -q -m integration` → 1 passed, 6 skipped, 61 deselected.
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Изолированные тесты ODT, ODS и ODP → успешно; проверены заголовки/абзацы, листы/строки/ячейки и слайды.
 - Сравнение новой `extract_odf(data, kind)` с исходной `_extract_odf(data, kind)` из поставки 5 на одинаковых сгенерированных документах → точное совпадение для ODT (31 символ), ODS (62 символа), ODP (47 символов).
 - ODF-импорты и реализации удалены из `processor.py`; маршрутизация трёх типов направлена на `extract_odf`.
@@ -130,7 +130,7 @@
 
 - `python -m pytest -q` → 62 passed, 9 skipped, 1 deselected.
 - `python -m pytest -q -m integration` → 1 passed, 7 skipped, 64 deselected.
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - FB2: изолированные тесты извлечения заголовков, абзацев и вложенного текста, отсутствующего body и ограничения результата → успешно.
 - Сравнение `extract_fb2()` с прежней `_extract_fb2()` из поставки 6 на одном и том же тестовом документе → точное совпадение.
 - EPUB: тестовый прогон на заглушке EbookLib проверил пропуск nav-документов, удаление script/style/nav и извлечение содержимого главы → успешно. Обычный тест с настоящим EbookLib пропущен, так как библиотека отсутствует в среде ассистента.
@@ -140,7 +140,7 @@
 
 ## Проверки поставки 8
 
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - `python -m pytest -q` → 73 passed, 7 skipped, 3 deselected.
 - `python -m pytest -q -m integration` → 2 passed, 6 skipped, 75 deselected; интеграционный тест сканированного PDF с реальным Tesseract выполнен.
 - Unit-тесты PDF: текстовый слой, OCR-путь на подставной странице, ограничение количества страниц → успешно.
@@ -159,13 +159,13 @@
 
 ## Проверки поставки 9
 
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Обычный `python -m pytest -q` в среде ассистента не собрал тесты: отсутствуют `EbookLib` и `striprtf`, а новый публичный пакет согласно A5 импортирует единый реестр экстракторов, включая эти зависимости.
-- Контрольный pytest с кратковременными import-only заглушками только для отсутствующих `EbookLib` и `striprtf` (после импорта `backend.document_engine` заглушки удалены, поэтому format-specific тесты корректно пропускаются): 80 passed, 7 skipped, 3 deselected.
+- Контрольный pytest с кратковременными import-only заглушками только для отсутствующих `EbookLib` и `striprtf` (после импорта `audiodoc.document_engine` заглушки удалены, поэтому format-specific тесты корректно пропускаются): 80 passed, 7 skipped, 3 deselected.
 - Integration pytest в том же режиме: 2 passed, 6 skipped, 82 deselected.
 - Тесты pipeline: 16 записей реестра, адаптеры ODT/ODS/ODP, диспетчеризация экстрактора, проверка ZIP до вызова экстрактора, ошибки пустого/неподдерживаемого документа, shim-совместимость и выполнение runner в рабочем потоке → успешно.
 - Импорт `app.py`/Uvicorn в среде ассистента не выполнен: отсутствует `faster-whisper`; настоящий HTTP smoke-test остаётся проверкой пользователя.
-- `app.py` переведён на импорт `from backend.document_engine import process_document`; тесты извлечения используют публичный импорт, прежний путь `backend.document_engine.processor` сохранён как shim.
+- `app.py` переведён на импорт `from audiodoc.document_engine import process_document`; тесты извлечения используют публичный импорт, прежний путь `audiodoc.document_engine.processor` сохранён как shim.
 - HTTP smoke-test через FastAPI TestClient с временными import-only заглушками отсутствующих библиотек (startup/lifespan не запускался): `POST /process-document` для TXT → 200 и контрактные поля `format`, `text`, `characters`.
 - Поведение синхронного pipeline сохранено: прежняя последовательность пустой файл → размер → определение формата → проверка ZIP → экстрактор → `build_result`; `ZIP_FORMATS` и сообщения ошибок сохранены.
 - Изменения HTTP-контракта и поведения извлечения не планировались.
@@ -174,19 +174,19 @@
 
 ### Что сделано
 
-- Создан `backend/transcription/model.py` с `ModelHolder` (`load()`, `get()`, `is_loaded`) и единственным экземпляром `model_holder`.
+- Создан `audiodoc/transcription/model.py` с `ModelHolder` (`load()`, `get()`, `is_loaded`) и единственным экземпляром `model_holder`.
 - Управление моделью удалено из `app.py`; модель загружается в lifespan при запуске, а тяжёлая инициализация выполняется через `asyncio.to_thread`.
-- `backend/transcription/service.py` переведён на публичную сигнатуру `transcribe_file(path)`. Сохранены параметры языка/beam/VAD, проверка длительности, ограничение параллельности и выполнение Whisper в рабочем потоке (меры B.3 из предыдущей поставки).
-- Созданы `backend/api/health.py`, `transcribe.py`, `documents.py`, `schemas.py`; обработчики зарегистрированы через `register_routes()`.
-- Создан `backend/main.py` с `create_app()` и `lifespan`; загрузка `.env` по явному пути происходит до импорта `settings`; сохранены проверка ключей, `umask 077`, подготовка закрытого временного каталога и очистка забытых аудиофайлов.
+- `audiodoc/transcription/service.py` переведён на публичную сигнатуру `transcribe_file(path)`. Сохранены параметры языка/beam/VAD, проверка длительности, ограничение параллельности и выполнение Whisper в рабочем потоке (меры B.3 из предыдущей поставки).
+- Созданы `audiodoc/api/health.py`, `transcribe.py`, `documents.py`, `schemas.py`; обработчики зарегистрированы через `register_routes()`.
+- Создан `audiodoc/main.py` с `create_app()` и `lifespan`; загрузка `.env` по явному пути происходит до импорта `settings`; сохранены проверка ключей, `umask 077`, подготовка закрытого временного каталога и очистка забытых аудиофайлов.
 - Сохранён `BodySizeLimitMiddleware` с прежним пределом `max(MAX_DOCUMENT_SIZE, MAX_AUDIO_SIZE) + 1 MiB`.
-- `app.py` сокращён до совместимой точки входа `from backend.main import app`.
+- `app.py` сокращён до совместимой точки входа `from audiodoc.main import app`.
 - Добавлены схемы `TranscribeResponse` и `DocumentResponse` с именами полей, которые проверяет бот.
 - Обновлены тесты: service использует model_holder, HTTP-тесты подменяют его модель, добавлены проверки ModelHolder и схем API.
 
 ### Проверки в среде ассистента
 
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Unit-набор с временными import-only заглушками EbookLib/striprtf исключительно для загрузки общего реестра (заглушки удалены до запуска pytest; зависящие от библиотек тесты пропускаются) → 84 passed, 8 skipped, 3 deselected.
 - Integration-набор в том же режиме → 2 passed, 7 skipped, 86 deselected.
 - Изолированные тесты `test_model_holder.py`, `test_transcription_service.py`, `test_api_schemas.py` → проверяются отдельно; их выполнение не требует импорта faster-whisper, поскольку импорт Whisper отложен до `ModelHolder.load()`.
@@ -203,7 +203,7 @@
 
 - HTTP-пути и JSON-поля не изменены.
 - Жизненный цикл изменён штатно: модель больше не загружается через deprecated `@app.on_event`, а создаётся через FastAPI lifespan. Проверка ключей и подготовка temp storage происходят при старте приложения.
-- `backend/api/__init__.py` импортирует router-модули внутри `register_routes()`, чтобы импортировать вспомогательные `backend.api.auth`/`middleware` независимо от сборки всего HTTP-приложения.
+- `audiodoc/api/__init__.py` импортирует router-модули внутри `register_routes()`, чтобы импортировать вспомогательные `audiodoc.api.auth`/`middleware` независимо от сборки всего HTTP-приложения.
 - Импорт `WhisperModel` отложен до `_build_model()`/старта сервиса, чтобы вспомогательные модули можно было импортировать в окружении без установленной модели; при реальном старте библиотека по-прежнему обязательна.
 
 ## Исправление поставки 10 — r2
@@ -214,7 +214,7 @@
 - Целевой модуль `test_api_lifespan.py` с import-only заглушками отсутствующих в среде ассистента EbookLib/striprtf → 3 passed.
 - Полный unit-набор с временными import-only заглушками только на этапе импорта реестра (зависимые от настоящих библиотек тесты пропускаются) → 84 passed, 8 skipped, 3 deselected.
 - Integration-набор в том же режиме → 2 passed, 7 skipped, 86 deselected.
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Повторная проверка пользователем выполнена: 109 passed, 5 integration passed; Uvicorn и загрузка Whisper small успешны. Исправление r2 принято.
 
 ## Поставка 10 (A6 + A7) — принята пользователем
@@ -228,25 +228,25 @@
 
 ### Что сделано — Поставка 11
 
-- Удалён `backend/document_engine/processor.py` — временный совместимый shim после завершения A5/A7.
+- Удалён `audiodoc/document_engine/processor.py` — временный совместимый shim после завершения A5/A7.
 - Удалены импорт и проверка shim из `tests/unit/test_document_engine_pipeline.py`; добавлена проверка отсутствия файла.
 - Обновлён комментарий `tests/unit/test_extractors_text.py`: причина пропуска связанных с EPUB/RTF тестов теперь описывает импорт общего публичного реестра, а не уже удалённый `processor.py`.
 - Проверено отсутствие `test_*.py` в корне, а также каталогов `test_documents/` и `uploads/`. Эти старые элементы уже отсутствовали в исходном архиве delivery-10-r2; в этой поставке повторно подтверждено, что они не попали в целевой проект.
 - Добавлены `tests/unit/test_architecture_boundaries.py`: проверяется, что Document Engine не зависит от API/transcription/config, API не становится зависимостью нижних слоёв, а `errors`, `common` и `config` не импортируют другие прикладные пакеты.
-- Проведён аудит всех модулей `backend/`: добавлены недостающие модульные docstrings, описания публичных функций/классов и недостающие аннотации типов в соответствии с C.1. Поведение обработчиков не менялось.
+- Проведён аудит всех модулей `audiodoc/`: добавлены недостающие модульные docstrings, описания публичных функций/классов и недостающие аннотации типов в соответствии с C.1. Поведение обработчиков не менялось.
 - Добавлены `docs/architecture.md` и `docs/architecture.ru.md` с актуальными потоками API, startup/lifespan, Whisper, Document Engine, границами пакетов и существующими ограничениями.
 - README, API reference, operations guide, adding-a-format, security checklist и deploy-примеры остаются в отдельной поставке документации (часть C, поставка 13 согласно таблице плана); в этой поставке их содержание не дублируется.
-- Исправлена аннотация `check_security_settings` на публичный тип `Settings` из `backend.config`. При этом сохранены реэкспорты `Settings`/`settings` из `backend/config/__init__.py` и публичных классов из `backend/errors/__init__.py`.
+- Исправлена аннотация `check_security_settings` на публичный тип `Settings` из `audiodoc.config`. При этом сохранены реэкспорты `Settings`/`settings` из `audiodoc/config/__init__.py` и публичных классов из `audiodoc/errors/__init__.py`.
 - Обновлён журнал поставок; статус поставки 10 изменён на «принято» по результатам пользователя.
 
 ### Проверки в среде ассистента — Поставка 11
 
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Unit-набор с кратковременными import-only заглушками `EbookLib` и `striprtf` исключительно для импорта общего реестра (заглушки удаляются до запуска pytest; тесты реальных отсутствующих парсеров пропускаются) → 90 passed, 8 skipped, 3 deselected.
 - Integration-набор в том же режиме → 2 passed, 7 skipped, 92 deselected.
 - AST-аудит модулей: отсутствующих модульных docstrings, публичных docstrings и аннотаций функций не найдено; внутренние вложенные callbacks/helpers не считаются публичными API.
 - Проверка границ импортов (unit-тесты) → успешно.
-- Проверено отсутствие `backend/document_engine/processor.py`, корневых `test_*.py`, `test_documents/` и `uploads/`; проверено наличие обеих architecture-документаций.
+- Проверено отсутствие `audiodoc/document_engine/processor.py`, корневых `test_*.py`, `test_documents/` и `uploads/`; проверено наличие обеих architecture-документаций.
 
 ### Ограничения и отклонения
 
@@ -271,8 +271,8 @@
 
 ### Файлы
 
-- Созданы: `backend/common/work_queue.py`, `backend/api/error_handlers.py`, `tests/unit/test_deadline.py`, `tests/unit/test_subprocess_runner.py`, `tests/unit/test_work_queue.py`, `tests/unit/test_api_work_queue.py`.
-- Изменены: `.env.example`, `backend/common/deadline.py`, `backend/common/subprocess_runner.py`, `backend/config/settings.py`, `backend/document_engine/__init__.py`, `backend/document_engine/pipeline.py`, `backend/document_engine/runner.py`, `backend/document_engine/extractors/__init__.py`, PDF/DJVU/XLSX/PPTX/ODF extractors, OCR package, `backend/errors/base.py`, `backend/errors/__init__.py`, `backend/transcription/service.py`, API `documents.py`/`transcribe.py`, `backend/main.py`, связанные unit-тесты и этот журнал.
+- Созданы: `audiodoc/common/work_queue.py`, `audiodoc/api/error_handlers.py`, `tests/unit/test_deadline.py`, `tests/unit/test_subprocess_runner.py`, `tests/unit/test_work_queue.py`, `tests/unit/test_api_work_queue.py`.
+- Изменены: `.env.example`, `audiodoc/common/deadline.py`, `audiodoc/common/subprocess_runner.py`, `audiodoc/config/settings.py`, `audiodoc/document_engine/__init__.py`, `audiodoc/document_engine/pipeline.py`, `audiodoc/document_engine/runner.py`, `audiodoc/document_engine/extractors/__init__.py`, PDF/DJVU/XLSX/PPTX/ODF extractors, OCR package, `audiodoc/errors/base.py`, `audiodoc/errors/__init__.py`, `audiodoc/transcription/service.py`, API `documents.py`/`transcribe.py`, `audiodoc/main.py`, связанные unit-тесты и этот журнал.
 - Удалённые файлы: нет. Перемещения: нет.
 
 ### Изменения поведения — Поставка 12
@@ -283,7 +283,7 @@
 
 ### Проверки в среде ассистента — Поставка 12
 
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Unit-набор с временными import-only заглушками EbookLib/striprtf только для загрузки общего реестра (заглушки удалены до pytest) → 103 passed, 8 skipped, 3 deselected.
 - Integration-набор в том же режиме → 2 passed, 7 skipped, 105 deselected.
 - Новые тесты: общая очередь, предел рабочих/ожидающих задач, 503/`Retry-After`, раннее отклонение документа и аудио, deadline, принудительное завершение timed-out subprocess и ограничение stdout → успешно.
@@ -292,7 +292,7 @@
 ### Ограничения и отклонения — Поставка 12
 
 - В среде ассистента отсутствуют `faster-whisper`, `EbookLib` и `striprtf`; поэтому настоящая загрузка Whisper и end-to-end парсинг EPUB/RTF не запускались. Tesseract установлен, но средства DjVuLibre отсутствуют; 7 интеграционных тестов пропущены средой.
-- В отличие от примеров B.4/B.13, `common` не импортирует `backend.errors`: это сохранило принятую в поставке 11 границу архитектуры (`errors`, `common`, `config` независимы друг от друга). `DeadlineExceededError`, `QueueFullError` и ошибки `run_limited` — нейтральные исключения; pipeline/application слой переводит их в безопасные ошибки API. WorkQueue получает `ServerBusyError` фабрикой исключений.
+- В отличие от примеров B.4/B.13, `common` не импортирует `audiodoc.errors`: это сохранило принятую в поставке 11 границу архитектуры (`errors`, `common`, `config` независимы друг от друга). `DeadlineExceededError`, `QueueFullError` и ошибки `run_limited` — нейтральные исключения; pipeline/application слой переводит их в безопасные ошибки API. WorkQueue получает `ServerBusyError` фабрикой исключений.
 - Вместо неатомарной проверки `is_full()` отдельно от чтения файла API входит в `async with queue.slot()` перед чтением/копированием upload. Это атомарно резервирует место и исключает гонку между предварительной проверкой и фактическим помещением задачи в очередь.
 - `run_limited()` добавлен и покрыт unit-тестами, но текущие DJVU вызовы будут переведены на него в поставке B.9 (плановая поставка лимитов документов).
 - `max_characters` добавлен в сигнатуру синхронного pipeline как совместимый параметр для B.7; реальное ограничение текста будет реализовано в поставке лимитов документов.
@@ -312,7 +312,7 @@
 
 ## Проверки поставки 13 (в среде ассистента)
 
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Основной набор через bootstrap-скрипт, временно подменяющий отсутствующие optional-пакеты только для первичного импорта → 118 passed, 8 skipped, 3 deselected.
 - Integration через тот же bootstrap → 2 passed, 7 skipped, 120 deselected; сканированный PDF/OCR прошёл, DJVU пропущен из-за отсутствующих `c44`, `djvutxt`, `djvused`, `ddjvu`.
 - Дополнительные unit-тесты: PDF DPI, общая длина текста, `max_characters`, `truncated`, XLSX/ODS row-column caps, OCR dimensions/cache, DJVU output/file size и render args.
@@ -332,8 +332,8 @@
 
 ### Файлы — Поставка 13
 
-- Созданы: `backend/document_engine/extractors/base.py`, `tests/unit/test_api_character_budget.py`, `tests/unit/test_extraction_budget_limits.py`, `tests/unit/test_ocr_limits.py`, `tests/unit/test_text_budget.py`.
-- Изменены: `REFACTORING_LOG.md`, `backend/api/documents.py`, `backend/api/schemas.py`, `backend/common/text_budget.py`, реестр и экстракторы `backend/document_engine/extractors/` (включая PDF, DJVU, Office, ODF и текстовые форматы), `backend/document_engine/limits.py`, OCR-модули, `backend/document_engine/pipeline.py`, `backend/document_engine/result.py`, а также связанные тесты API, pipeline и экстракторов.
+- Созданы: `audiodoc/document_engine/extractors/base.py`, `tests/unit/test_api_character_budget.py`, `tests/unit/test_extraction_budget_limits.py`, `tests/unit/test_ocr_limits.py`, `tests/unit/test_text_budget.py`.
+- Изменены: `REFACTORING_LOG.md`, `audiodoc/api/documents.py`, `audiodoc/api/schemas.py`, `audiodoc/common/text_budget.py`, реестр и экстракторы `audiodoc/document_engine/extractors/` (включая PDF, DJVU, Office, ODF и текстовые форматы), `audiodoc/document_engine/limits.py`, OCR-модули, `audiodoc/document_engine/pipeline.py`, `audiodoc/document_engine/result.py`, а также связанные тесты API, pipeline и экстракторов.
 - Удалённые файлы: нет. Перемещения: нет.
 
 ### Изменения поведения — Поставка 13
@@ -345,7 +345,7 @@
 
 ### Проверки в среде ассистента — Поставка 13
 
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Полный unit-набор через bootstrap-скрипт: временные import-only заглушки `EbookLib`/`striprtf` используются только для первичного импорта общего реестра и удаляются до старта pytest → 118 passed, 8 skipped, 3 deselected.
 - Полный integration-набор в том же режиме → 2 passed, 7 skipped, 120 deselected. PDF/OCR integration passed.
 - Дополнительные тесты проверяют PDF DPI, `TextBudget`, `max_characters`, `truncated`, ограничения XLSX/ODS, проверку размеров и кэш OCR, лимиты DJVU stdout/TIFF и параметры рендера.
@@ -376,7 +376,7 @@
 
 ### Что сделано — Поставка 14
 
-- Создан `backend/document_engine/guards/xml_safe.py` на базе `defusedxml.ElementTree`. Парсер явно запрещает DTD, сущности и внешние сущности; синтаксически некорректный XML преобразуется в безопасный `DocumentRejectedError`.
+- Создан `audiodoc/document_engine/guards/xml_safe.py` на базе `defusedxml.ElementTree`. Парсер явно запрещает DTD, сущности и внешние сущности; синтаксически некорректный XML преобразуется в безопасный `DocumentRejectedError`.
 - `extractors/fb2.py` и `extractors/xml_text.py` переведены на общий безопасный XML-парсер.
 - В pipeline собственные ошибки пустого/слишком большого/неподдерживаемого документа переведены в типизированные ошибки `BackendError`. Ошибки проверки ZIP нормализуются до общего безопасного отказа; непредвиденные исключения экстракторов логируются с кодом формата и возвращают общий `DocumentRejectedError` без текста библиотеки.
 - HTTP error handlers дополнены общим обработчиком непредвиденных исключений: клиент получает `Internal server error`, технические подробности остаются только в серверном логе. Типизированные ошибки продолжают возвращать их безопасное сообщение, код и headers (включая `Retry-After`).
@@ -388,8 +388,8 @@
 
 ### Файлы — Поставка 14
 
-- Созданы: `backend/document_engine/guards/xml_safe.py`, `tests/unit/test_xml_safe.py`, `tests/unit/test_api_errors.py`, `tests/unit/test_api_docs_visibility.py`, `tests/unit/test_whisper_model_settings.py`.
-- Изменены: `.env.example`, `REFACTORING_LOG.md`, `requirements.txt`, `requirements-lock.txt`, `backend/api/documents.py`, `backend/api/error_handlers.py`, `backend/config/settings.py`, `backend/main.py`, `backend/transcription/model.py`, `backend/document_engine/pipeline.py`, `backend/document_engine/extractors/fb2.py`, `backend/document_engine/extractors/xml_text.py`, PDF/OCR проверки собственных ошибок и связанные unit-тесты.
+- Созданы: `audiodoc/document_engine/guards/xml_safe.py`, `tests/unit/test_xml_safe.py`, `tests/unit/test_api_errors.py`, `tests/unit/test_api_docs_visibility.py`, `tests/unit/test_whisper_model_settings.py`.
+- Изменены: `.env.example`, `REFACTORING_LOG.md`, `requirements.txt`, `requirements-lock.txt`, `audiodoc/api/documents.py`, `audiodoc/api/error_handlers.py`, `audiodoc/config/settings.py`, `audiodoc/main.py`, `audiodoc/transcription/model.py`, `audiodoc/document_engine/pipeline.py`, `audiodoc/document_engine/extractors/fb2.py`, `audiodoc/document_engine/extractors/xml_text.py`, PDF/OCR проверки собственных ошибок и связанные unit-тесты.
 - Удалённые файлы: нет. Перемещения: нет.
 
 ### Изменения поведения — Поставка 14
@@ -403,7 +403,7 @@
 
 ### Проверки в среде ассистента — Поставка 14
 
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Unit-набор через bootstrap временных import-only заглушек `EbookLib`/`striprtf` только при первоначальном импорте реестра (заглушки удаляются до pytest) → 129 passed, 8 skipped, 3 deselected.
 - Integration-набор в том же режиме → 2 passed, 7 skipped, 131 deselected.
 - Тесты XML: обычный XML проходит; DTD, entity declarations и malformed XML отклоняются; FB2 и XML экстракторы используют безопасный parser.
@@ -439,16 +439,16 @@
 - Переписаны оба файла архитектуры: потоки запросов, startup/lifespan, HTTP-слой, Whisper/offline, Document Engine, ограничения и границы безопасности, Request ID/SecretsFilter, дерево проекта.
 - Добавлены `docs/api.md` (контракт Telegram-клиента и новые поля/заголовки), `docs/operations.md` (установка, права, локальная модель Whisper, `/health`, `/ready`, журнал, troubleshooting, обновления, rollback), `docs/adding-a-format.md` (рецепт из 5 шагов) и `docs/security-checklist.md` (24 пункта D.8).
 - Добавлен `GET /ready`, защищённый `DOCUMENT_API_KEY`. Он сообщает наличие Tesseract, доступные языки, наличие всех трёх утилит DjVuLibre и состояние Whisper; диагностика не пытается автоматически устанавливать зависимости.
-- Добавлен `backend/common/request_id.py`: проверка `X-Request-ID` по `[A-Za-z0-9._-]{8,64}`, генерация UUID при отсутствии/некорректном значении, ответный заголовок и `RequestIdFilter`.
-- Добавлен `backend/common/log_filters.py` (`SecretsFilter`): редактирование заданных Whisper/Document API keys, token-like строк и Bearer-значений в log messages/tracebacks.
-- `backend/common/logging_setup.py` теперь устанавливает формат с request ID и оба фильтра на root handlers. В `backend/main.py` подключены фильтры, request-ID middleware и новый router. Request-ID middleware стоит внешним относительно body-size middleware, чтобы ID возвращался даже для раннего отказа по размеру запроса.
+- Добавлен `audiodoc/common/request_id.py`: проверка `X-Request-ID` по `[A-Za-z0-9._-]{8,64}`, генерация UUID при отсутствии/некорректном значении, ответный заголовок и `RequestIdFilter`.
+- Добавлен `audiodoc/common/log_filters.py` (`SecretsFilter`): редактирование заданных Whisper/Document API keys, token-like строк и Bearer-значений в log messages/tracebacks.
+- `audiodoc/common/logging_setup.py` теперь устанавливает формат с request ID и оба фильтра на root handlers. В `audiodoc/main.py` подключены фильтры, request-ID middleware и новый router. Request-ID middleware стоит внешним относительно body-size middleware, чтобы ID возвращался даже для раннего отказа по размеру запроса.
 - Добавлены примеры `systemd`, UFW, nginx HTTPS и WireGuard для обеих машин в `deploy/`, все адреса/ключи/сертификаты — placeholders; добавлено руководство по применению.
 - По C.1 добавлены docstrings для оставшихся публичных функций и внутренних ASGI/filter helper-методов, которые были без описаний.
 
 ### Файлы — Поставка 15
 
-- Созданы: `README.md`, `README.ru.md`, `docs/api.md`, `docs/operations.md`, `docs/adding-a-format.md`, `docs/security-checklist.md`, `deploy/README.md`, `deploy/media-backend.service.example`, `deploy/ufw-rules.sh.example`, `deploy/nginx.conf.example`, `deploy/wireguard-backend.conf.example`, `deploy/wireguard-bot.conf.example`, `backend/api/ready.py`, `backend/common/request_id.py`, `backend/common/log_filters.py`, `tests/unit/test_api_ready.py`, `tests/unit/test_request_id_logging.py`.
-- Изменены: `docs/architecture.md`, `docs/architecture.ru.md`, `backend/api/__init__.py`, `backend/main.py`, `backend/common/logging_setup.py`, `backend/api/auth.py`, `backend/api/middleware.py`, `backend/common/subprocess_runner.py`, `backend/document_engine/extractors/__init__.py`, `tests/unit/test_api_lifespan.py`, `REFACTORING_LOG.md`.
+- Созданы: `README.md`, `README.ru.md`, `docs/api.md`, `docs/operations.md`, `docs/adding-a-format.md`, `docs/security-checklist.md`, `deploy/README.md`, `deploy/media-backend.service.example`, `deploy/ufw-rules.sh.example`, `deploy/nginx.conf.example`, `deploy/wireguard-backend.conf.example`, `deploy/wireguard-bot.conf.example`, `audiodoc/api/ready.py`, `audiodoc/common/request_id.py`, `audiodoc/common/log_filters.py`, `tests/unit/test_api_ready.py`, `tests/unit/test_request_id_logging.py`.
+- Изменены: `docs/architecture.md`, `docs/architecture.ru.md`, `audiodoc/api/__init__.py`, `audiodoc/main.py`, `audiodoc/common/logging_setup.py`, `audiodoc/api/auth.py`, `audiodoc/api/middleware.py`, `audiodoc/common/subprocess_runner.py`, `audiodoc/document_engine/extractors/__init__.py`, `tests/unit/test_api_lifespan.py`, `REFACTORING_LOG.md`.
 - Удалённые файлы: нет. Перемещения: нет. Архив бота не изменялся.
 
 ### Изменения поведения — Поставка 15
@@ -460,7 +460,7 @@
 
 ### Проверки в среде ассистента — Поставка 15
 
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Unit-набор через внешний bootstrap с временными import-only stub для отсутствующих в среде `EbookLib` и `striprtf` (stubs удалены до pytest) → 136 passed, 8 skipped, 3 deselected.
 - Integration-набор тем же способом → 2 passed, 7 skipped, 138 deselected.
 - Новые unit-тесты проверяют авторизацию/содержимое `/ready`, отсутствующие native tools, принятие/замену `X-Request-ID`, присвоение ID в log records, редактирование секретов и traceback, подключение logging filters.
@@ -486,9 +486,9 @@
 
 ### Что сделано — Поставка 16
 
-- Повторно сверены все 18 находок BE-01…BE-18 из B.0 с кодом `backend/`, тестами и deployment templates.
+- Повторно сверены все 18 находок BE-01…BE-18 из B.0 с кодом `audiodoc/`, тестами и deployment templates.
 - Обновлена таблица поставок: поставки 14 и 15 отмечены принятыми на основании сообщений пользователя; поставка 16 ожидает его финальной проверки.
-- В `backend/api/documents.py` удалён недостижимый `except BackendError`: теперь типизированные ошибки документа действительно попадают в warning-лог с очищенным именем файла и затем передаются стандартному HTTP error handler.
+- В `audiodoc/api/documents.py` удалён недостижимый `except BackendError`: теперь типизированные ошибки документа действительно попадают в warning-лог с очищенным именем файла и затем передаются стандартному HTTP error handler.
 - Добавлен тест `test_typed_document_rejection_is_logged_without_raw_filename`.
 - Из `requirements-lock.txt` удалены `aiohttp`, `pypdf` и оставшиеся только от `aiohttp` lock-only зависимости `aiohappyeyeballs`, `aiosignal`, `frozenlist`, `multidict`, `propcache`, `yarl`; прямые зависимости проекта сверены с lock-файлом.
 - Создан `docs/final-acceptance.md`: матрица BE-01…BE-18 и отдельная оценка каждого из 24 пунктов D.8 с разделением подтверждённых, покрытых тестами и открытых инфраструктурных проверок.
@@ -496,11 +496,11 @@
 
 ### Проверки в среде ассистента — Поставка 16
 
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Unit pytest через внешний import-only bootstrap для отсутствующих `EbookLib`/`striprtf` → 137 passed, 8 skipped, 3 deselected.
 - Integration pytest тем же способом → 2 passed, 7 skipped, 139 deselected.
 - `sh -n deploy/ufw-rules.sh.example` → успешно.
-- AST-аудит 71 модуля `backend/`: module/public docstrings отсутствуют не были; одна вложенная callback `adapted` не имеет type annotation для одного аргумента, что не относится к публичному API.
+- AST-аудит 71 модуля `audiodoc/`: module/public docstrings отсутствуют не были; одна вложенная callback `adapted` не имеет type annotation для одного аргумента, что не относится к публичному API.
 - Поиск `shell=True`, `eval`, `exec`, `pickle`, SQL/ORM в исходниках backend → совпадений не найдено.
 - Проверка файлов и архива: все ожидаемые README/docs/deploy examples присутствуют; `.env`, кэши и временные файлы исключены при упаковке.
 

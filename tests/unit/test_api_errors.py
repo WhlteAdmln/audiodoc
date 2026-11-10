@@ -8,17 +8,17 @@ import pytest
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
-from backend.api.error_handlers import register_error_handlers
-from backend.common.work_queue import WorkQueue
-from backend.errors.base import AppError, BackendError, ServerBusyError
-from backend.errors.documents import (
+from audiodoc.api.error_handlers import register_error_handlers
+from audiodoc.common.work_queue import WorkQueue
+from audiodoc.errors.base import AppError, BackendError, ServerBusyError
+from audiodoc.errors.documents import (
     DependencyMissingError,
     DocumentRejectedError,
     PayloadTooLargeError,
     ProcessingTimeoutError,
     UnsupportedFormatError,
 )
-from backend.errors.transcription import (
+from audiodoc.errors.transcription import (
     AudioTooLongError,
     InvalidAudioError,
     ModelNotReadyError,
@@ -31,7 +31,7 @@ class _UnexpectedServerError(RuntimeError):
 
     def __init__(self) -> None:
         """Initialize the test exception with its private detail."""
-        super().__init__("private /srv/backend/secret.txt")
+        super().__init__("private /srv/audiodoc/secret.txt")
 
 
 @pytest.mark.parametrize(
@@ -144,11 +144,11 @@ def test_unexpected_exception_returns_generic_message_without_details(caplog):
         "code": "internal_error",
     }
     assert "secret.txt" not in response.text
-    assert "private /srv/backend/secret.txt" in caplog.text
+    assert "private /srv/audiodoc/secret.txt" in caplog.text
 
 
 def test_document_filename_is_sanitized_before_logging(caplog, monkeypatch):
-    documents = import_module("backend.api.documents")
+    documents = import_module("audiodoc.api.documents")
 
     async def fake_process_document(*_args, **_kwargs):
         return _document_result()
@@ -183,7 +183,7 @@ def _document_result():
 
 
 def test_typed_document_rejection_is_logged_without_raw_filename(caplog, monkeypatch):
-    documents = import_module("backend.api.documents")
+    documents = import_module("audiodoc.api.documents")
 
     async def reject_document(*_args, **_kwargs):
         raise DocumentRejectedError

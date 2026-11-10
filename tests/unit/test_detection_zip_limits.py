@@ -2,7 +2,7 @@
 import io
 import zipfile
 
-from backend.document_engine.detection import detect_format
+from audiodoc.document_engine.detection import detect_format
 
 
 def test_mimetype_member_is_read_with_a_fixed_200_byte_limit(monkeypatch):

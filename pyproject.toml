@@ -55,13 +55,13 @@ dev = [
 ]
 
 [project.scripts]
-audiodoc = "backend.cli:main"
+audiodoc = "audiodoc.cli:main"
 
 [tool.setuptools]
 py-modules = ["app"]
 
 [tool.setuptools.packages.find]
-include = ["backend*"]
+include = ["audiodoc*"]
 
 [tool.ruff]
 line-length = 88
@@ -127,7 +127,7 @@ markers = [
 
 [tool.coverage.run]
 branch = true
-source = ["backend"]
+source = ["audiodoc"]
 
 [tool.coverage.report]
 show_missing = true
@@ -141,7 +141,7 @@ exclude_also = [
 
 [tool.deptry]
 optional_dependencies_dev_groups = ["dev"]
-known_first_party = ["backend"]
+known_first_party = ["audiodoc"]
 extend_exclude = ["scripts"]
 
 [tool.deptry.per_rule_ignores]
@@ -156,7 +156,7 @@ DEP002 = [
 
 [tool.vulture]
 paths = [
-    "backend",
+    "audiodoc",
     "app.py",
     "scripts/check_lock.py",
     "scripts/vulture_whitelist.py",
@@ -164,63 +164,63 @@ paths = [
 min_confidence = 80
 
 [tool.importlinter]
-root_package = "backend"
+root_package = "audiodoc"
 
 [[tool.importlinter.contracts]]
 name = "API may import all lower-level packages"
 type = "layers"
 layers = [
-    "backend.api",
-    "backend.document_engine : backend.transcription",
-    "backend.common",
-    "backend.config",
-    "backend.errors",
+    "audiodoc.api",
+    "audiodoc.document_engine : audiodoc.transcription",
+    "audiodoc.common",
+    "audiodoc.config",
+    "audiodoc.errors",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Document engine has no forbidden dependencies"
 type = "forbidden"
-source_modules = ["backend.document_engine"]
+source_modules = ["audiodoc.document_engine"]
 forbidden_modules = [
-    "backend.api",
-    "backend.transcription",
-    "backend.config",
+    "audiodoc.api",
+    "audiodoc.transcription",
+    "audiodoc.config",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Errors are independent of application packages"
 type = "forbidden"
-source_modules = ["backend.errors"]
+source_modules = ["audiodoc.errors"]
 forbidden_modules = [
-    "backend.main",
-    "backend.api",
-    "backend.document_engine",
-    "backend.transcription",
-    "backend.common",
-    "backend.config",
+    "audiodoc.main",
+    "audiodoc.api",
+    "audiodoc.document_engine",
+    "audiodoc.transcription",
+    "audiodoc.common",
+    "audiodoc.config",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Common imports only errors from the application"
 type = "forbidden"
-source_modules = ["backend.common"]
+source_modules = ["audiodoc.common"]
 forbidden_modules = [
-    "backend.main",
-    "backend.api",
-    "backend.document_engine",
-    "backend.transcription",
-    "backend.config",
+    "audiodoc.main",
+    "audiodoc.api",
+    "audiodoc.document_engine",
+    "audiodoc.transcription",
+    "audiodoc.config",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Config is independent of application packages"
 type = "forbidden"
-source_modules = ["backend.config"]
+source_modules = ["audiodoc.config"]
 forbidden_modules = [
-    "backend.main",
-    "backend.api",
-    "backend.document_engine",
-    "backend.transcription",
-    "backend.common",
-    "backend.errors",
+    "audiodoc.main",
+    "audiodoc.api",
+    "audiodoc.document_engine",
+    "audiodoc.transcription",
+    "audiodoc.common",
+    "audiodoc.errors",
 ]

@@ -7,10 +7,10 @@ from importlib import import_module
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
-from backend.api.error_handlers import register_error_handlers
-from backend.common.work_queue import WorkQueue
-from backend.errors.base import ServerBusyError
-from backend.transcription.model import ModelHolder
+from audiodoc.api.error_handlers import register_error_handlers
+from audiodoc.common.work_queue import WorkQueue
+from audiodoc.errors.base import ServerBusyError
+from audiodoc.transcription.model import ModelHolder
 
 
 class _UnexpectedUploadReadError(AssertionError):
@@ -71,7 +71,7 @@ def test_server_busy_error_returns_retry_after_header():
 
 
 def test_document_queue_rejects_before_upload_is_copied(monkeypatch):
-    documents = import_module("backend.api.documents")
+    documents = import_module("audiodoc.api.documents")
     queue = _closed_queue()
 
     def unexpected_read(*_args, **_kwargs):
@@ -90,7 +90,7 @@ def test_document_queue_rejects_before_upload_is_copied(monkeypatch):
 
 
 def test_transcription_queue_rejects_before_temp_file_write(monkeypatch):
-    transcribe = import_module("backend.api.transcribe")
+    transcribe = import_module("audiodoc.api.transcribe")
     queue = _closed_queue()
 
     def unexpected_write(*_args, **_kwargs):

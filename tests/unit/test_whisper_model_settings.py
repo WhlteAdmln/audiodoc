@@ -4,8 +4,8 @@
 import sys
 from types import ModuleType
 
-import backend.transcription.model as model_module
-from backend.config import settings
+import audiodoc.transcription.model as model_module
+from audiodoc.config import settings
 
 
 def test_whisper_model_factory_uses_configurable_device_and_offline_options(

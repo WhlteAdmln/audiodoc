@@ -9,15 +9,15 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import backend.main as main_module
-import backend.transcription.model as model_module
+import audiodoc.main as main_module
+import audiodoc.transcription.model as model_module
 from app import app
-from backend.api import ready as ready_module
-from backend.common.work_queue import WorkQueue
-from backend.config import Settings, load_settings, settings
-from backend.document_engine.limits import MAX_CONCURRENT_DOCUMENTS
-from backend.errors.base import ServerBusyError
-from backend.transcription.model import ModelHolder
+from audiodoc.api import ready as ready_module
+from audiodoc.common.work_queue import WorkQueue
+from audiodoc.config import Settings, load_settings, settings
+from audiodoc.document_engine.limits import MAX_CONCURRENT_DOCUMENTS
+from audiodoc.errors.base import ServerBusyError
+from audiodoc.transcription.model import ModelHolder
 
 
 class FakeModel:

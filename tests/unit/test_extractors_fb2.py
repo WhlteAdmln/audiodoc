@@ -3,9 +3,9 @@
 
 import pytest
 
-from backend.document_engine.extractors.fb2 import extract_fb2
-from backend.document_engine.limits import MAX_EXTRACTED_TEXT_LENGTH
-from backend.errors.documents import DocumentRejectedError
+from audiodoc.document_engine.extractors.fb2 import extract_fb2
+from audiodoc.document_engine.limits import MAX_EXTRACTED_TEXT_LENGTH
+from audiodoc.errors.documents import DocumentRejectedError
 from tests.builders import create_fb2
 
 

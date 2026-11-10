@@ -36,13 +36,13 @@
 
 ## Проверки проекта в среде аудита
 
-- `python -m compileall -q app.py backend tests` → успешно.
+- `python -m compileall -q app.py audiodoc tests` → успешно.
 - Unit pytest через внешний временный import-only bootstrap для отсутствующих в среде EPUB/RTF-парсеров → **137 passed, 8 skipped, 3 deselected**.
 - Integration pytest в том же режиме → **2 passed, 7 skipped, 139 deselected**.
 - `sh -n deploy/ufw-rules.sh.example` → успешно.
 - Проверка прямых зависимостей → все direct requirements разрешаются записями lock-файла; `aiohttp`, `pypdf` и связанная с ними неиспользуемая группа удалены.
 - Поиск рискованных API `shell=True`, `eval`, `exec`, `pickle`, SQL/ORM в backend entry points → совпадений не найдено.
-- AST-аудит 71 Python-модуля `backend/` → нет отсутствующих module docstrings и public function docstrings. Единственное замечание по аннотации относится к вложенной callback-функции `adapted` в реестре экстракторов, не являющейся публичным API.
+- AST-аудит 71 Python-модуля `audiodoc/` → нет отсутствующих module docstrings и public function docstrings. Единственное замечание по аннотации относится к вложенной callback-функции `adapted` в реестре экстракторов, не являющейся публичным API.
 - UFW shell template прошёл синтаксическую проверку.
 - ZIP исходной поставки 15 распакован; структура, README/docs/deploy files, `.env.example` и отсутствие архива бота проверены.
 

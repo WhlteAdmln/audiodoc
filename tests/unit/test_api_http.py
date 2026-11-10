@@ -14,7 +14,7 @@ import aiohttp
 import pytest
 import starlette.formparsers
 
-from backend.api import ready as ready_module
+from audiodoc.api import ready as ready_module
 from tests.support.bot_client import upload_file
 from tests.support.builders import create_wav
 from tests.support.server import LiveServer, LiveServerOptions, live_server

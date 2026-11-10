@@ -2,7 +2,7 @@
 
 import pytest
 
-from backend.document_engine import process_document_sync
+from audiodoc.document_engine import process_document_sync
 from tests.builders import (
     create_docx,
     create_epub,

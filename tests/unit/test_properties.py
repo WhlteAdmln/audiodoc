@@ -13,11 +13,11 @@ from hypothesis import strategies as st
 from starlette.datastructures import UploadFile
 from starlette.exceptions import HTTPException
 
-import backend.common.limited_upload as upload_limits
-from backend.common.limited_upload import save_upload_limited
-from backend.common.text_budget import TextBudget
-from backend.document_engine.detection import detect_format
-from backend.document_engine.result import build_result
+import audiodoc.common.limited_upload as upload_limits
+from audiodoc.common.limited_upload import save_upload_limited
+from audiodoc.common.text_budget import TextBudget
+from audiodoc.document_engine.detection import detect_format
+from audiodoc.document_engine.result import build_result
 
 
 @given(

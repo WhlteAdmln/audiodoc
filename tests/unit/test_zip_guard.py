@@ -4,7 +4,7 @@ import zipfile
 
 import pytest
 
-from backend.document_engine.guards.zip_archive import validate_zip_archive
+from audiodoc.document_engine.guards.zip_archive import validate_zip_archive
 
 
 def test_validate_zip_archive_accepts_small_valid_archive():

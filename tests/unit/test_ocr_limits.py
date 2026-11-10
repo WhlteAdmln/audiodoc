@@ -3,12 +3,12 @@
 
 import pytest
 
-import backend.document_engine.ocr as ocr_module
-import backend.document_engine.ocr.preprocessing as preprocessing_module
-import backend.document_engine.ocr.recognize as recognize_module
-import backend.document_engine.ocr.tesseract as tesseract_module
-from backend.errors.documents import DocumentRejectedError
-from backend.errors.messages import EXTRACTION_MESSAGES
+import audiodoc.document_engine.ocr as ocr_module
+import audiodoc.document_engine.ocr.preprocessing as preprocessing_module
+import audiodoc.document_engine.ocr.recognize as recognize_module
+import audiodoc.document_engine.ocr.tesseract as tesseract_module
+from audiodoc.errors.documents import DocumentRejectedError
+from audiodoc.errors.messages import EXTRACTION_MESSAGES
 
 
 class _UnexpectedImageCopyError(AssertionError):

@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from backend.common.work_queue import WorkQueue
-from backend.document_engine import (
+from audiodoc.common.work_queue import WorkQueue
+from audiodoc.document_engine import (
     pipeline,
     process_document_sync,
     runner,
 )
-from backend.document_engine.extractors import REGISTRY, _odf
-from backend.errors.documents import DocumentRejectedError, UnsupportedFormatError
+from audiodoc.document_engine.extractors import REGISTRY, _odf
+from audiodoc.errors.documents import DocumentRejectedError, UnsupportedFormatError
 
 EXPECTED_FORMATS = {
     "pdf",
@@ -49,7 +49,7 @@ def test_odf_registry_entries_dispatch_to_the_correct_type(monkeypatch):
         return filetype.upper()
 
     monkeypatch.setattr(
-        "backend.document_engine.extractors.extract_odf",
+        "audiodoc.document_engine.extractors.extract_odf",
         fake_extract_odf,
     )
 
@@ -110,7 +110,7 @@ def test_pipeline_preserves_safe_empty_and_unsupported_document_errors(monkeypat
 
 def test_legacy_processor_shim_has_been_removed():
     processor_path = (
-        Path(__file__).parents[2] / "backend" / "document_engine" / "processor.py"
+        Path(__file__).parents[2] / "audiodoc" / "document_engine" / "processor.py"
     )
     assert not processor_path.exists()
 

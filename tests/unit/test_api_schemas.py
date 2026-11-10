@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-from backend.api.schemas import DocumentResponse, TranscribeResponse
+from audiodoc.api.schemas import DocumentResponse, TranscribeResponse
 
 
 def test_response_schemas_keep_the_bot_contract_field_names():
