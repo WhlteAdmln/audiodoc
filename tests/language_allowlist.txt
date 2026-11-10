@@ -1,7 +1,6 @@
 tests/conftest.py
 tests/unit/test_document_engine_packages.py
 tests/unit/test_document_engine_pipeline.py
-tests/unit/test_extractors_epub.py
 tests/unit/test_extractors_odf_modules.py
 tests/unit/test_extractors_office_modules.py
 tests/unit/test_extractors_text_modules.py

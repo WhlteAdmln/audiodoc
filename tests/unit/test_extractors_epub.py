@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Изолированные тесты EPUB-экстрактора (этап A4)."""
+"""Isolated tests for the EPUB extractor (A4 stage)."""
 
 from backend.document_engine.extractors.epub import extract_epub
 from tests.builders import create_epub
