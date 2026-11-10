@@ -2,25 +2,50 @@
 """Command-line interface for the audiodoc server."""
 
 import argparse
+import importlib
 import logging
 import os
+import secrets
 import sys
+import tempfile
 import warnings
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from importlib.metadata import version as package_version
 from ipaddress import IPv4Address
 from pathlib import Path
 
 import uvicorn
+from dotenv import dotenv_values
 
 from audiodoc.api.auth import check_security_settings
 from audiodoc.config import ConfigError, Settings, load_env_file, load_settings
-from audiodoc.env_readers import get_bool, get_log_level
+from audiodoc.env_readers import get_bool, get_home_dir, get_log_level
 from audiodoc.logging_setup import configure_logging
 
 logger = logging.getLogger(__name__)
 MAX_PORT = 65_535
 ALL_INTERFACES_HOST = str(IPv4Address(0))
+CommandHandler = Callable[[argparse.Namespace, argparse.ArgumentParser], int]
+SUPPORTED_MODEL_NAMES = (
+    "tiny",
+    "tiny.en",
+    "base",
+    "base.en",
+    "small",
+    "small.en",
+    "medium",
+    "medium.en",
+    "large",
+    "large-v1",
+    "large-v2",
+    "large-v3",
+    "large-v3-turbo",
+    "turbo",
+    "distil-small.en",
+    "distil-medium.en",
+    "distil-large-v2",
+    "distil-large-v3",
+)
 
 
 def _parse_port(value: str) -> int:
@@ -38,17 +63,56 @@ def _parse_port(value: str) -> int:
     return port
 
 
+def _parse_host(value: str) -> str:
+    """Validate a hostname or IP address used for server binding."""
+    if not value.strip() or any(character.isspace() for character in value):
+        message = "Host must be a non-empty hostname or IP address."
+        raise argparse.ArgumentTypeError(message)
+    return value
+
+
+def _parse_compute_type(value: str) -> str:
+    """Reject empty compute types and line breaks."""
+    if not value or "\n" in value or "\r" in value:
+        message = "Compute type must be a non-empty single-line value."
+        raise argparse.ArgumentTypeError(message)
+    return value
+
+
 def _build_parser() -> argparse.ArgumentParser:
     """Build the command-line argument parser."""
     parser = argparse.ArgumentParser(prog="audiodoc")
     commands = parser.add_subparsers(dest="command", required=True)
 
     run_parser = commands.add_parser("run", help="Run the API server.")
-    run_parser.add_argument("--host", default="127.0.0.1")
-    run_parser.add_argument("--port", type=_parse_port, default=8000)
+    run_parser.add_argument("--host", type=_parse_host)
+    run_parser.add_argument("--port", type=_parse_port)
     run_parser.add_argument("--env-file", type=Path)
 
     commands.add_parser("version", help="Show the installed version.")
+
+    init_parser = commands.add_parser("init", help="Create a protected .env file.")
+    init_parser.add_argument("--model", choices=SUPPORTED_MODEL_NAMES, default="small")
+    init_parser.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
+    init_parser.add_argument("--compute-type", type=_parse_compute_type)
+    init_parser.add_argument("--host", type=_parse_host, default="127.0.0.1")
+    init_parser.add_argument("--port", type=_parse_port, default=8000)
+    init_parser.add_argument("--force", action="store_true")
+
+    pair_parser = commands.add_parser(
+        "pair", help="Print the bot configuration settings."
+    )
+    pair_parser.add_argument("--url")
+
+    model_parser = commands.add_parser("model", help="Manage Whisper models.")
+    model_commands = model_parser.add_subparsers(dest="model_command", required=True)
+    download_parser = model_commands.add_parser(
+        "download", help="Download a Whisper model."
+    )
+    download_parser.add_argument(
+        "--name", choices=SUPPORTED_MODEL_NAMES, default="small"
+    )
+    download_parser.add_argument("--dir", dest="directory", type=Path)
 
     config_parser = commands.add_parser(
         "config", help="Inspect application configuration."
@@ -64,15 +128,91 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    if args.command == "run":
+    handlers: dict[str, CommandHandler] = {
+        "run": _handle_run_command,
+        "version": _handle_version_command,
+        "init": _handle_init_command,
+        "pair": _handle_pair_command,
+        "model": _handle_model_command,
+        "config": _handle_config_command,
+    }
+    handler = handlers.get(args.command)
+    if handler is None:
+        parser.print_usage(sys.stderr)
+        sys.stderr.write(f"{parser.prog}: error: Unsupported command.\n")
+        return 2
+    return handler(args, parser)
+
+
+def _handle_run_command(
+    args: argparse.Namespace, parser: argparse.ArgumentParser
+) -> int:
+    """Handle the run command."""
+    try:
         _run_server(args.host, args.port, args.env_file)
-        return 0
+    except ConfigError as error:
+        parser.error(str(error))
+    return 0
 
-    if args.command == "version":
-        sys.stdout.write(f"audiodoc {package_version('audiodoc')}\n")
-        return 0
 
-    if args.command == "config" and args.config_command == "check":
+def _handle_version_command(
+    _args: argparse.Namespace, _parser: argparse.ArgumentParser
+) -> int:
+    """Handle the version command."""
+    sys.stdout.write(f"audiodoc {package_version('audiodoc')}\n")
+    return 0
+
+
+def _handle_init_command(
+    args: argparse.Namespace, parser: argparse.ArgumentParser
+) -> int:
+    """Handle the init command."""
+    compute_type = args.compute_type or ("float16" if args.device == "cuda" else "int8")
+    try:
+        env_path = _write_initial_env(
+            model=args.model,
+            device=args.device,
+            compute_type=compute_type,
+            host=args.host,
+            port=args.port,
+            force=args.force,
+        )
+    except FileExistsError:
+        parser.error("Configuration already exists. Use --force to overwrite.")
+    sys.stdout.write(f"Created configuration: {env_path}\n")
+    return 0
+
+
+def _handle_pair_command(
+    args: argparse.Namespace, parser: argparse.ArgumentParser
+) -> int:
+    """Handle the pair command."""
+    try:
+        snippet = _build_pair_configuration(args.url)
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
+    sys.stdout.write(snippet)
+    return 0
+
+
+def _handle_model_command(
+    args: argparse.Namespace, parser: argparse.ArgumentParser
+) -> int:
+    """Handle model management commands."""
+    model_directory = args.directory or (get_home_dir() / "models" / args.name)
+    try:
+        model_path = _download_model(args.name, model_directory)
+    except ImportError as error:
+        parser.error(f"Could not import faster-whisper: {error}")
+    sys.stdout.write(f"Model downloaded to: {model_path}\n")
+    return 0
+
+
+def _handle_config_command(
+    args: argparse.Namespace, _parser: argparse.ArgumentParser
+) -> int:
+    """Handle configuration inspection commands."""
+    if args.config_command == "check":
         load_env_file()
         problems = _configuration_problems(os.environ)
         if problems:
@@ -80,19 +220,26 @@ def main(argv: Sequence[str] | None = None) -> int:
             for problem in problems:
                 sys.stdout.write(f"- {problem}\n")
             return 1
-
         sys.stdout.write("Configuration is valid.\n")
         return 0
-
-    parser.print_usage(sys.stderr)
-    sys.stderr.write(f"{parser.prog}: error: Unsupported command.\n")
     return 2
 
 
-def _run_server(host: str, port: int, env_file: Path | None) -> None:
+def _run_server(host: str | None, port: int | None, env_file: Path | None) -> None:
     """Load configuration, configure logging, and start Uvicorn."""
     load_env_file(env_file)
     configured_settings = load_settings(os.environ)
+    resolved_host = (
+        host or os.environ.get("AUDIODOC_HOST", "127.0.0.1").strip()
+    ) or "127.0.0.1"
+    if port is None:
+        try:
+            resolved_port = _parse_port(os.environ.get("AUDIODOC_PORT", "8000"))
+        except argparse.ArgumentTypeError as error:
+            raise ConfigError([f"Invalid AUDIODOC_PORT: {error}"]) from error
+    else:
+        resolved_port = port
+
     secrets = tuple(
         part.strip()
         for value in (
@@ -104,7 +251,7 @@ def _run_server(host: str, port: int, env_file: Path | None) -> None:
     )
     configure_logging(configured_settings.LOG_LEVEL, secrets)
 
-    if host == ALL_INTERFACES_HOST:
+    if resolved_host == ALL_INTERFACES_HOST:
         logger.warning(
             "SECURITY WARNING: Binding to 0.0.0.0 exposes audiodoc on all "
             "network interfaces. Ensure API keys and firewall rules are configured."
@@ -113,10 +260,104 @@ def _run_server(host: str, port: int, env_file: Path | None) -> None:
     uvicorn.run(
         "audiodoc.main:create_app",
         factory=True,
-        host=host,
-        port=port,
+        host=resolved_host,
+        port=resolved_port,
         server_header=False,
     )
+
+
+def _write_initial_env(
+    *,
+    model: str,
+    device: str,
+    compute_type: str,
+    host: str,
+    port: int,
+    force: bool,
+) -> Path:
+    """Create a protected environment file with distinct API keys."""
+    home = get_home_dir()
+    home.mkdir(parents=True, exist_ok=True, mode=0o700)
+    env_path = home / ".env"
+
+    audio_key = secrets.token_urlsafe(32)
+    document_key = secrets.token_urlsafe(32)
+    while document_key == audio_key:
+        document_key = secrets.token_urlsafe(32)
+
+    content = (
+        "\n".join(
+            (
+                "# audiodoc configuration",
+                f"AUDIODOC_AUDIO_KEY={audio_key}",
+                f"AUDIODOC_DOCUMENT_KEY={document_key}",
+                "ALLOW_UNAUTHENTICATED=false",
+                f"AUDIODOC_HOST={host}",
+                f"AUDIODOC_PORT={port}",
+                f"WHISPER_MODEL_SIZE={model}",
+                f"WHISPER_DEVICE={device}",
+                f"WHISPER_COMPUTE_TYPE={compute_type}",
+                "WHISPER_OFFLINE=false",
+            )
+        )
+        + "\n"
+    )
+
+    descriptor, temporary_name = tempfile.mkstemp(prefix=".env.", dir=home)
+    temporary_path = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(content)
+        temporary_path.chmod(0o600)
+        if force:
+            temporary_path.replace(env_path)
+        else:
+            os.link(temporary_path, env_path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+
+    return env_path
+
+
+def _build_pair_configuration(url: str | None) -> str:
+    """Build the exact shared settings required by bot-obormot."""
+    env_path = get_home_dir() / ".env"
+    if not env_path.is_file():
+        message = (
+            f"Configuration file not found: {env_path}. Run 'audiodoc init' first."
+        )
+        raise FileNotFoundError(message)
+
+    values = dotenv_values(env_path)
+    audio_key = values.get("AUDIODOC_AUDIO_KEY")
+    document_key = values.get("AUDIODOC_DOCUMENT_KEY")
+    if not audio_key or not document_key:
+        message = "Both API keys must be set in the audiodoc .env file."
+        raise ValueError(message)
+
+    base_url = url
+    if base_url is None:
+        host = values.get("AUDIODOC_HOST") or "127.0.0.1"
+        port = values.get("AUDIODOC_PORT") or "8000"
+        if host in {ALL_INTERFACES_HOST, "::"}:
+            host = "127.0.0.1"
+        elif ":" in host and not host.startswith("["):
+            host = f"[{host}]"
+        base_url = f"http://{host}:{port}"
+
+    return (
+        f"AUDIODOC_URL={base_url}\n"
+        f"AUDIODOC_AUDIO_KEY={audio_key}\n"
+        f"AUDIODOC_DOCUMENT_KEY={document_key}\n"
+    )
+
+
+def _download_model(name: str, directory: Path) -> Path:
+    """Download a supported Whisper model into the selected directory."""
+    directory.mkdir(parents=True, exist_ok=True)
+    download_model = importlib.import_module("faster_whisper.utils").download_model
+    downloaded_path = download_model(name, output_dir=str(directory))
+    return Path(downloaded_path)
 
 
 def _configuration_problems(environ: Mapping[str, str]) -> list[str]:
