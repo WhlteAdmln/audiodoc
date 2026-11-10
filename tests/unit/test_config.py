@@ -16,7 +16,6 @@ from audiodoc.config import (
     settings,
 )
 from audiodoc.config.env import load_env_file as legacy_load_env_file
-from audiodoc.config.paths import PROJECT_ROOT
 from audiodoc.env_readers import (
     get_bool,
     get_float,
@@ -284,35 +283,73 @@ def test_settings_proxy_deletion_restores_cached_values() -> None:
         reset_settings_cache()
 
 
-def test_load_env_file_uses_project_file_without_overriding(
+def test_load_settings_resolves_relative_paths_against_application_home(
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "home"
+    loaded = load_settings(
+        {
+            "AUDIODOC_HOME": str(home),
+            "BACKEND_TEMP_DIR": "cache/audio",
+            "WHISPER_MODEL_PATH": "models/small",
+        }
+    )
+
+    assert str(home / "cache" / "audio") == loaded.TEMP_DIR
+    assert str(home / "models" / "small") == loaded.WHISPER_MODEL_PATH
+
+    defaults = load_settings({"AUDIODOC_HOME": str(home)})
+    assert str(home / "tmp") == defaults.TEMP_DIR
+
+
+def test_load_env_file_uses_home_then_working_directory_without_overriding(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     calls: list[tuple[Path, bool]] = []
+    home = tmp_path / "home"
+    working_dir = tmp_path / "working"
+    working_dir.mkdir()
+    monkeypatch.setenv("AUDIODOC_HOME", str(home))
+    monkeypatch.chdir(working_dir)
 
     def fake_load_dotenv(path: Path, *, override: bool) -> bool:
         calls.append((path, override))
         return True
 
     monkeypatch.setattr("audiodoc.env_readers.load_dotenv", fake_load_dotenv)
-
     load_env_file()
 
-    assert calls == [(PROJECT_ROOT / ".env", False)]
+    assert calls == [
+        (home / ".env", False),
+        (working_dir / ".env", False),
+    ]
 
 
-def test_load_env_file_uses_explicit_path_without_overriding(
+def test_load_env_file_uses_explicit_path_then_home_and_working_directory(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     calls: list[tuple[Path, bool]] = []
     env_file = tmp_path / "custom.env"
+    home = tmp_path / "configured-home"
+    working_dir = tmp_path / "working"
+    working_dir.mkdir()
+    monkeypatch.delenv("AUDIODOC_HOME", raising=False)
+    monkeypatch.chdir(working_dir)
 
     def fake_load_dotenv(path: Path, *, override: bool) -> bool:
         calls.append((path, override))
+        if path == env_file:
+            monkeypatch.setenv("AUDIODOC_HOME", str(home))
         return True
 
     monkeypatch.setattr("audiodoc.env_readers.load_dotenv", fake_load_dotenv)
 
     load_env_file(env_file)
 
-    assert calls == [(env_file, False)]
+    assert calls == [
+        (env_file, False),
+        (home / ".env", False),
+        (working_dir / ".env", False),
+    ]

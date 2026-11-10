@@ -9,15 +9,12 @@ from fastapi import FastAPI
 import app as app_module
 
 
-def test_app_loads_environment_before_importing_main(
+def test_app_imports_main_without_loading_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Ensure dotenv loading precedes importing the application factory."""
+    """Ensure the compatibility entry point leaves environment loading to the CLI."""
     events: list[str] = []
     application = FastAPI()
-
-    def load_env_file() -> None:
-        events.append("load_env_file")
 
     def create_app() -> FastAPI:
         events.append("create_app")
@@ -30,8 +27,7 @@ def test_app_loads_environment_before_importing_main(
         events.append("import_main")
         return main_module
 
-    monkeypatch.setattr(app_module, "load_env_file", load_env_file)
     monkeypatch.setattr(app_module, "import_module", import_module)
 
     assert app_module._create_compatibility_app() is application
-    assert events == ["load_env_file", "import_main", "create_app"]
+    assert events == ["import_main", "create_app"]
