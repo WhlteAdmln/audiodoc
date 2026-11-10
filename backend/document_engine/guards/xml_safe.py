@@ -9,6 +9,7 @@ from defusedxml import ElementTree as SafeElementTree
 from defusedxml.common import DefusedXmlException
 
 from backend.errors.documents import DocumentRejectedError
+from backend.errors.messages import ERROR_MESSAGES
 
 if TYPE_CHECKING:
     from xml.etree.ElementTree import Element
@@ -17,13 +18,13 @@ if TYPE_CHECKING:
 class _ForbiddenXmlConstructsError(DocumentRejectedError):
     """Raised when XML contains forbidden declarations."""
 
-    public_message = "XML содержит запрещённые конструкции"
+    public_message = ERROR_MESSAGES["xml_forbidden_constructs"]
 
 
 class _MalformedXmlDocumentError(DocumentRejectedError):
     """Raised when an XML document cannot be parsed."""
 
-    public_message = "Некорректный XML-документ"
+    public_message = ERROR_MESSAGES["malformed_xml_document"]
 
 
 def parse_xml(data: bytes) -> Element[str]:

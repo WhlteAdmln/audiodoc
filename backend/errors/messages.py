@@ -5,6 +5,8 @@ ERROR_MESSAGES: dict[str, str] = {
     "internal_error": "Внутренняя ошибка сервиса",
     "server_busy": "Сервис занят. Повторите запрос позже",
     "document_rejected": "Документ не может быть обработан",
+    "xml_forbidden_constructs": "XML содержит запрещённые конструкции",
+    "malformed_xml_document": "Некорректный XML-документ",
     "unsupported_format": "Формат не поддерживается Document Engine",
     "payload_too_large": "Файл слишком большой",
     "upload_too_large": "Файл слишком большой. Максимальный размер: {limit} МБ.",

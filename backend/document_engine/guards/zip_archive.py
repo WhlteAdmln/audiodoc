@@ -28,7 +28,7 @@ class _InvalidZipContainerError(ValueError):
 
     def __init__(self) -> None:
         """Initialize the validation error."""
-        super().__init__("Некорректный ZIP-контейнер")
+        super().__init__("Invalid ZIP container")
 
 
 class _CorruptZipArchiveError(ValueError):
@@ -36,7 +36,7 @@ class _CorruptZipArchiveError(ValueError):
 
     def __init__(self) -> None:
         """Initialize the validation error."""
-        super().__init__("Повреждён ZIP-архив")
+        super().__init__("Corrupt ZIP archive")
 
 
 class _ArchiveUnpackedSizeLimitError(ValueError):
@@ -44,7 +44,7 @@ class _ArchiveUnpackedSizeLimitError(ValueError):
 
     def __init__(self) -> None:
         """Initialize the validation error."""
-        super().__init__("Превышен общий лимит распакованного размера архива")
+        super().__init__("Total unpacked archive size exceeds the limit")
 
 
 def validate_zip_archive(data: bytes) -> None:
@@ -70,7 +70,7 @@ def validate_zip_archive(data: bytes) -> None:
 def _validate_archive_entries(archive: zipfile.ZipFile) -> None:
     files = archive.infolist()
     if len(files) > MAX_ARCHIVE_FILES:
-        message = f"Слишком много файлов в архиве: {len(files)}"
+        message = f"Too many files in archive: {len(files)}"
         raise ValueError(message)
 
     total_unpacked_size = 0
@@ -85,7 +85,7 @@ def _validate_archive_entries(archive: zipfile.ZipFile) -> None:
             total_unpacked_size,
         )
         if actual_size != declared_size:
-            message = f"Несовпадение объявленного размера файла: {item.filename}"
+            message = f"Declared file size does not match actual size: {item.filename}"
             raise ValueError(message)
 
         total_unpacked_size += actual_size
@@ -120,7 +120,7 @@ def _validate_archive_entry(
         return 0
 
     if item.file_size > MAX_ARCHIVE_FILE_SIZE:
-        message = f"Файл внутри архива слишком большой: {item.filename}"
+        message = f"File inside archive is too large: {item.filename}"
         raise ValueError(message)
 
     new_total_size = total_unpacked_size + item.file_size
@@ -129,12 +129,12 @@ def _validate_archive_entry(
 
     if item.file_size > 0:
         if item.compress_size == 0:
-            message = f"Подозрительный размер сжатого файла: {item.filename}"
+            message = f"Suspicious compressed file size: {item.filename}"
             raise ValueError(message)
 
         ratio = item.file_size / item.compress_size
         if ratio > MAX_ARCHIVE_COMPRESSION_RATIO:
-            message = f"Подозрительная степень сжатия: {item.filename}"
+            message = f"Suspicious compression ratio: {item.filename}"
             raise ValueError(message)
 
     return item.file_size
