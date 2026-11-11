@@ -33,7 +33,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "${AUDIODOC_CPU_LIMIT:-4.0}"
+          cpus: "${AUDIODOC_CPU_LIMIT:-2.0}"
           memory: "${AUDIODOC_MEMORY_LIMIT:-8G}"
           pids: 256
 

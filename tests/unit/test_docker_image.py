@@ -99,7 +99,7 @@ def test_compose_configures_secure_persistent_storage() -> None:
         "size=256m",
         "127.0.0.1",
         "deploy:",
-        "cpus:",
+        'cpus: "${AUDIODOC_CPU_LIMIT:-2.0}"',
         "memory:",
         "pids: 256",
         "cap_drop:",
