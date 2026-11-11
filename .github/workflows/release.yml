@@ -22,7 +22,7 @@ concurrency:
 jobs:
   e2e:
     name: Real Whisper smoke test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -74,7 +74,7 @@ jobs:
   release:
     name: Build and publish release
     needs: e2e
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     timeout-minutes: 10

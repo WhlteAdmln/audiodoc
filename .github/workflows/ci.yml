@@ -18,7 +18,7 @@ permissions: {}
 jobs:
   lint:
     name: Lint & format
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -44,7 +44,7 @@ jobs:
   test:
     name: Tests (py${{ matrix.python-version }}, ${{ matrix.deps }})
     needs: lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     continue-on-error: ${{ matrix.experimental }}
@@ -118,7 +118,7 @@ jobs:
   integration:
     name: Integration (OCR / DjVu)
     needs: lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -155,7 +155,7 @@ jobs:
 
   deploy:
     name: Deployment examples
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -229,7 +229,7 @@ jobs:
   e2e:
     name: Real Whisper smoke test
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -281,7 +281,7 @@ jobs:
 
   audit:
     name: Dependency audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     continue-on-error: ${{ github.event_name == 'pull_request' }}
@@ -300,7 +300,7 @@ jobs:
   build:
     name: Build release assets and smoke-test installer
     needs: [test, integration]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -451,7 +451,7 @@ jobs:
   container:
     name: Docker image smoke test
     needs: [test, integration]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -477,7 +477,7 @@ jobs:
     name: Publish Docker image to GHCR
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: container
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
