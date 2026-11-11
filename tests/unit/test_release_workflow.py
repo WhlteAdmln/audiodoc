@@ -82,6 +82,9 @@ def test_release_build_produces_sdist_wheel_and_checksums() -> None:
     assert "python3 -m build --sdist --wheel --outdir dist ." in script
     assert "sdists=(dist/audiodoc-*.tar.gz)" in script
     assert "wheels=(dist/audiodoc-*.whl)" in script
+    assert 'tar -tzf "${sdists[0]}"' in script
+    assert '"${SDIST_ROOT}/.env.example"' in script
+    assert '"${SDIST_ROOT}/.env"' in script
     assert (
         'sha256sum "${sdists[0]##*/}" "${wheels[0]##*/}" constraints.txt > SHA256SUMS'
         in script
@@ -99,3 +102,10 @@ def test_ci_build_job_verifies_both_release_distribution_formats() -> None:
     assert "sdists=(dist/audiodoc-*.tar.gz)" in workflow
     assert "wheels=(dist/audiodoc-*.whl)" in workflow
     assert "sha256sum --check --status SHA256SUMS" in workflow
+
+
+def test_sdist_manifest_includes_only_the_safe_environment_template() -> None:
+    """Ensure the source distribution includes the example but excludes secrets."""
+    manifest = (ROOT_DIR / "MANIFEST.in").read_text(encoding="utf-8").splitlines()
+
+    assert manifest == ["include .env.example", "exclude .env"]
