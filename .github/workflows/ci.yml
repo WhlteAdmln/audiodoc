@@ -460,6 +460,18 @@ jobs:
           persist-credentials: false
       - name: Create Compose environment file
         run: touch .env
+      - name: Cache Whisper tiny model
+        id: whisper-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/whisper
+          key: ${{ runner.os }}-whisper-tiny-${{ hashFiles('requirements-lock.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-whisper-tiny-
+      - name: Prepare Whisper cache directory
+        run: |
+          mkdir -p .cache/whisper
+          chmod -R a+rwX .cache/whisper
       - name: Validate Compose configurations
         run: |
           docker compose -f compose.yaml config --quiet
@@ -470,8 +482,24 @@ jobs:
         run: |
           set -euo pipefail
           docker compose -f compose.yaml run --rm --no-deps audiodoc init --model tiny
-          docker compose -f compose.yaml run --rm --no-deps audiodoc doctor
+          model_dir="${GITHUB_WORKSPACE}/.cache/whisper/tiny"
+          if [[ ! -s "${model_dir}/config.json" || ! -s "${model_dir}/model.bin" ]]; then
+            docker compose -f compose.yaml run --rm --no-deps \
+              --volume "${GITHUB_WORKSPACE}/.cache/whisper:/data/models" \
+              audiodoc model download --name tiny --dir /data/models/tiny
+          fi
+          docker compose -f compose.yaml run --rm --no-deps \
+            --volume "${GITHUB_WORKSPACE}/.cache/whisper:/data/models" \
+            --env WHISPER_MODEL_PATH=/data/models/tiny \
+            audiodoc doctor --offline
           docker compose -f compose.yaml down --volumes
+
+      - name: Make Whisper cache readable by runner
+        if: always()
+        run: |
+          if [[ -d .cache/whisper ]]; then
+            sudo chown -R "$(id -u):$(id -g)" .cache/whisper
+          fi
 
   publish-container:
     name: Publish Docker image to GHCR

@@ -20,6 +20,16 @@ def test_dockerfile_builds_a_multi_stage_python_image() -> None:
     assert "python -m venv /opt/venv" in dockerfile
 
 
+def test_dockerfile_declares_ghcr_source_repository() -> None:
+    """Ensure the image metadata identifies its source repository."""
+    dockerfile = (ROOT_DIR / "Dockerfile").read_text(encoding="utf-8")
+    expected_label = (
+        'LABEL org.opencontainers.image.source="https://github.com/WhlteAdmln/audiodoc"'
+    )
+
+    assert expected_label in dockerfile
+
+
 def test_dockerfile_installs_native_document_dependencies() -> None:
     """Ensure OCR languages and DjVuLibre tools are installed."""
     dockerfile = (ROOT_DIR / "Dockerfile").read_text(encoding="utf-8")
@@ -58,6 +68,7 @@ def test_dockerignore_excludes_secrets_and_local_state() -> None:
 
     assert {
         ".git/",
+        ".cache/",
         ".env",
         ".env.*",
         "!.env.example",
@@ -139,16 +150,27 @@ def test_ci_builds_checks_and_publishes_the_container_image() -> None:
 
     assert "name: Docker image smoke test" in workflow
     assert "docker compose -f compose.yaml build --pull audiodoc" in workflow
+    assert "path: .cache/whisper" in workflow
+    assert "whisper-tiny-${{ hashFiles('requirements-lock.txt') }}" in workflow
+    assert ".cache/whisper:/data/models" in workflow
+    assert "audiodoc model download --name tiny --dir /data/models/tiny" in workflow
+    assert "WHISPER_MODEL_PATH=/data/models/tiny" in workflow
     assert (
         "docker compose -f compose.yaml run --rm --no-deps audiodoc init --model tiny"
         in workflow
     )
-    assert (
-        "docker compose -f compose.yaml run --rm --no-deps audiodoc doctor" in workflow
-    )
+    assert "audiodoc doctor --offline" in workflow
     assert "name: Publish Docker image to GHCR" in workflow
     assert "packages: write" in workflow
     assert "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}" in workflow
     assert "docker login ghcr.io" in workflow
     assert 'docker push "${image}:${GITHUB_SHA}"' in workflow
     assert 'docker push "${image}:latest"' in workflow
+    assert (
+        "      - name: Make Whisper cache readable by runner\n"
+        "        if: always()\n"
+        "        run: |\n"
+        "          if [[ -d .cache/whisper ]]; then\n"
+        '            sudo chown -R "$(id -u):$(id -g)" .cache/whisper\n'
+        "          fi\n"
+    ) in workflow
