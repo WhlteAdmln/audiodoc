@@ -3,13 +3,17 @@
 
 import base64
 import csv
+import functools
 import hashlib
+import http.server
 import io
 import json
 import os
 import shutil
 import subprocess
+import threading
 import zipfile
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -118,9 +122,23 @@ def run_installer(
     )
 
 
-def create_test_wheel(release_dir: Path) -> Path:
+def installed_version(app_home: Path) -> str:
+    """Return the installed audiodoc distribution version."""
+    metadata_files = list(
+        (app_home / ".venv").glob(
+            "lib/python*/site-packages/audiodoc-*.dist-info/METADATA"
+        )
+    )
+    assert len(metadata_files) == 1
+    for line in metadata_files[0].read_text(encoding="utf-8").splitlines():
+        if line.startswith("Version: "):
+            return line.removeprefix("Version: ")
+    message = "Installed audiodoc metadata has no Version field."
+    raise AssertionError(message)
+
+
+def create_test_wheel(release_dir: Path, *, version: str = "1.2.3") -> Path:
     """Build a minimal wheel containing an isolated fake audiodoc CLI."""
-    version = "1.2.3"
     distribution = f"audiodoc-{version}.dist-info"
     wheel_name = f"audiodoc-{version}-py3-none-any.whl"
 
@@ -131,8 +149,8 @@ def create_test_wheel(release_dir: Path) -> Path:
         ),
         "audiodoc/cli.py": FAKE_CLI_SOURCE.encode("utf-8"),
         f"{distribution}/METADATA": (
-            f"Metadata-Version: 2.1\n"
-            f"Name: audiodoc\n"
+            "Metadata-Version: 2.1\n"
+            "Name: audiodoc\n"
             f"Version: {version}\n"
             "Requires-Python: >=3.11\n\n"
         ).encode(),
@@ -196,8 +214,8 @@ def write_checksums(
 
 
 @pytest.fixture
-def local_release(tmp_path: Path) -> tuple[str, Path]:
-    """Provide release assets through a local file URL."""
+def local_release(tmp_path: Path) -> Iterator[tuple[str, Path]]:
+    """Provide release assets through a local HTTP server."""
     release_dir = tmp_path / "release"
     release_dir.mkdir()
 
@@ -205,7 +223,21 @@ def local_release(tmp_path: Path) -> tuple[str, Path]:
     (release_dir / "constraints.txt").write_text("", encoding="utf-8")
     write_checksums(release_dir, wheel_path)
 
-    return release_dir.as_uri(), release_dir
+    server = http.server.ThreadingHTTPServer(
+        ("127.0.0.1", 0),
+        functools.partial(
+            http.server.SimpleHTTPRequestHandler,
+            directory=str(release_dir),
+        ),
+    )
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}", release_dir
+    finally:
+        server.shutdown()
+        server.server_close()
+        server_thread.join(timeout=5)
 
 
 def test_installer_help_succeeds() -> None:
@@ -499,7 +531,7 @@ def test_installer_upgrades_existing_environment_and_preserves_application_data(
     tmp_path: Path,
     local_release: tuple[str, Path],
 ) -> None:
-    release_url, _release_dir = local_release
+    release_url, release_dir = local_release
     user_home = tmp_path / "user"
     user_home.mkdir()
     app_home = user_home / "audiodoc"
@@ -511,6 +543,7 @@ def test_installer_upgrades_existing_environment_and_preserves_application_data(
         home=user_home,
     )
     assert initial.returncode == 0, initial.stdout + initial.stderr
+    assert installed_version(app_home) == "1.2.3"
 
     env_path = app_home / ".env"
     env_path.write_text("CUSTOM_SETTING=keep-me\n", encoding="utf-8")
@@ -522,6 +555,9 @@ def test_installer_upgrades_existing_environment_and_preserves_application_data(
     (tmp_dir / "keep.tmp").write_text("temporary-data", encoding="utf-8")
     old_marker = app_home / ".venv" / "old-environment-marker"
     old_marker.write_text("old", encoding="utf-8")
+
+    new_wheel = create_test_wheel(release_dir, version="2.0.0")
+    write_checksums(release_dir, new_wheel)
 
     result = run_installer(
         "--upgrade",
@@ -536,6 +572,7 @@ def test_installer_upgrades_existing_environment_and_preserves_application_data(
     assert (app_home / "service-installed").read_text(encoding="utf-8") == "ok"
     assert not old_marker.exists()
     assert (app_home / ".venv" / "bin" / "audiodoc").is_file()
+    assert installed_version(app_home) == "2.0.0"
     assert not (app_home / ".venv.new").exists()
     assert not (app_home / ".venv.prev").exists()
     assert "systemctl --user restart audiodoc.service" in result.stdout
@@ -552,7 +589,7 @@ def test_installer_upgrade_rolls_back_when_offline_doctor_fails(
     tmp_path: Path,
     local_release: tuple[str, Path],
 ) -> None:
-    release_url, _release_dir = local_release
+    release_url, release_dir = local_release
     user_home = tmp_path / "user"
     user_home.mkdir()
     app_home = user_home / "audiodoc"
@@ -563,9 +600,13 @@ def test_installer_upgrade_rolls_back_when_offline_doctor_fails(
         home=user_home,
     )
     assert initial.returncode == 0, initial.stdout + initial.stderr
+    assert installed_version(app_home) == "1.2.3"
 
     old_marker = app_home / ".venv" / "old-environment-marker"
     old_marker.write_text("old", encoding="utf-8")
+
+    new_wheel = create_test_wheel(release_dir, version="2.0.0")
+    write_checksums(release_dir, new_wheel)
 
     result = run_installer(
         "--upgrade",
@@ -577,6 +618,7 @@ def test_installer_upgrade_rolls_back_when_offline_doctor_fails(
     assert result.returncode != 0
     assert "doctor --offline failed" in result.stderr
     assert old_marker.read_text(encoding="utf-8") == "old"
+    assert installed_version(app_home) == "1.2.3"
     assert not (app_home / ".venv.new").exists()
     assert not (app_home / ".venv.prev").exists()
 

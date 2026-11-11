@@ -298,7 +298,7 @@ jobs:
         run: pip-audit -r requirements-lock.txt
 
   build:
-    name: Build release archive and wheel
+    name: Build release assets and smoke-test installer
     needs: [test, integration]
     runs-on: ubuntu-latest
     permissions:
@@ -310,8 +310,113 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.0.0
         with:
           python-version: "3.12"
+      - name: Install installer smoke-test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            shellcheck tesseract-ocr tesseract-ocr-rus \
+            tesseract-ocr-eng djvulibre-bin
+          python -m pip install pytest==9.2.0 shfmt-py==4.0.0
+      - name: Check installer shell
+        run: |
+          shellcheck --shell=sh install.sh
+          shfmt -i 8 -sr -d install.sh
       - name: Build archive, wheel and checksums
         run: bash scripts/build_release.sh "$(python -c 'import tomllib; from pathlib import Path; print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])')"
+      - name: Install and upgrade from a locally served release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_version="$(python -c 'import tomllib; from pathlib import Path; print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])')"
+          next_release_version="$(python - "$release_version" <<'PY'
+          import sys
+
+          parts = sys.argv[1].split(".")
+          if not parts[-1].isdigit():
+              raise SystemExit("Release version must end in a numeric component.")
+          parts[-1] = str(int(parts[-1]) + 1)
+          print(".".join(parts))
+          PY
+          )"
+
+          pyproject_backup="${RUNNER_TEMP}/pyproject.toml"
+          cp pyproject.toml "$pyproject_backup"
+          server_pid=""
+
+          cleanup() {
+            result=$?
+            trap - EXIT
+            cp "$pyproject_backup" pyproject.toml
+            if [ -n "$server_pid" ]; then
+              kill "$server_pid" 2>/dev/null || true
+              wait "$server_pid" 2>/dev/null || true
+            fi
+            exit "$result"
+          }
+          trap cleanup EXIT
+
+          release_url="http://127.0.0.1:8765"
+          python -m http.server 8765 --bind 127.0.0.1 --directory dist \
+            > "${RUNNER_TEMP}/release-server.log" 2>&1 &
+          server_pid=$!
+
+          for attempt in $(seq 1 30); do
+            if curl -fsS "${release_url}/SHA256SUMS" >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS "${release_url}/SHA256SUMS" >/dev/null
+
+          user_home="${RUNNER_TEMP}/audiodoc-user"
+          app_home="${RUNNER_TEMP}/audiodoc-app"
+          mkdir -p "$user_home"
+
+          HOME="$user_home" \
+            AUDIODOC_HOME="$app_home" \
+            AUDIODOC_RELEASE_URL="$release_url" \
+            AUDIODOC_RELEASE_TAG="$release_version" \
+            sh install.sh --no-model
+
+          installed_version="$("$app_home/.venv/bin/python" -c 'from importlib.metadata import version; print(version("audiodoc"))')"
+          test "$installed_version" = "$release_version"
+
+          printf '%s\n' 'CI_INSTALLER_SMOKE=preserve-me' >> "$app_home/.env"
+          cp "$app_home/.env" "${RUNNER_TEMP}/audiodoc.env"
+
+          python - "$release_version" "$next_release_version" <<'PY'
+          import sys
+          from pathlib import Path
+
+          path = Path("pyproject.toml")
+          content = path.read_text(encoding="utf-8")
+          old_version, new_version = sys.argv[1:]
+          old_line = f'version = "{old_version}"'
+          if content.count(old_line) != 1:
+              raise SystemExit("Could not identify the project version in pyproject.toml.")
+          path.write_text(
+              content.replace(old_line, f'version = "{new_version}"', 1),
+              encoding="utf-8",
+          )
+          PY
+
+          bash scripts/build_release.sh "$next_release_version"
+
+          HOME="$user_home" \
+            AUDIODOC_HOME="$app_home" \
+            AUDIODOC_RELEASE_URL="$release_url" \
+            AUDIODOC_RELEASE_TAG="$next_release_version" \
+            sh install.sh --upgrade
+
+          installed_version="$("$app_home/.venv/bin/python" -c 'from importlib.metadata import version; print(version("audiodoc"))')"
+          test "$installed_version" = "$next_release_version"
+          cmp "${RUNNER_TEMP}/audiodoc.env" "$app_home/.env"
+
+          cp "$pyproject_backup" pyproject.toml
+          bash scripts/build_release.sh "$release_version"
+      - name: Test installer rollback and isolated installation flows
+        run: python -m pytest -q tests/unit/test_installer.py
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-assets

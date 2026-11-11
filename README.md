@@ -29,19 +29,27 @@ OCR requires Tesseract and the `rus`/`eng` language data. DJVU requires `djvutxt
 
 ## Release installer
 
-After the first GitHub Release is published, the installer can set up audiodoc, create two separate random API keys, optionally download the Whisper model, and prepare a bot configuration snippet. The installer does not enable or start its optional user systemd unit.
+The installer downloads the latest stable GitHub Release wheel, `constraints.txt`, and `SHA256SUMS`, verifies their checksums, and installs into `~/audiodoc/.venv` by default. It requires Linux with glibc, Python 3.11+, `venv`, `curl`, and `sha256sum`. Alpine is unsupported because release wheels require glibc.
 
-Download the script first, inspect it, and then run it (do not pipe an unreviewed script directly into a shell):
+Download and inspect the installer before running it:
 
 ```bash
 curl -fsSLo install.sh https://raw.githubusercontent.com/WhlteAdmln/audiodoc/main/install.sh
 less install.sh
-sh install.sh --latest --systemd
+sh install.sh --no-model --systemd
 ```
 
-Use `--nightly` for the newest published prerelease. The installer supports `--host`, `--port`, `--model`, `--device`, `--compute-type`, and `--no-model`; run `sh install.sh --help` for details. It binds to `127.0.0.1` by default. For a two-machine deployment, use the backend's private/VPN address and restrict its port to the bot host. For a production system service with a dedicated account and filesystem sandbox, follow [the deployment guide](deploy/README.md).
+The installer selects the latest stable release automatically. Configure it with `--model`, `--device`, `--compute-type`, `--host`, and `--port`; `--no-model` skips the Whisper model download. `--systemd` creates a per-user unit without enabling or starting it. `--os-packages` opts in to the package-manager command recommended by `doctor`. Set `AUDIODOC_HOME` to change the installation directory.
 
-The first stable or prerelease must exist before the corresponding release channel can be installed. `--latest` requires a stable GitHub Release; `--nightly` requires a published prerelease.
+To upgrade an existing installation, download and inspect the current installer as above, then run:
+
+```bash
+sh install.sh --upgrade
+```
+
+Upgrade requires the existing `.env` and `.venv`, refuses to run while the user service is active, and validates a staged `.venv.new` with `audiodoc doctor --offline` before switching environments. On failure, the previous environment remains in place. The upgrade preserves `.env`, `models/`, `tmp/`, and the systemd unit; it never restarts the service. Restart it manually when ready with `systemctl --user restart audiodoc.service`.
+
+For direct Python package installation, download the wheel and `constraints.txt` from the same release. Install with `pipx install --pip-args="--constraint constraints.txt" ./audiodoc-*.whl` or `python -m pip install --constraint constraints.txt ./audiodoc-*.whl`, then run `audiodoc init` and `audiodoc doctor`.
 
 ## Quick start
 
