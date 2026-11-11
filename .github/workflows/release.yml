@@ -7,11 +7,11 @@ on:
         description: "Release version without the leading v (for example, 0.1.0)"
         required: true
         type: string
-      publish:
-        description: "Publish immediately instead of creating a draft release"
+      dry_run:
+        description: "Build and upload release assets without creating a draft release or publishing the container image"
         required: true
         type: boolean
-        default: false
+        default: true
 
 permissions: {}
 
@@ -72,11 +72,15 @@ jobs:
           fi
 
   release:
-    name: Build and publish release
+    name: Build and prepare draft release
     needs: e2e
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     timeout-minutes: 10
     steps:
       - name: Check out source
@@ -89,6 +93,9 @@ jobs:
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.0.0
         with:
           python-version: "3.12"
+
+      - name: Install build frontend
+        run: python -m pip install --disable-pip-version-check "build>=1.2,<2.0"
 
       - name: Validate release request
         env:
@@ -132,7 +139,16 @@ jobs:
 
           echo "Validated release ${tag} from ${GITHUB_SHA}."
 
-      - name: Build release archive and wheel
+      - name: Extract release notes from CHANGELOG
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          python scripts/release_notes.py \
+            "$RELEASE_VERSION" \
+            CHANGELOG.md \
+            "$RUNNER_TEMP/release-notes.md"
+
+      - name: Build source distribution and wheel
         env:
           RELEASE_VERSION: ${{ inputs.version }}
         run: bash scripts/build_release.sh "$RELEASE_VERSION"
@@ -142,10 +158,10 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          archives=(dist/*.zip)
+          sdists=(dist/audiodoc-*.tar.gz)
           wheels=(dist/audiodoc-*.whl)
-          if [[ ${#archives[@]} -ne 1 ]]; then
-            echo "Expected exactly one ZIP archive in dist/, found ${#archives[@]}." >&2
+          if [[ ${#sdists[@]} -ne 1 ]]; then
+            echo "Expected exactly one source distribution in dist/, found ${#sdists[@]}." >&2
             exit 1
           fi
           if [[ ${#wheels[@]} -ne 1 ]]; then
@@ -156,36 +172,60 @@ jobs:
           test -s dist/SHA256SUMS
           (cd dist && sha256sum --check --status SHA256SUMS)
 
-      - name: Create GitHub release
+      - name: Generate build provenance attestation
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.whl
+            dist/constraints.txt
+            dist/SHA256SUMS
+
+      - name: Add provenance bundle to release assets
+        env:
+          PROVENANCE_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: cp "$PROVENANCE_BUNDLE" dist/build-provenance.sigstore.json
+
+      - name: Upload release assets as workflow artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-assets-${{ inputs.version }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Log in to GHCR
+        if: inputs.dry_run == false
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "${GITHUB_TOKEN}" | docker login ghcr.io \
+            --username "${GITHUB_ACTOR}" \
+            --password-stdin
+
+      - name: Build and publish versioned Docker image
+        if: inputs.dry_run == false
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/$(printf '%s' "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          docker build --pull --tag "${image}:${RELEASE_VERSION}" .
+          docker push "${image}:${RELEASE_VERSION}"
+
+      - name: Create draft GitHub release
+        if: inputs.dry_run == false
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ inputs.version }}
-          PUBLISH: ${{ inputs.publish }}
         shell: bash
         run: |
           set -euo pipefail
 
           tag="v${RELEASE_VERSION}"
-          shopt -s nullglob
-          archives=(dist/*.zip)
-          wheels=(dist/audiodoc-*.whl)
-          release_args=(
-            "$tag"
-            "${archives[0]}"
-            "${wheels[0]}"
-            "dist/constraints.txt"
-            "dist/SHA256SUMS"
-            --title "audiodoc ${RELEASE_VERSION}"
-            --generate-notes
+          gh release create "$tag" dist/* \
+            --title "audiodoc ${RELEASE_VERSION}" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
+            --draft \
             --target "$GITHUB_SHA"
-          )
-
-          version_without_build="${RELEASE_VERSION%%+*}"
-          if [[ "$version_without_build" == *-* ]]; then
-            release_args+=(--prerelease)
-          fi
-          if [[ "$PUBLISH" != "true" ]]; then
-            release_args+=(--draft)
-          fi
-
-          gh release create "${release_args[@]}"
