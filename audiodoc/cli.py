@@ -19,8 +19,10 @@ from dotenv import dotenv_values
 
 from audiodoc.api.auth import check_security_settings
 from audiodoc.config import ConfigError, Settings, load_env_file, load_settings
+from audiodoc.doctor import collect_doctor_checks
 from audiodoc.env_readers import get_bool, get_home_dir, get_log_level
 from audiodoc.logging_setup import configure_logging
+from audiodoc.system_diagnostics import DiagnosticCheck
 
 logger = logging.getLogger(__name__)
 MAX_PORT = 65_535
@@ -90,6 +92,7 @@ def _build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--env-file", type=Path)
 
     commands.add_parser("version", help="Show the installed version.")
+    commands.add_parser("doctor", help="Check the audiodoc installation.")
 
     init_parser = commands.add_parser("init", help="Create a protected .env file.")
     init_parser.add_argument("--model", choices=SUPPORTED_MODEL_NAMES, default="small")
@@ -131,6 +134,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     handlers: dict[str, CommandHandler] = {
         "run": _handle_run_command,
         "version": _handle_version_command,
+        "doctor": _handle_doctor_command,
         "init": _handle_init_command,
         "pair": _handle_pair_command,
         "model": _handle_model_command,
@@ -161,6 +165,61 @@ def _handle_version_command(
     """Handle the version command."""
     sys.stdout.write(f"audiodoc {package_version('audiodoc')}\n")
     return 0
+
+
+def _handle_doctor_command(
+    _args: argparse.Namespace, _parser: argparse.ArgumentParser
+) -> int:
+    """Handle installation diagnostics."""
+    load_env_file()
+    checks = collect_doctor_checks(os.environ)
+    for check in checks:
+        sys.stdout.write(f"{check.status:4} {check.name}: {check.message}\n")
+
+    install_commands = _native_install_commands(checks)
+    if install_commands:
+        sys.stdout.write("Install missing native tools with one of:\n")
+        for distribution, command in install_commands:
+            sys.stdout.write(f"  {distribution}: {command}\n")
+
+    return 1 if any(check.status == "FAIL" for check in checks) else 0
+
+
+def _native_install_commands(
+    checks: Sequence[DiagnosticCheck],
+) -> tuple[tuple[str, str], ...]:
+    """Return OS-specific installation commands for missing native tools."""
+    failed_names = {check.name for check in checks if check.status == "FAIL"}
+    packages: dict[str, list[str]] = {
+        "apt": [],
+        "dnf": [],
+        "pacman": [],
+    }
+
+    if "Tesseract" in failed_names:
+        packages["apt"].extend(
+            ("tesseract-ocr", "tesseract-ocr-rus", "tesseract-ocr-eng")
+        )
+        packages["dnf"].extend(
+            ("tesseract", "tesseract-langpack-rus", "tesseract-langpack-eng")
+        )
+        packages["pacman"].extend(
+            ("tesseract", "tesseract-data-rus", "tesseract-data-eng")
+        )
+
+    if "DjVuLibre" in failed_names:
+        packages["apt"].append("djvulibre-bin")
+        packages["dnf"].append("djvulibre")
+        packages["pacman"].append("djvulibre")
+
+    if not any(packages.values()):
+        return ()
+
+    return (
+        ("Debian/Ubuntu", f"sudo apt install {' '.join(packages['apt'])}"),
+        ("Fedora/RHEL", f"sudo dnf install {' '.join(packages['dnf'])}"),
+        ("Arch Linux", f"sudo pacman -S {' '.join(packages['pacman'])}"),
+    )
 
 
 def _handle_init_command(

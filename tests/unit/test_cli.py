@@ -11,6 +11,7 @@ from types import SimpleNamespace
 import pytest
 
 from audiodoc import cli
+from audiodoc.system_diagnostics import DiagnosticCheck
 
 
 def _read_env_values(path: Path) -> dict[str, str]:
@@ -348,3 +349,58 @@ def test_python_module_entry_point_invokes_main(
         runpy.run_path(str(entry_point), run_name="__main__")
 
     assert error.value.code == 7
+
+
+def test_doctor_prints_checks_and_warnings_do_not_fail(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(cli, "load_env_file", lambda: calls.append("env"))
+    monkeypatch.setattr(
+        cli,
+        "collect_doctor_checks",
+        lambda _environ: (
+            DiagnosticCheck("Python", "OK", "Python 3.11 is supported."),
+            DiagnosticCheck("Bind address", "WARN", "Binding to all interfaces."),
+        ),
+    )
+
+    assert cli.main(["doctor"]) == 0
+    assert calls == ["env"]
+    assert capsys.readouterr().out.splitlines() == [
+        "OK   Python: Python 3.11 is supported.",
+        "WARN Bind address: Binding to all interfaces.",
+    ]
+
+
+def test_doctor_fails_and_prints_native_tool_install_commands(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(cli, "load_env_file", lambda: None)
+    monkeypatch.setattr(
+        cli,
+        "collect_doctor_checks",
+        lambda _environ: (
+            DiagnosticCheck("Tesseract", "FAIL", "Executable not found."),
+            DiagnosticCheck("DjVuLibre", "FAIL", "Executables not found."),
+        ),
+    )
+
+    assert cli.main(["doctor"]) == 1
+    output = capsys.readouterr().out
+
+    assert "FAIL Tesseract: Executable not found." in output
+    assert "FAIL DjVuLibre: Executables not found." in output
+    assert (
+        "sudo apt install tesseract-ocr tesseract-ocr-rus "
+        "tesseract-ocr-eng djvulibre-bin"
+    ) in output
+    assert (
+        "sudo dnf install tesseract tesseract-langpack-rus "
+        "tesseract-langpack-eng djvulibre"
+    ) in output
+    assert (
+        "sudo pacman -S tesseract tesseract-data-rus tesseract-data-eng djvulibre"
+    ) in output
