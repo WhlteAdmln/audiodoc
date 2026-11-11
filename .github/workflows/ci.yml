@@ -320,7 +320,7 @@ jobs:
       - name: Check installer shell
         run: |
           shellcheck --shell=sh install.sh
-          shfmt -i 8 -sr -d install.sh
+          shfmt -i 0 -d install.sh
       - name: Build archive, wheel and checksums
         run: bash scripts/build_release.sh "$(python -c 'import tomllib; from pathlib import Path; print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])')"
       - name: Install and upgrade from a locally served release
