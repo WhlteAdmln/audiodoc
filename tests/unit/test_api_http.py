@@ -7,6 +7,7 @@ import asyncio
 import re
 import tempfile
 import threading
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
@@ -148,10 +149,13 @@ async def test_live_socket_health_ready_docs_and_request_ids(
 ) -> None:
     monkeypatch.setattr(
         ready_module,
-        "_available_tesseract_languages",
-        lambda: (False, []),
+        "check_native_tools",
+        lambda: SimpleNamespace(
+            tesseract=None,
+            languages=(),
+            djvulibre=False,
+        ),
     )
-    monkeypatch.setattr(ready_module.shutil, "which", lambda _name: None)
 
     async with aiohttp.ClientSession() as session:
         request_id = "socket-request-0001"

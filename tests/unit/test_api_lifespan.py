@@ -4,6 +4,7 @@
 import asyncio
 from collections.abc import Iterable
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI
@@ -72,10 +73,13 @@ def test_health_and_ready_use_application_model_holder(
 
     monkeypatch.setattr(
         ready_module,
-        "_available_tesseract_languages",
-        lambda: (False, []),
+        "check_native_tools",
+        lambda: SimpleNamespace(
+            tesseract=None,
+            languages=(),
+            djvulibre=False,
+        ),
     )
-    monkeypatch.setattr(ready_module.shutil, "which", lambda _name: None)
 
     client = TestClient(loaded_application)
 
