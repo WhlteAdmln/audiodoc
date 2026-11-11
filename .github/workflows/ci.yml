@@ -498,7 +498,7 @@ jobs:
         if: always()
         run: |
           if [[ -d .cache/whisper ]]; then
-            chmod -R a+rX .cache/whisper
+            sudo chown -R "$(id -u):$(id -g)" .cache/whisper
           fi
 
   publish-container:

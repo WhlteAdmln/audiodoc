@@ -161,6 +161,6 @@ def test_ci_builds_checks_and_publishes_the_container_image() -> None:
         "        if: always()\n"
         "        run: |\n"
         "          if [[ -d .cache/whisper ]]; then\n"
-        "            chmod -R a+rX .cache/whisper\n"
+        '            sudo chown -R "$(id -u):$(id -g)" .cache/whisper\n'
         "          fi\n"
     ) in workflow
