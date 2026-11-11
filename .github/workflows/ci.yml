@@ -447,3 +447,58 @@ jobs:
           name: release-assets
           path: dist/
           retention-days: 7
+
+  container:
+    name: Docker image smoke test
+    needs: [test, integration]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Create Compose environment file
+        run: touch .env
+      - name: Validate Compose configurations
+        run: |
+          docker compose -f compose.yaml config --quiet
+          docker compose -f compose.yaml -f compose.cuda.yaml config --quiet
+      - name: Build Docker image
+        run: docker compose -f compose.yaml build --pull audiodoc
+      - name: Initialize persistent volume and run doctor
+        run: |
+          set -euo pipefail
+          docker compose -f compose.yaml run --rm --no-deps audiodoc init --model tiny
+          docker compose -f compose.yaml run --rm --no-deps audiodoc doctor
+          docker compose -f compose.yaml down --volumes
+
+  publish-container:
+    name: Publish Docker image to GHCR
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: container
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Log in to GHCR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "${GITHUB_TOKEN}" | docker login ghcr.io \
+            --username "${GITHUB_ACTOR}" \
+            --password-stdin
+      - name: Build and publish Docker image
+        run: |
+          set -euo pipefail
+          image="ghcr.io/$(printf '%s' "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          docker build --pull \
+            --tag "${image}:${GITHUB_SHA}" \
+            --tag "${image}:latest" \
+            .
+          docker push "${image}:${GITHUB_SHA}"
+          docker push "${image}:latest"
