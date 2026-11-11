@@ -316,13 +316,30 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             shellcheck tesseract-ocr tesseract-ocr-rus \
             tesseract-ocr-eng djvulibre-bin
-          python -m pip install pytest==9.2.0 pytest-asyncio==1.4.1.post1 pytest-timeout==2.4.0 shfmt-py==4.0.0
+          python -m pip install \
+            pytest==9.2.0 \
+            pytest-asyncio==1.4.1.post1 \
+            pytest-timeout==2.4.0 \
+            shfmt-py==4.0.0 \
+            "build>=1.2,<2.0"
       - name: Check installer shell
         run: |
           shellcheck --shell=sh install.sh
           shfmt -i 0 -d install.sh
-      - name: Build archive, wheel and checksums
+      - name: Build source distribution, wheel and checksums
         run: bash scripts/build_release.sh "$(python -c 'import tomllib; from pathlib import Path; print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])')"
+      - name: Verify release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          sdists=(dist/audiodoc-*.tar.gz)
+          wheels=(dist/audiodoc-*.whl)
+          [[ ${#sdists[@]} -eq 1 ]]
+          [[ ${#wheels[@]} -eq 1 ]]
+          test -s dist/constraints.txt
+          test -s dist/SHA256SUMS
+          (cd dist && sha256sum --check --status SHA256SUMS)
       - name: Install and upgrade from a locally served release
         shell: bash
         run: |
