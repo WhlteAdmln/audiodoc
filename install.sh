@@ -728,31 +728,11 @@ log "Checking that the application and installed dependencies import successfull
 ) || die "Application import check failed. Review the Python dependency installation and release contents."
 
 if [ "$CREATE_SYSTEMD" -eq 1 ]; then
-	mkdir -p "$SYSTEMD_USER_DIR"
-	SYSTEMD_WORKDIR=$(printf '%s' "$INSTALL_DIR" | sed 's/\\/\\\\/g; s/"/\\"/g; s/%/%%/g')
-	SYSTEMD_ENVFILE=$(printf '%s' "$INSTALL_DIR/.env" | sed 's/\\/\\\\/g; s/"/\\"/g; s/%/%%/g')
-	SYSTEMD_EXEC=$(printf '%s' "$INSTALL_DIR/.venv/bin/uvicorn" | sed 's/\\/\\\\/g; s/"/\\"/g; s/%/%%/g')
+	(
+		cd "$INSTALL_DIR"
+		AUDIODOC_HOME="$INSTALL_DIR" "$INSTALL_DIR/.venv/bin/python" -m audiodoc service install --user
+	) || die "Could not create the user systemd unit."
 	SYSTEMD_UNIT_CREATED=1
-	cat >"$SYSTEMD_UNIT_FILE" <<EOF
-[Unit]
-Description=audiodoc FastAPI service
-Wants=network-online.target
-After=network-online.target
-
-[Service]
-Type=simple
-WorkingDirectory="$SYSTEMD_WORKDIR"
-EnvironmentFile="$SYSTEMD_ENVFILE"
-Environment=PYTHONUNBUFFERED=1
-ExecStart="$SYSTEMD_EXEC" app:app --host $HOST --port $PORT --no-server-header
-Restart=on-failure
-RestartSec=5
-UMask=0077
-
-[Install]
-WantedBy=default.target
-EOF
-	chmod 600 "$SYSTEMD_UNIT_FILE"
 	systemctl --user daemon-reload || die "Could not reload the user systemd manager."
 	log "Created user systemd unit: $SYSTEMD_UNIT_FILE"
 fi
