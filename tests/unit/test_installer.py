@@ -63,6 +63,9 @@ def main():
             print("  Fedora/RHEL: sudo dnf install test-native-package")
             print("  Arch Linux: sudo pacman -S test-native-package")
             return 1
+        if "--offline" in args and os.environ.get("FAKE_DOCTOR_FAIL_OFFLINE") == "1":
+            print("FAIL Whisper model: model is not cached.")
+            return 1
         print("doctor OK")
         return 0
 
@@ -490,3 +493,162 @@ def test_installer_refuses_existing_home(
     assert result.returncode != 0
     assert "Installation directory already exists" in result.stderr
     assert marker.read_text(encoding="utf-8") == "existing data"
+
+
+def test_installer_upgrades_existing_environment_and_preserves_application_data(
+    tmp_path: Path,
+    local_release: tuple[str, Path],
+) -> None:
+    release_url, _release_dir = local_release
+    user_home = tmp_path / "user"
+    user_home.mkdir()
+    app_home = user_home / "audiodoc"
+
+    initial = run_installer(
+        "--no-model",
+        "--systemd",
+        release_url=release_url,
+        home=user_home,
+    )
+    assert initial.returncode == 0, initial.stdout + initial.stderr
+
+    env_path = app_home / ".env"
+    env_path.write_text("CUSTOM_SETTING=keep-me\n", encoding="utf-8")
+    models_dir = app_home / "models"
+    models_dir.mkdir()
+    (models_dir / "keep.bin").write_bytes(b"model-data")
+    tmp_dir = app_home / "tmp"
+    tmp_dir.mkdir()
+    (tmp_dir / "keep.tmp").write_text("temporary-data", encoding="utf-8")
+    old_marker = app_home / ".venv" / "old-environment-marker"
+    old_marker.write_text("old", encoding="utf-8")
+
+    result = run_installer(
+        "--upgrade",
+        release_url=release_url,
+        home=user_home,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert env_path.read_text(encoding="utf-8") == "CUSTOM_SETTING=keep-me\n"
+    assert (models_dir / "keep.bin").read_bytes() == b"model-data"
+    assert (tmp_dir / "keep.tmp").read_text(encoding="utf-8") == "temporary-data"
+    assert (app_home / "service-installed").read_text(encoding="utf-8") == "ok"
+    assert not old_marker.exists()
+    assert (app_home / ".venv" / "bin" / "audiodoc").is_file()
+    assert not (app_home / ".venv.new").exists()
+    assert not (app_home / ".venv.prev").exists()
+    assert "systemctl --user restart audiodoc.service" in result.stdout
+
+    calls = [
+        json.loads(line)
+        for line in (app_home / "calls.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert calls[-1] == ["doctor", "--offline"]
+    assert calls.count(["service", "install", "--user"]) == 1
+
+
+def test_installer_upgrade_rolls_back_when_offline_doctor_fails(
+    tmp_path: Path,
+    local_release: tuple[str, Path],
+) -> None:
+    release_url, _release_dir = local_release
+    user_home = tmp_path / "user"
+    user_home.mkdir()
+    app_home = user_home / "audiodoc"
+
+    initial = run_installer(
+        "--no-model",
+        release_url=release_url,
+        home=user_home,
+    )
+    assert initial.returncode == 0, initial.stdout + initial.stderr
+
+    old_marker = app_home / ".venv" / "old-environment-marker"
+    old_marker.write_text("old", encoding="utf-8")
+
+    result = run_installer(
+        "--upgrade",
+        release_url=release_url,
+        home=user_home,
+        extra_env={"FAKE_DOCTOR_FAIL_OFFLINE": "1"},
+    )
+
+    assert result.returncode != 0
+    assert "doctor --offline failed" in result.stderr
+    assert old_marker.read_text(encoding="utf-8") == "old"
+    assert not (app_home / ".venv.new").exists()
+    assert not (app_home / ".venv.prev").exists()
+
+
+def test_installer_upgrade_refuses_active_user_service(
+    tmp_path: Path,
+    local_release: tuple[str, Path],
+) -> None:
+    release_url, _release_dir = local_release
+    user_home = tmp_path / "user"
+    user_home.mkdir()
+    app_home = user_home / "audiodoc"
+
+    initial = run_installer(
+        "--no-model",
+        release_url=release_url,
+        home=user_home,
+    )
+    assert initial.returncode == 0, initial.stdout + initial.stderr
+
+    old_marker = app_home / ".venv" / "old-environment-marker"
+    old_marker.write_text("old", encoding="utf-8")
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    systemctl = fake_bin / "systemctl"
+    systemctl.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    systemctl.chmod(0o755)
+
+    result = run_installer(
+        "--upgrade",
+        release_url=release_url,
+        home=user_home,
+        extra_env={"PATH": str(fake_bin) + os.pathsep + os.environ["PATH"]},
+    )
+
+    assert result.returncode != 0
+    assert "user service is active" in result.stderr
+    assert old_marker.read_text(encoding="utf-8") == "old"
+    assert not (app_home / ".venv.new").exists()
+
+
+def test_installer_upgrade_rejects_legacy_010_installation(
+    tmp_path: Path,
+    local_release: tuple[str, Path],
+) -> None:
+    release_url, _release_dir = local_release
+    user_home = tmp_path / "user"
+    user_home.mkdir()
+    app_home = user_home / "audiodoc"
+
+    initial = run_installer(
+        "--no-model",
+        release_url=release_url,
+        home=user_home,
+    )
+    assert initial.returncode == 0, initial.stdout + initial.stderr
+
+    legacy_entrypoint = app_home / "backend" / "main.py"
+    legacy_entrypoint.parent.mkdir(parents=True)
+    legacy_entrypoint.write_text("# Legacy audiodoc entry point\n", encoding="utf-8")
+
+    package_path = next(
+        (app_home / ".venv" / "lib").glob("python*/site-packages/audiodoc")
+    )
+    shutil.rmtree(package_path)
+
+    result = run_installer(
+        "--upgrade",
+        release_url=release_url,
+        home=user_home,
+    )
+
+    assert result.returncode != 0
+    assert "Legacy audiodoc 0.1.0" in result.stderr
+    assert (app_home / ".venv" / "bin" / "audiodoc").is_file()

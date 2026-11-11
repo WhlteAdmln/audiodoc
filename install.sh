@@ -15,6 +15,9 @@ NO_MODEL=0
 CREATE_SYSTEMD=0
 INSTALL_OS_PACKAGES=0
 PYTHON_BIN=""
+UPGRADE=0
+INSTALL_OPTIONS=0
+UPGRADE_BACKUP=0
 INSTALL_CREATED=0
 INSTALL_SUCCEEDED=0
 
@@ -39,6 +42,7 @@ Usage: install.sh [options]
   --no-model           Skip downloading the Whisper model.
   --systemd            Install a per-user systemd unit.
   --os-packages        Run native package commands printed by doctor.
+  --upgrade            Safely upgrade an existing installation.
   --help               Show this help.
 
 Environment:
@@ -67,36 +71,47 @@ while [ "$#" -gt 0 ]; do
 	--model)
 		need_value "$@"
 		MODEL=$2
+		INSTALL_OPTIONS=$((INSTALL_OPTIONS + 1))
 		shift
 		;;
 	--device)
 		need_value "$@"
 		DEVICE=$2
+		INSTALL_OPTIONS=$((INSTALL_OPTIONS + 1))
 		shift
 		;;
 	--compute-type)
 		need_value "$@"
 		COMPUTE_TYPE=$2
+		INSTALL_OPTIONS=$((INSTALL_OPTIONS + 1))
 		shift
 		;;
 	--host)
 		need_value "$@"
 		HOST=$2
+		INSTALL_OPTIONS=$((INSTALL_OPTIONS + 1))
 		shift
 		;;
 	--port)
 		need_value "$@"
 		PORT=$2
+		INSTALL_OPTIONS=$((INSTALL_OPTIONS + 1))
 		shift
 		;;
 	--no-model)
 		NO_MODEL=1
+		INSTALL_OPTIONS=$((INSTALL_OPTIONS + 1))
 		;;
 	--systemd)
 		CREATE_SYSTEMD=1
+		INSTALL_OPTIONS=$((INSTALL_OPTIONS + 1))
 		;;
 	--os-packages)
 		INSTALL_OS_PACKAGES=1
+		INSTALL_OPTIONS=$((INSTALL_OPTIONS + 1))
+		;;
+	--upgrade)
+		UPGRADE=1
 		;;
 	--help | -h)
 		usage
@@ -108,6 +123,10 @@ while [ "$#" -gt 0 ]; do
 	esac
 	shift
 done
+
+if [ "$UPGRADE" -eq 1 ] && [ "$INSTALL_OPTIONS" -ne 0 ]; then
+	die "--upgrade cannot be combined with installation configuration options."
+fi
 
 case "$GITHUB_REPOSITORY" in
 */*)
@@ -200,8 +219,49 @@ case "$HOME_DIR" in
 	;;
 esac
 
-if [ -e "$HOME_DIR" ] || [ -L "$HOME_DIR" ]; then
-	die "Installation directory already exists: $HOME_DIR. Use --upgrade to update an existing installation."
+refuse_active_service() {
+	if command -v systemctl >/dev/null 2>&1 &&
+		systemctl --user is-active --quiet audiodoc.service; then
+		die "The audiodoc user service is active. Stop it manually before upgrading."
+	fi
+}
+
+if [ "$UPGRADE" -eq 1 ]; then
+	[ -d "$HOME_DIR" ] && [ ! -L "$HOME_DIR" ] ||
+		die "Upgrade requires an existing installation directory: $HOME_DIR"
+	[ -f "$HOME_DIR/.env" ] && [ ! -L "$HOME_DIR/.env" ] ||
+		die "Upgrade requires an existing regular .env file."
+	[ -d "$HOME_DIR/.venv" ] && [ ! -L "$HOME_DIR/.venv" ] ||
+		die "Upgrade requires an existing .venv directory."
+	[ -x "$HOME_DIR/.venv/bin/python" ] ||
+		die "The existing virtual environment has no executable Python interpreter."
+	[ ! -e "$HOME_DIR/.venv.new" ] && [ ! -L "$HOME_DIR/.venv.new" ] ||
+		die "Refusing to overwrite stale upgrade directory: $HOME_DIR/.venv.new"
+	[ ! -e "$HOME_DIR/.venv.prev" ] && [ ! -L "$HOME_DIR/.venv.prev" ] ||
+		die "Refusing to overwrite stale upgrade backup: $HOME_DIR/.venv.prev"
+
+	if [ -f "$HOME_DIR/backend/main.py" ] &&
+		! "$HOME_DIR/.venv/bin/python" -c \
+			'import sysconfig
+from pathlib import Path
+paths = sysconfig.get_paths()
+raise SystemExit(
+    0
+    if any(
+        (Path(paths[key]) / "audiodoc").is_dir()
+        for key in ("purelib", "platlib")
+    )
+    else 1
+)' \
+			>/dev/null 2>&1; then
+		die "Legacy audiodoc 0.1.0 installation detected. Follow the migration procedure in task A-4.10 before upgrading."
+	fi
+
+	refuse_active_service
+else
+	if [ -e "$HOME_DIR" ] || [ -L "$HOME_DIR" ]; then
+		die "Installation directory already exists: $HOME_DIR. Use --upgrade to update an existing installation."
+	fi
 fi
 
 command -v curl >/dev/null 2>&1 || die "curl is required."
@@ -229,6 +289,15 @@ cleanup() {
 	result=$?
 	trap - 0
 	rm -rf "$TMP_DIR"
+	if [ "$UPGRADE" -eq 1 ]; then
+		rm -rf "$HOME_DIR/.venv.new"
+		if [ "$UPGRADE_BACKUP" -eq 1 ] &&
+			[ ! -e "$HOME_DIR/.venv" ] &&
+			[ -e "$HOME_DIR/.venv.prev" ]; then
+			mv "$HOME_DIR/.venv.prev" "$HOME_DIR/.venv" ||
+				printf '%s\n' "[$APP_NAME] ERROR: Could not restore the previous virtual environment." >&2
+		fi
+	fi
 	if [ "$INSTALL_CREATED" -eq 1 ] && [ "$INSTALL_SUCCEEDED" -ne 1 ]; then
 		rm -rf "$HOME_DIR"
 	fi
@@ -380,6 +449,71 @@ download_asset constraints.txt
 
 (cd "$TMP_DIR" && sha256sum -c "$VERIFY_SUMS") ||
 	die "Release SHA-256 verification failed."
+
+if [ "$UPGRADE" -eq 1 ]; then
+NEW_VENV="$HOME_DIR/.venv.new"
+NEW_PYTHON="$NEW_VENV/bin/python"
+NEW_CLI="$NEW_VENV/bin/audiodoc"
+
+log "Creating a staged virtual environment."
+"$PYTHON_BIN" -m venv "$NEW_VENV" ||
+die "Could not create the staged virtual environment."
+
+log "Installing the verified release wheel into the staged environment."
+"$NEW_PYTHON" -m pip install \
+--disable-pip-version-check \
+--constraint "$TMP_DIR/constraints.txt" \
+"$TMP_DIR/$WHEEL_NAME" ||
+die "Could not install the audiodoc release wheel into the staged environment."
+
+log "Checking the staged installation in offline mode."
+DOCTOR_OUTPUT="$TMP_DIR/doctor-upgrade.txt"
+if AUDIODOC_HOME="$HOME_DIR" "$NEW_CLI" doctor --offline \
+>"$DOCTOR_OUTPUT" 2>&1; then
+cat "$DOCTOR_OUTPUT"
+else
+cat "$DOCTOR_OUTPUT"
+die "Staged audiodoc doctor --offline failed. The existing installation was not replaced."
+fi
+
+refuse_active_service
+
+log "Switching the application virtual environment."
+mv "$HOME_DIR/.venv" "$HOME_DIR/.venv.prev" ||
+die "Could not move the existing virtual environment to its backup."
+UPGRADE_BACKUP=1
+
+mv "$NEW_VENV" "$HOME_DIR/.venv" ||
+die "Could not activate the staged virtual environment. The previous environment will be restored."
+
+if rm -rf "$HOME_DIR/.venv.prev"; then
+UPGRADE_BACKUP=0
+else
+log "WARNING: Could not remove the previous environment backup: $HOME_DIR/.venv.prev"
+UPGRADE_BACKUP=0
+fi
+
+INSTALL_SUCCEEDED=1
+cat <<EOF
+
+Upgrade completed successfully.
+
+Application directory:
+  $HOME_DIR
+
+Virtual environment:
+  $HOME_DIR/.venv
+
+The installer preserved .env, models/, tmp/, and the existing systemd unit.
+The installer did not restart or enable the systemd service.
+
+If the audiodoc user service is installed, restart it manually when ready:
+  systemctl --user restart audiodoc.service
+EOF
+
+log "Upgraded to release $RELEASE_TAG."
+exit 0
+fi
 
 log "Creating installation directory: $HOME_DIR"
 mkdir -p "${HOME_DIR%/*}"

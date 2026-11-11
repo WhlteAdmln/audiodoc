@@ -93,7 +93,10 @@ def _build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--env-file", type=Path)
 
     commands.add_parser("version", help="Show the installed version.")
-    commands.add_parser("doctor", help="Check the audiodoc installation.")
+    doctor_parser = commands.add_parser("doctor", help="Check the audiodoc installation.")
+    doctor_parser.add_argument(
+        "--offline", action="store_true", help="Require the model to be available locally."
+    )
 
     init_parser = commands.add_parser("init", help="Create a protected .env file.")
     init_parser.add_argument("--model", choices=SUPPORTED_MODEL_NAMES, default="small")
@@ -192,7 +195,10 @@ def _handle_doctor_command(
 ) -> int:
     """Handle installation diagnostics."""
     load_env_file()
-    checks = collect_doctor_checks(os.environ)
+    if _args.offline:
+        checks = collect_doctor_checks(os.environ, offline=True)
+    else:
+        checks = collect_doctor_checks(os.environ)
     for check in checks:
         sys.stdout.write(f"{check.status:4} {check.name}: {check.message}\n")
 
