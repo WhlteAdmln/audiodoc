@@ -470,7 +470,7 @@ jobs:
         run: |
           set -euo pipefail
           docker compose -f compose.yaml run --rm --no-deps audiodoc init --model tiny
-          docker compose -f compose.yaml run --rm --no-deps --network none audiodoc doctor
+          docker compose -f compose.yaml run --rm --no-deps audiodoc doctor
           docker compose -f compose.yaml down --volumes
 
   publish-container:

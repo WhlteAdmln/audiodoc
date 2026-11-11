@@ -82,6 +82,15 @@ def test_docker_entrypoint_uses_keys_from_persistent_home() -> None:
     assert 'exec "$@"' in entrypoint
 
 
+def test_docker_entrypoint_dispatches_cli_subcommands() -> None:
+    """Ensure entrypoint routes Compose subcommands through the CLI."""
+    entrypoint = (ROOT_DIR / "docker-entrypoint.sh").read_text(encoding="utf-8")
+
+    assert 'if [ "${1:-}" != "audiodoc" ]; then' in entrypoint
+    assert 'set -- audiodoc "$@"' in entrypoint
+    assert 'exec "$@"' in entrypoint
+
+
 def test_compose_configures_secure_persistent_storage() -> None:
     """Ensure Compose uses persistent data and safe container defaults."""
     compose = (ROOT_DIR / "compose.yaml").read_text(encoding="utf-8")
@@ -135,8 +144,7 @@ def test_ci_builds_checks_and_publishes_the_container_image() -> None:
         in workflow
     )
     assert (
-        "docker compose -f compose.yaml run --rm --no-deps "
-        "--network none audiodoc doctor" in workflow
+        "docker compose -f compose.yaml run --rm --no-deps audiodoc doctor" in workflow
     )
     assert "name: Publish Docker image to GHCR" in workflow
     assert "packages: write" in workflow
