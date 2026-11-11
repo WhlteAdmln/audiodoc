@@ -58,6 +58,7 @@ def test_dockerignore_excludes_secrets_and_local_state() -> None:
 
     assert {
         ".git/",
+        ".cache/",
         ".env",
         ".env.*",
         "!.env.example",
@@ -139,13 +140,16 @@ def test_ci_builds_checks_and_publishes_the_container_image() -> None:
 
     assert "name: Docker image smoke test" in workflow
     assert "docker compose -f compose.yaml build --pull audiodoc" in workflow
+    assert "path: .cache/whisper" in workflow
+    assert "whisper-tiny-${{ hashFiles('requirements-lock.txt') }}" in workflow
+    assert ".cache/whisper:/data/models" in workflow
+    assert "audiodoc model download --name tiny --dir /data/models/tiny" in workflow
+    assert "WHISPER_MODEL_PATH=/data/models/tiny" in workflow
     assert (
         "docker compose -f compose.yaml run --rm --no-deps audiodoc init --model tiny"
         in workflow
     )
-    assert (
-        "docker compose -f compose.yaml run --rm --no-deps audiodoc doctor" in workflow
-    )
+    assert "audiodoc doctor --offline" in workflow
     assert "name: Publish Docker image to GHCR" in workflow
     assert "packages: write" in workflow
     assert "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}" in workflow
