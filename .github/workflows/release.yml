@@ -132,7 +132,7 @@ jobs:
 
           echo "Validated release ${tag} from ${GITHUB_SHA}."
 
-      - name: Build release wheel
+      - name: Build release archive and wheel
         env:
           RELEASE_VERSION: ${{ inputs.version }}
         run: bash scripts/build_release.sh "$RELEASE_VERSION"
@@ -142,7 +142,12 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
+          archives=(dist/*.zip)
           wheels=(dist/audiodoc-*.whl)
+          if [[ ${#archives[@]} -ne 1 ]]; then
+            echo "Expected exactly one ZIP archive in dist/, found ${#archives[@]}." >&2
+            exit 1
+          fi
           if [[ ${#wheels[@]} -ne 1 ]]; then
             echo "Expected exactly one audiodoc wheel in dist/, found ${#wheels[@]}." >&2
             exit 1
@@ -162,9 +167,11 @@ jobs:
 
           tag="v${RELEASE_VERSION}"
           shopt -s nullglob
+          archives=(dist/*.zip)
           wheels=(dist/audiodoc-*.whl)
           release_args=(
             "$tag"
+            "${archives[0]}"
             "${wheels[0]}"
             "dist/constraints.txt"
             "dist/SHA256SUMS"
