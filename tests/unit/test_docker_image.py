@@ -20,6 +20,16 @@ def test_dockerfile_builds_a_multi_stage_python_image() -> None:
     assert "python -m venv /opt/venv" in dockerfile
 
 
+def test_dockerfile_declares_ghcr_source_repository() -> None:
+    """Ensure the image metadata identifies its source repository."""
+    dockerfile = (ROOT_DIR / "Dockerfile").read_text(encoding="utf-8")
+    expected_label = (
+        'LABEL org.opencontainers.image.source="https://github.com/WhlteAdmln/audiodoc"'
+    )
+
+    assert expected_label in dockerfile
+
+
 def test_dockerfile_installs_native_document_dependencies() -> None:
     """Ensure OCR languages and DjVuLibre tools are installed."""
     dockerfile = (ROOT_DIR / "Dockerfile").read_text(encoding="utf-8")

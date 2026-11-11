@@ -63,6 +63,8 @@ ENV PATH="/opt/venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+LABEL org.opencontainers.image.source="https://github.com/WhlteAdmln/audiodoc"
+
 WORKDIR /app
 VOLUME ["/data"]
 EXPOSE 8000
