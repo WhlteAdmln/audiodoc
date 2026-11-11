@@ -2,37 +2,15 @@
 """Readiness diagnostics for native OCR and DJVU dependencies."""
 
 import asyncio
-import logging
-import shutil
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
 from audiodoc.api.dependencies import get_model_holder
-from audiodoc.document_engine.ocr.tesseract import _get_pytesseract
+from audiodoc.document_engine.diagnostics import check_native_tools
 from audiodoc.transcription.model import ModelHolder
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-def _available_tesseract_languages() -> tuple[bool, list[str]]:
-    """Return the Tesseract executable state and installed language codes."""
-    if shutil.which("tesseract") is None:
-        return False, []
-
-    try:
-        pytesseract = _get_pytesseract()
-    except ImportError:
-        logger.warning("Unable to query Tesseract language data")
-        return True, []
-
-    try:
-        return True, sorted(set(pytesseract.get_languages(config="")))
-    except (OSError, pytesseract.TesseractError):
-        # Keep the diagnostic endpoint safe and useful even when tessdata is broken.
-        logger.warning("Unable to query Tesseract language data")
-        return True, []
 
 
 @router.get("/ready")
@@ -46,13 +24,10 @@ async def ready(
         the current Whisper model state. This endpoint requires no API key.
 
     """
-    tesseract, languages = await asyncio.to_thread(_available_tesseract_languages)
-    djvulibre = all(
-        shutil.which(name) is not None for name in ("djvutxt", "djvused", "ddjvu")
-    )
+    native_tools = await asyncio.to_thread(check_native_tools)
     return {
-        "tesseract": tesseract,
-        "languages": languages,
-        "djvulibre": djvulibre,
+        "tesseract": native_tools.tesseract is not None,
+        "languages": list(native_tools.languages),
+        "djvulibre": native_tools.djvulibre,
         "model_loaded": configured_model_holder.is_loaded,
     }

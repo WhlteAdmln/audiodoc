@@ -139,10 +139,13 @@ def test_ready_reports_unloaded_model_after_model_load_failure(monkeypatch):
     monkeypatch.setattr(settings, "ALLOW_UNAUTHENTICATED", True)
     monkeypatch.setattr(
         ready_module,
-        "_available_tesseract_languages",
-        lambda: (False, []),
+        "check_native_tools",
+        lambda: SimpleNamespace(
+            tesseract=None,
+            languages=(),
+            djvulibre=False,
+        ),
     )
-    monkeypatch.setattr(ready_module.shutil, "which", lambda _name: None)
 
     response = client.get("/ready")
 
