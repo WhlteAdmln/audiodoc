@@ -56,3 +56,14 @@ def test_wireguard_examples_use_placeholders_and_expected_addresses(
         assert "endpoint" not in peer
     else:
         assert peer["endpoint"] == endpoint
+
+
+def test_ci_systemd_verification_uses_canonical_renderer() -> None:
+    """Keep CI systemd validation aligned with the canonical unit renderer."""
+    workflow = (DEPLOY_DIR.parent / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "from audiodoc.service import render_service_unit" in workflow
+    assert 'systemd-analyze verify "${service_file}"' in workflow
+    assert 'deploy/audiodoc.service.example > "${service_file}"' not in workflow

@@ -183,14 +183,26 @@ jobs:
           mkdir -p "${service_root}/tmp"
           : > "${service_root}/.env"
 
+          AUDIODOC_HOME="${service_root}" python - <<'PY' > "${service_file}"
+          import os
+          from pathlib import Path
+
+          from audiodoc.service import render_service_unit
+
+          print(
+              render_service_unit(
+                  Path(os.environ["AUDIODOC_HOME"]),
+                  mode="system",
+              ),
+              end="",
+          )
+          PY
           sed \
             -e "s|^User=audiodoc$|User=${runner_user}|" \
             -e "s|^Group=audiodoc$|Group=${runner_group}|" \
-            -e "s|^WorkingDirectory=/opt/audiodoc$|WorkingDirectory=${service_root}|" \
-            -e "s|^EnvironmentFile=/opt/audiodoc/.env$|EnvironmentFile=${service_root}/.env|" \
-            -e 's|^ExecStart=/opt/audiodoc/venv/bin/uvicorn .*|ExecStart=/usr/bin/true|' \
-            -e "s|^ReadWritePaths=/opt/audiodoc/tmp$|ReadWritePaths=${service_root}/tmp|" \
-            deploy/audiodoc.service.example > "${service_file}"
+            -e 's|^ExecStart=.*|ExecStart=/usr/bin/true|' \
+            "${service_file}" > "${service_file}.tmp"
+          mv "${service_file}.tmp" "${service_file}"
           systemd-analyze verify "${service_file}"
 
       - name: Check UFW rules example

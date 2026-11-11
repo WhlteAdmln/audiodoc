@@ -22,6 +22,7 @@ from audiodoc.config import ConfigError, Settings, load_env_file, load_settings
 from audiodoc.doctor import collect_doctor_checks
 from audiodoc.env_readers import get_bool, get_home_dir, get_log_level
 from audiodoc.logging_setup import configure_logging
+from audiodoc.service import install_service_unit, render_service_unit
 from audiodoc.system_diagnostics import DiagnosticCheck
 
 logger = logging.getLogger(__name__)
@@ -123,6 +124,24 @@ def _build_parser() -> argparse.ArgumentParser:
     config_commands = config_parser.add_subparsers(dest="config_command", required=True)
     config_commands.add_parser("check", help="Validate configuration.")
 
+    service_parser = commands.add_parser("service", help="Manage the systemd service.")
+    service_commands = service_parser.add_subparsers(
+        dest="service_command", required=True
+    )
+    install_parser = service_commands.add_parser(
+        "install", help="Render or install a systemd unit."
+    )
+    mode_group = install_parser.add_mutually_exclusive_group()
+    mode_group.add_argument(
+        "--user", dest="service_mode", action="store_const", const="user"
+    )
+    mode_group.add_argument(
+        "--system", dest="service_mode", action="store_const", const="system"
+    )
+    install_parser.set_defaults(service_mode="user")
+    install_parser.add_argument("--print", dest="print_unit", action="store_true")
+    install_parser.add_argument("--force", action="store_true")
+
     return parser
 
 
@@ -139,6 +158,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "pair": _handle_pair_command,
         "model": _handle_model_command,
         "config": _handle_config_command,
+        "service": _handle_service_command,
     }
     handler = handlers.get(args.command)
     if handler is None:
@@ -282,6 +302,42 @@ def _handle_config_command(
         sys.stdout.write("Configuration is valid.\n")
         return 0
     return 2
+
+
+def _handle_service_command(
+    args: argparse.Namespace, parser: argparse.ArgumentParser
+) -> int:
+    """Handle systemd service installation."""
+    home = get_home_dir()
+    try:
+        if args.print_unit:
+            sys.stdout.write(render_service_unit(home, mode=args.service_mode))
+            return 0
+        unit_path = install_service_unit(
+            home,
+            mode=args.service_mode,
+            force=args.force,
+        )
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
+
+    sys.stdout.write(f"Installed {args.service_mode} systemd unit: {unit_path}\n")
+    sys.stdout.write("The service was not enabled or started. When ready, run:\n")
+    if args.service_mode == "user":
+        commands = (
+            "systemctl --user daemon-reload",
+            "systemctl --user enable --now audiodoc.service",
+            "systemctl --user status audiodoc.service",
+        )
+    else:
+        commands = (
+            "sudo systemctl daemon-reload",
+            "sudo systemctl enable --now audiodoc.service",
+            "sudo systemctl status audiodoc.service",
+        )
+    for command in commands:
+        sys.stdout.write(f"  {command}\n")
+    return 0
 
 
 def _run_server(host: str | None, port: int | None, env_file: Path | None) -> None:
