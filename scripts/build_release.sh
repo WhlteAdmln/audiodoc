@@ -8,6 +8,8 @@ if [[ ! "$VERSION" =~ ^[0-9A-Za-z][0-9A-Za-z.+-]*$ ]]; then
   exit 2
 fi
 
+SDIST_ROOT="audiodoc-${VERSION}"
+
 mkdir -p dist
 rm -f dist/audiodoc-*.zip dist/audiodoc-*.tar.gz dist/audiodoc-*.whl \
   dist/constraints.txt dist/SHA256SUMS dist/build-provenance.sigstore.json
@@ -23,6 +25,16 @@ if [[ ${#sdists[@]} -ne 1 ]]; then
 fi
 if [[ ${#wheels[@]} -ne 1 ]]; then
   echo "Expected exactly one audiodoc wheel in dist/, found ${#wheels[@]}." >&2
+  exit 1
+fi
+
+sdist_files="$(tar -tzf "${sdists[0]}")"
+if ! grep -Fx "${SDIST_ROOT}/.env.example" <<< "$sdist_files" > /dev/null; then
+  echo "Source distribution is missing .env.example." >&2
+  exit 1
+fi
+if grep -Fx "${SDIST_ROOT}/.env" <<< "$sdist_files" > /dev/null; then
+  echo "Source distribution must not contain .env." >&2
   exit 1
 fi
 
