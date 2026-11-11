@@ -72,7 +72,8 @@ def _check_model_cache(model_name: str, offline: bool) -> DiagnosticCheck:
             "Whisper model",
             "FAIL",
             f"Model {model_name!r} is not available or is incomplete "
-            "in the local cache while WHISPER_OFFLINE is enabled.",
+            "in the local cache while offline mode is enabled."
+            "(WHISPER_OFFLINE or installer --offline).",
         )
 
     return DiagnosticCheck(
@@ -83,7 +84,9 @@ def _check_model_cache(model_name: str, offline: bool) -> DiagnosticCheck:
     )
 
 
-def check_whisper_model(configured_settings: Settings) -> DiagnosticCheck:
+def check_whisper_model(
+    configured_settings: Settings, *, offline: bool = False
+) -> DiagnosticCheck:
     """Check whether the configured Whisper model is present or downloadable."""
     configured_path = configured_settings.WHISPER_MODEL_PATH
     if configured_path:
@@ -91,7 +94,7 @@ def check_whisper_model(configured_settings: Settings) -> DiagnosticCheck:
 
     return _check_model_cache(
         configured_settings.WHISPER_MODEL_SIZE,
-        configured_settings.WHISPER_OFFLINE,
+        offline or configured_settings.WHISPER_OFFLINE,
     )
 
 
@@ -205,6 +208,8 @@ def _collect_native_checks() -> tuple[DiagnosticCheck, ...]:
 
 def collect_doctor_checks(
     environ: Mapping[str, str] | None = None,
+    *,
+    offline: bool = False,
 ) -> tuple[DiagnosticCheck, ...]:
     """Collect system, native dependency, model, and CUDA diagnostics."""
     source = os.environ if environ is None else environ
@@ -222,7 +227,10 @@ def collect_doctor_checks(
             )
         )
     else:
-        checks.append(check_whisper_model(configured_settings))
+        if offline:
+            checks.append(check_whisper_model(configured_settings, offline=True))
+        else:
+            checks.append(check_whisper_model(configured_settings))
         checks.append(check_cuda_device(configured_settings))
 
     return tuple(checks)

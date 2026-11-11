@@ -106,6 +106,29 @@ def test_whisper_model_check_rejects_missing_offline_model(
     assert "WHISPER_OFFLINE" in result.message
 
 
+def test_whisper_model_check_requires_cached_model_when_forced_offline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def cache_miss(_name: str, *, local_files_only: bool) -> str:
+        assert local_files_only is True
+        raise OSError
+
+    monkeypatch.setattr(
+        doctor.importlib,
+        "import_module",
+        lambda _name: SimpleNamespace(download_model=cache_miss),
+    )
+
+    result = doctor.check_whisper_model(
+        Settings(WHISPER_MODEL_SIZE="small", WHISPER_OFFLINE=False),
+        offline=True,
+    )
+
+    assert result.status == "FAIL"
+    assert "local cache" in result.message
+    assert "offline mode" in result.message
+
+
 def test_whisper_model_check_rejects_unsupported_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
