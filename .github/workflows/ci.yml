@@ -385,6 +385,25 @@ jobs:
           test "$installed_version" = "$release_version"
 
           printf '%s\n' 'CI_INSTALLER_SMOKE=preserve-me' >> "$app_home/.env"
+
+          model_dir="$app_home/models/ci-smoke"
+          mkdir -p "$model_dir"
+          printf '%s\n' '{}' > "$model_dir/config.json"
+          printf '%s\n' 'ci-smoke-model' > "$model_dir/model.bin"
+          python - "$app_home/.env" "$model_dir" <<'PY'
+          import sys
+          from pathlib import Path
+
+          env_path = Path(sys.argv[1])
+          model_path = sys.argv[2]
+          lines = env_path.read_text(encoding="utf-8").splitlines()
+          matches = [i for i, line in enumerate(lines) if line.partition("=")[0] == "WHISPER_MODEL_PATH"]
+          if len(matches) != 1:
+              raise SystemExit("Expected exactly one WHISPER_MODEL_PATH setting.")
+          lines[matches[0]] = f'WHISPER_MODEL_PATH="{model_path}"'
+          env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
           cp "$app_home/.env" "${RUNNER_TEMP}/audiodoc.env"
 
           python - "$release_version" "$next_release_version" <<'PY'
