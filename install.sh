@@ -451,50 +451,50 @@ download_asset constraints.txt
 	die "Release SHA-256 verification failed."
 
 if [ "$UPGRADE" -eq 1 ]; then
-NEW_VENV="$HOME_DIR/.venv.new"
-NEW_PYTHON="$NEW_VENV/bin/python"
-NEW_CLI="$NEW_VENV/bin/audiodoc"
+	NEW_VENV="$HOME_DIR/.venv.new"
+	NEW_PYTHON="$NEW_VENV/bin/python"
+	NEW_CLI="$NEW_VENV/bin/audiodoc"
 
-log "Creating a staged virtual environment."
-"$PYTHON_BIN" -m venv "$NEW_VENV" ||
-die "Could not create the staged virtual environment."
+	log "Creating a staged virtual environment."
+	"$PYTHON_BIN" -m venv "$NEW_VENV" ||
+		die "Could not create the staged virtual environment."
 
-log "Installing the verified release wheel into the staged environment."
-"$NEW_PYTHON" -m pip install \
---disable-pip-version-check \
---constraint "$TMP_DIR/constraints.txt" \
-"$TMP_DIR/$WHEEL_NAME" ||
-die "Could not install the audiodoc release wheel into the staged environment."
+	log "Installing the verified release wheel into the staged environment."
+	"$NEW_PYTHON" -m pip install \
+		--disable-pip-version-check \
+		--constraint "$TMP_DIR/constraints.txt" \
+		"$TMP_DIR/$WHEEL_NAME" ||
+		die "Could not install the audiodoc release wheel into the staged environment."
 
-log "Checking the staged installation in offline mode."
-DOCTOR_OUTPUT="$TMP_DIR/doctor-upgrade.txt"
-if AUDIODOC_HOME="$HOME_DIR" "$NEW_CLI" doctor --offline \
->"$DOCTOR_OUTPUT" 2>&1; then
-cat "$DOCTOR_OUTPUT"
-else
-cat "$DOCTOR_OUTPUT"
-die "Staged audiodoc doctor --offline failed. The existing installation was not replaced."
-fi
+	log "Checking the staged installation in offline mode."
+	DOCTOR_OUTPUT="$TMP_DIR/doctor-upgrade.txt"
+	if AUDIODOC_HOME="$HOME_DIR" "$NEW_CLI" doctor --offline \
+		>"$DOCTOR_OUTPUT" 2>&1; then
+		cat "$DOCTOR_OUTPUT"
+	else
+		cat "$DOCTOR_OUTPUT"
+		die "Staged audiodoc doctor --offline failed. The existing installation was not replaced."
+	fi
 
-refuse_active_service
+	refuse_active_service
 
-log "Switching the application virtual environment."
-mv "$HOME_DIR/.venv" "$HOME_DIR/.venv.prev" ||
-die "Could not move the existing virtual environment to its backup."
-UPGRADE_BACKUP=1
+	log "Switching the application virtual environment."
+	mv "$HOME_DIR/.venv" "$HOME_DIR/.venv.prev" ||
+		die "Could not move the existing virtual environment to its backup."
+	UPGRADE_BACKUP=1
 
-mv "$NEW_VENV" "$HOME_DIR/.venv" ||
-die "Could not activate the staged virtual environment. The previous environment will be restored."
+	mv "$NEW_VENV" "$HOME_DIR/.venv" ||
+		die "Could not activate the staged virtual environment. The previous environment will be restored."
 
-if rm -rf "$HOME_DIR/.venv.prev"; then
-UPGRADE_BACKUP=0
-else
-log "WARNING: Could not remove the previous environment backup: $HOME_DIR/.venv.prev"
-UPGRADE_BACKUP=0
-fi
+	if rm -rf "$HOME_DIR/.venv.prev"; then
+		UPGRADE_BACKUP=0
+	else
+		log "WARNING: Could not remove the previous environment backup: $HOME_DIR/.venv.prev"
+		UPGRADE_BACKUP=0
+	fi
 
-INSTALL_SUCCEEDED=1
-cat <<EOF
+	INSTALL_SUCCEEDED=1
+	cat <<EOF
 
 Upgrade completed successfully.
 
@@ -511,8 +511,8 @@ If the audiodoc user service is installed, restart it manually when ready:
   systemctl --user restart audiodoc.service
 EOF
 
-log "Upgraded to release $RELEASE_TAG."
-exit 0
+	log "Upgraded to release $RELEASE_TAG."
+	exit 0
 fi
 
 log "Creating installation directory: $HOME_DIR"

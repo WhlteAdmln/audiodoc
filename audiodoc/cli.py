@@ -93,9 +93,13 @@ def _build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--env-file", type=Path)
 
     commands.add_parser("version", help="Show the installed version.")
-    doctor_parser = commands.add_parser("doctor", help="Check the audiodoc installation.")
+    doctor_parser = commands.add_parser(
+        "doctor", help="Check the audiodoc installation."
+    )
     doctor_parser.add_argument(
-        "--offline", action="store_true", help="Require the model to be available locally."
+        "--offline",
+        action="store_true",
+        help="Require the model to be available locally.",
     )
 
     init_parser = commands.add_parser("init", help="Create a protected .env file.")
