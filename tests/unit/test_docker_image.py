@@ -156,3 +156,11 @@ def test_ci_builds_checks_and_publishes_the_container_image() -> None:
     assert "docker login ghcr.io" in workflow
     assert 'docker push "${image}:${GITHUB_SHA}"' in workflow
     assert 'docker push "${image}:latest"' in workflow
+    assert (
+        "      - name: Make Whisper cache readable by runner\n"
+        "        if: always()\n"
+        "        run: |\n"
+        "          if [[ -d .cache/whisper ]]; then\n"
+        "            chmod -R a+rX .cache/whisper\n"
+        "          fi\n"
+    ) in workflow

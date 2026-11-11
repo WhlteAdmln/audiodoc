@@ -494,6 +494,13 @@ jobs:
             audiodoc doctor --offline
           docker compose -f compose.yaml down --volumes
 
+      - name: Make Whisper cache readable by runner
+        if: always()
+        run: |
+          if [[ -d .cache/whisper ]]; then
+            chmod -R a+rX .cache/whisper
+          fi
+
   publish-container:
     name: Publish Docker image to GHCR
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
