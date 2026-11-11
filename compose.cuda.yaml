@@ -1,0 +1,18 @@
+# Usage: docker compose -f compose.yaml -f compose.cuda.yaml up --build
+services:
+  audiodoc:
+    image: ${AUDIODOC_CUDA_IMAGE:-ghcr.io/whlteadmln/audiodoc:cuda}
+    build:
+      args:
+        RUNTIME_BASE: nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
+    environment:
+      WHISPER_DEVICE: cuda
+      WHISPER_COMPUTE_TYPE: float16
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities:
+                - gpu
