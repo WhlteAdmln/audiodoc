@@ -85,6 +85,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.0.0
+        with:
+          python-version: "3.12"
+
       - name: Validate release request
         env:
           RELEASE_VERSION: ${{ inputs.version }}
@@ -104,6 +109,12 @@ jobs:
           fi
 
           tag="v${RELEASE_VERSION}"
+          project_version="$(python -c 'import tomllib; from pathlib import Path; print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])')"
+          if [[ "$project_version" != "$RELEASE_VERSION" ]]; then
+            echo "pyproject.toml version (${project_version}) does not match requested release (${RELEASE_VERSION})." >&2
+            exit 1
+          fi
+
           auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '\n')"
           if GIT_CONFIG_COUNT=1 \
             GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" \
@@ -121,7 +132,7 @@ jobs:
 
           echo "Validated release ${tag} from ${GITHUB_SHA}."
 
-      - name: Build release archive
+      - name: Build release wheel
         env:
           RELEASE_VERSION: ${{ inputs.version }}
         run: bash scripts/build_release.sh "$RELEASE_VERSION"
@@ -131,18 +142,14 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          archives=(dist/*.zip)
-          if [[ ${#archives[@]} -ne 1 ]]; then
-            echo "Expected exactly one ZIP archive in dist/, found ${#archives[@]}." >&2
+          wheels=(dist/audiodoc-*.whl)
+          if [[ ${#wheels[@]} -ne 1 ]]; then
+            echo "Expected exactly one audiodoc wheel in dist/, found ${#wheels[@]}." >&2
             exit 1
           fi
+          test -s dist/constraints.txt
           test -s dist/SHA256SUMS
-          if ! sha256sum --check --status dist/SHA256SUMS 2>/dev/null; then
-            if ! (cd dist && sha256sum --check --status SHA256SUMS 2>/dev/null); then
-              echo "SHA256SUMS does not validate the release archive." >&2
-              exit 1
-            fi
-          fi
+          (cd dist && sha256sum --check --status SHA256SUMS)
 
       - name: Create GitHub release
         env:
@@ -155,10 +162,11 @@ jobs:
 
           tag="v${RELEASE_VERSION}"
           shopt -s nullglob
-          archives=(dist/*.zip)
+          wheels=(dist/audiodoc-*.whl)
           release_args=(
             "$tag"
-            "${archives[0]}"
+            "${wheels[0]}"
+            "dist/constraints.txt"
             "dist/SHA256SUMS"
             --title "audiodoc ${RELEASE_VERSION}"
             --generate-notes

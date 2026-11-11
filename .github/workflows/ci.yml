@@ -298,7 +298,7 @@ jobs:
         run: pip-audit -r requirements-lock.txt
 
   build:
-    name: Build release archive
+    name: Build release wheel
     needs: [test, integration]
     runs-on: ubuntu-latest
     permissions:
@@ -307,10 +307,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Build archive and checksum
-        run: bash scripts/build_release.sh "ci-${GITHUB_SHA::7}"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Build wheel and checksums
+        run: bash scripts/build_release.sh "$(python -c 'import tomllib; from pathlib import Path; print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])')"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: release-archive
+          name: release-wheel
           path: dist/
           retention-days: 7
