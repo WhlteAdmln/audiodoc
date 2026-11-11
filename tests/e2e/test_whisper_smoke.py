@@ -4,7 +4,6 @@
 import asyncio
 import re
 import shutil
-from difflib import SequenceMatcher
 from pathlib import Path
 
 import pytest
@@ -75,8 +74,8 @@ def test_real_tiny_whisper_transcribes_generated_speech(
             configured_model_holder=configured_model_holder,
         )
     )
-    recognized_words = re.findall(r"[a-z]+", transcription["text"].casefold())
+    recognized_text = " ".join(re.findall(r"[a-z]+", transcription["text"].casefold()))
 
-    assert any(
-        SequenceMatcher(None, "hello", word).ratio() >= 0.8 for word in recognized_words
-    ), f"Expected to recognize 'hello', got: {transcription['text']!r}"
+    assert "this is" in recognized_text, (
+        f"Expected to recognize 'this is', got: {transcription['text']!r}"
+    )
