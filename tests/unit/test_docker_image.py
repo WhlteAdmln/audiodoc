@@ -101,10 +101,13 @@ def test_compose_configures_secure_persistent_storage() -> None:
         "deploy:",
         "cpus:",
         "memory:",
+        "pids: 256",
         "cap_drop:",
         "no-new-privileges:true",
     ):
         assert setting in compose
+
+    assert "pids_limit:" not in compose
 
 
 def test_cuda_compose_uses_nvidia_runtime_and_reserves_gpu_devices() -> None:

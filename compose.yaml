@@ -25,7 +25,6 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=256m
     init: true
-    pids_limit: 256
     cap_drop:
       - ALL
     security_opt:
@@ -36,6 +35,7 @@ services:
         limits:
           cpus: "${AUDIODOC_CPU_LIMIT:-4.0}"
           memory: "${AUDIODOC_MEMORY_LIMIT:-8G}"
+          pids: 256
 
 volumes:
   audiodoc_data:
