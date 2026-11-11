@@ -29,11 +29,11 @@ if [[ ${#wheels[@]} -ne 1 ]]; then
 fi
 
 sdist_files="$(tar -tzf "${sdists[0]}")"
-if ! grep -Fx "${SDIST_ROOT}/.env.example" <<< "$sdist_files" >/dev/null; then
+if ! grep -Fx "${SDIST_ROOT}/.env.example" <<< "$sdist_files" > /dev/null; then
   echo "Source distribution is missing .env.example." >&2
   exit 1
 fi
-if grep -Fx "${SDIST_ROOT}/.env" <<< "$sdist_files" >/dev/null; then
+if grep -Fx "${SDIST_ROOT}/.env" <<< "$sdist_files" > /dev/null; then
   echo "Source distribution must not contain .env." >&2
   exit 1
 fi
