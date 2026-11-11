@@ -398,9 +398,13 @@ jobs:
           model_path = sys.argv[2]
           lines = env_path.read_text(encoding="utf-8").splitlines()
           matches = [i for i, line in enumerate(lines) if line.partition("=")[0] == "WHISPER_MODEL_PATH"]
-          if len(matches) != 1:
+          if len(matches) > 1:
               raise SystemExit("Expected exactly one WHISPER_MODEL_PATH setting.")
-          lines[matches[0]] = f'WHISPER_MODEL_PATH="{model_path}"'
+          setting = f'WHISPER_MODEL_PATH="{model_path}"'
+          if matches:
+              lines[matches[0]] = setting
+          else:
+              lines.append(setting)
           env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
 
