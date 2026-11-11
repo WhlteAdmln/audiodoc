@@ -361,7 +361,9 @@ jobs:
             > "${RUNNER_TEMP}/release-server.log" 2>&1 &
           server_pid=$!
 
-          for attempt in $(seq 1 30); do
+          attempt=0
+          while [ "$attempt" -lt 30 ]; do
+            attempt=$((attempt + 1))
             if curl -fsS "${release_url}/SHA256SUMS" >/dev/null; then
               break
             fi

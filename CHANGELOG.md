@@ -5,7 +5,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Added
+### Added (Installer)
 
 - CI smoke coverage for release-wheel installation and virtual environment upgrades.
 - Installer tests for HTTP release assets, version changes, and rollback after a failed offline doctor check.
