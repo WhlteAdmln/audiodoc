@@ -141,11 +141,46 @@ def test_make_check_includes_documentation_and_fix_formats_code() -> None:
 
     assert "check: lint types deptry vulture import-lint test docs-check" in makefile
     docs_check = (
-        "docs-check:\n\t$(PYTHON) -m scripts.check_docs\n\tpre-commit run --all-files"
+        "docs-check:\n"
+        "\t$(PYTHON) -m scripts.check_docs\n"
+        "\t$(PYTHON) -m pre_commit run --all-files"
     )
     assert docs_check in makefile
     assert "$(PYTHON) -m ruff check . --fix" in makefile
     assert "$(PYTHON) -m ruff format ." in makefile
+
+
+def test_lint_runs_tools_from_project_environment() -> None:
+    """Keep lint tools inside the project virtual environment."""
+    makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
+    for command in (
+        "$(PYTHON_SCRIPTS_DIR)/shfmt -i 0 -d install.sh",
+        "$(PYTHON_SCRIPTS_DIR)/shellcheck $(shell git ls-files '*.sh' '*.sh.example')",
+        (
+            "find scripts -type f -name '*.sh' -exec "
+            "$(PYTHON_SCRIPTS_DIR)/shfmt -i 2 -sr -d {} +"
+        ),
+        (
+            "find deploy -type f -name '*.sh' -exec "
+            "$(PYTHON_SCRIPTS_DIR)/shfmt -i 2 -sr -d {} +"
+        ),
+        (
+            "find deploy -type f -name '*.sh.example' -exec "
+            "$(PYTHON_SCRIPTS_DIR)/shfmt -i 2 -sr -d {} +"
+        ),
+    ):
+        assert command in makefile
+
+    pre_commit_config = (ROOT_DIR / ".pre-commit-config.yaml").read_text(
+        encoding="utf-8"
+    )
+    assert "language: system" not in pre_commit_config
+    assert "entry: shfmt" not in pre_commit_config
+    assert "entry: ruff" not in pre_commit_config
+    assert "entry: shellcheck" not in pre_commit_config
+    assert "shellcheck-py" not in pre_commit_config
+    pyproject = (ROOT_DIR / "pyproject.toml").read_text(encoding="utf-8")
+    assert '"shellcheck-py==0.11.0.1"' in pyproject
 
 
 def test_sdist_manifest_includes_only_the_safe_environment_template() -> None:

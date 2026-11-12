@@ -17,6 +17,11 @@ lint: docs-check
 	$(PYTHON) -m ruff check .
 	$(PYTHON) -m ruff format --check .
 	$(PYTHON) scripts/check_lock.py
+	$(PYTHON_SCRIPTS_DIR)/shfmt -i 0 -d install.sh
+	find scripts -type f -name '*.sh' -exec $(PYTHON_SCRIPTS_DIR)/shfmt -i 2 -sr -d {} +
+	find deploy -type f -name '*.sh' -exec $(PYTHON_SCRIPTS_DIR)/shfmt -i 2 -sr -d {} +
+	find deploy -type f -name '*.sh.example' -exec $(PYTHON_SCRIPTS_DIR)/shfmt -i 2 -sr -d {} +
+	$(PYTHON_SCRIPTS_DIR)/shellcheck $(shell git ls-files '*.sh' '*.sh.example')
 
 fix:
 	$(PYTHON) -m ruff check . --fix
@@ -70,7 +75,7 @@ cov:
 
 docs-check:
 	$(PYTHON) -m scripts.check_docs
-	pre-commit run --all-files
+	$(PYTHON) -m pre_commit run --all-files
 
 contract:
 	$(PYTHON) -m scripts.export_openapi

@@ -47,6 +47,7 @@ dev = [
     "pip-audit==2.10.1",
     "pre-commit==4.7.0",
     "shfmt-py==4.0.0",
+    "shellcheck-py==0.11.0.1",
     "packaging==26.3",
     "httpx2==2.16.0",
     "setuptools==84.2.1",
