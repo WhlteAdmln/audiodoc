@@ -1,3 +1,4 @@
+# VENDORED: keep identical in bot-obormot and audiodoc. Source of truth: audiodoc.
 # Copyright (c) 2026 Nikolai Zelensky
 """Check that every direct runtime requirement is pinned compatibly in the lock."""
 
