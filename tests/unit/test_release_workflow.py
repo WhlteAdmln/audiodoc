@@ -140,7 +140,10 @@ def test_make_check_includes_documentation_and_fix_formats_code() -> None:
     makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
 
     assert "check: lint types deptry vulture import-lint test docs-check" in makefile
-    assert "docs-check:\n\tpre-commit run --all-files" in makefile
+    docs_check = (
+        "docs-check:\n\t$(PYTHON) -m scripts.check_docs\n\tpre-commit run --all-files"
+    )
+    assert docs_check in makefile
     assert "$(PYTHON) -m ruff check . --fix" in makefile
     assert "$(PYTHON) -m ruff format ." in makefile
 
