@@ -111,10 +111,18 @@ def run_installer(
     home: Path | None = None,
     app_home: Path | None = None,
     extra_env: dict[str, str] | None = None,
+    command: list[str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Run the installer with an isolated environment."""
-    shell_path = shutil.which("sh")
-    assert shell_path is not None, "A POSIX shell is required"
+    """Run the installer or a command in its test installation."""
+    if command is None:
+        shell_path = shutil.which("sh")
+        assert shell_path is not None, "A POSIX shell is required"
+        invocation = [shell_path, str(INSTALLER), *arguments]
+        working_directory = PROJECT_ROOT
+    else:
+        assert app_home is not None, "app_home is required to run its command."
+        invocation = command
+        working_directory = app_home.parent
 
     environment = os.environ.copy()
     environment["PIP_NO_INDEX"] = "1"
@@ -136,13 +144,13 @@ def run_installer(
         environment.update(extra_env)
 
     return subprocess.run(  # noqa: S603 - resolved shell runs the local installer.
-        [shell_path, str(INSTALLER), *arguments],
-        cwd=PROJECT_ROOT,
+        invocation,
+        cwd=working_directory,
         check=False,
         capture_output=True,
         text=True,
         env=environment,
-        timeout=60,
+        timeout=600 if "--upgrade" in arguments else 60,
     )
 
 
