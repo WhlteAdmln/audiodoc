@@ -104,6 +104,47 @@ def test_ci_build_job_verifies_both_release_distribution_formats() -> None:
     assert "sha256sum --check --status SHA256SUMS" in workflow
 
 
+def test_ci_jobs_use_the_required_make_targets() -> None:
+    """Ensure every CI job delegates its checks to the Makefile."""
+    workflow = (ROOT_DIR / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"
+    )
+
+    for job in (
+        "lint",
+        "test",
+        "integration",
+        "e2e",
+        "audit",
+        "build",
+        "docker",
+        "installer",
+    ):
+        assert f"\n  {job}:\n" in workflow
+
+    for command in (
+        "run: make lint",
+        "make test 2>&1 | tee pytest.log",
+        "make integration 2>&1 | tee pytest.log",
+        "make e2e 2>&1 | tee pytest.log",
+        "run: make audit",
+        "run: make build VERSION=",
+        "run: make docker",
+        "run: make installer",
+    ):
+        assert command in workflow
+
+
+def test_make_check_includes_documentation_and_fix_formats_code() -> None:
+    """Keep local aggregate checks aligned with the CI Makefile entry point."""
+    makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
+
+    assert "check: lint types deptry vulture import-lint test docs-check" in makefile
+    assert "docs-check:\n\tpre-commit run --all-files" in makefile
+    assert "$(PYTHON) -m ruff check . --fix" in makefile
+    assert "$(PYTHON) -m ruff format ." in makefile
+
+
 def test_sdist_manifest_includes_only_the_safe_environment_template() -> None:
     """Ensure the source distribution includes the example but excludes secrets."""
     manifest = (ROOT_DIR / "MANIFEST.in").read_text(encoding="utf-8").splitlines()

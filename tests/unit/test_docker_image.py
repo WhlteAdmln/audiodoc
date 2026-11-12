@@ -147,20 +147,28 @@ def test_ci_builds_checks_and_publishes_the_container_image() -> None:
     workflow = (ROOT_DIR / ".github" / "workflows" / "ci.yml").read_text(
         encoding="utf-8"
     )
+    makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
 
     assert "name: Docker image smoke test" in workflow
-    assert "docker compose -f compose.yaml build --pull audiodoc" in workflow
+    assert "docker compose -f compose.yaml config --quiet" in makefile
+    assert (
+        "docker compose -f compose.yaml -f compose.cuda.yaml config --quiet" in makefile
+    )
+    assert "docker compose -f compose.yaml build --pull audiodoc" in makefile
     assert "path: .cache/whisper" in workflow
     assert "whisper-tiny-${{ hashFiles('requirements-lock.txt') }}" in workflow
     assert ".cache/whisper:/data/models" in workflow
     assert "audiodoc model download --name tiny --dir /data/models/tiny" in workflow
     assert "WHISPER_MODEL_PATH=/data/models/tiny" in workflow
     assert (
-        "docker compose -f compose.yaml run --rm --no-deps audiodoc init --model tiny"
-        in workflow
-    )
+        "      - name: Initialize persistent volume and run doctor\n"
+        "        run: |\n"
+        "          set -euo pipefail\n"
+        "          docker compose -f compose.yaml run --rm --no-deps "
+        "audiodoc init --model tiny\n"
+    ) in workflow
     assert "audiodoc doctor --offline" in workflow
-    assert "name: Publish Docker image to GHCR" in workflow
+    assert "name: Publish Docker image to GHCR" not in workflow
     assert "packages: write" in workflow
     assert "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}" in workflow
     assert "docker login ghcr.io" in workflow

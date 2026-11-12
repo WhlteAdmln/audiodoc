@@ -36,10 +36,8 @@ jobs:
             requirements-dev.txt
       - name: Install development dependencies
         run: python -m pip install -r requirements-dev.txt
-      - name: Check formatting and lint
-        run: pre-commit run --all-files
-      - name: Check requirements and lock file
-        run: python scripts/check_lock.py
+      - name: Run lint and documentation checks
+        run: make lint
 
   test:
     name: Tests (py${{ matrix.python-version }}, ${{ matrix.deps }})
@@ -93,11 +91,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          python -m pytest -q -rs -m "not integration and not e2e" \
-            --cov=audiodoc --cov-branch \
-            --cov-report=term-missing:skip-covered \
-            --cov-report=xml --cov-report=html \
-            --junitxml=junit.xml | tee pytest.log
+          make test 2>&1 | tee pytest.log
           if grep -q '^SKIPPED' pytest.log; then
             echo "::error::Unit tests must not be skipped in CI."
             exit 1
@@ -116,7 +110,7 @@ jobs:
           retention-days: 14
 
   integration:
-    name: Integration (OCR / DjVu)
+    name: Integration (OCR / DjVu / deployment)
     needs: lint
     runs-on: ubuntu-latest
     permissions:
@@ -147,24 +141,12 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          python -m pytest -q -rs -m integration | tee pytest.log
+          make integration 2>&1 | tee pytest.log
           if grep -q '^SKIPPED' pytest.log; then
             echo "::error::Integration tests must not be skipped in CI."
             exit 1
           fi
 
-  deploy:
-    name: Deployment examples
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.0.0
-        with:
-          python-version: "3.12"
       - name: Install deployment validators
         run: |
           sudo apt-get update
@@ -273,7 +255,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          make test-e2e 2>&1 | tee pytest.log
+          make e2e 2>&1 | tee pytest.log
           if grep -q '^SKIPPED' pytest.log; then
             echo "::error::E2E tests must not be skipped in CI."
             exit 1
@@ -292,14 +274,50 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.0.0
         with:
           python-version: "3.12"
-      - name: Install pip-audit
-        run: python -m pip install pip-audit==2.10.1
+      - name: Install development dependencies
+        run: python -m pip install -r requirements-dev.txt
       - name: Audit locked dependencies
-        run: pip-audit -r requirements-lock.txt
+        run: make audit
 
   build:
-    name: Build release assets and smoke-test installer
+    name: Build release assets
     needs: [test, integration]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install build frontend
+        run: python -m pip install --disable-pip-version-check "build>=1.2,<2.0"
+      - name: Build source distribution, wheel and checksums
+        run: make build VERSION="$(python -c 'import tomllib; from pathlib import Path; print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])')"
+      - name: Verify release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          sdists=(dist/audiodoc-*.tar.gz)
+          wheels=(dist/audiodoc-*.whl)
+          [[ ${#sdists[@]} -eq 1 ]]
+          [[ ${#wheels[@]} -eq 1 ]]
+          test -s dist/constraints.txt
+          test -s dist/SHA256SUMS
+          (cd dist && sha256sum --check --status SHA256SUMS)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-assets
+          path: dist/
+          retention-days: 7
+
+  installer:
+    name: Installer smoke test
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -332,7 +350,7 @@ jobs:
           shellcheck --shell=sh install.sh
           shfmt -i 0 -d install.sh
       - name: Build source distribution, wheel and checksums
-        run: bash scripts/build_release.sh "$(python -c 'import tomllib; from pathlib import Path; print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])')"
+        run: make build VERSION="$(python -c 'import tomllib; from pathlib import Path; print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])')"
       - name: Verify release assets
         shell: bash
         run: |
@@ -468,26 +486,20 @@ jobs:
 
           cp "$pyproject_backup" pyproject.toml
           bash scripts/build_release.sh "$release_version"
-      - name: Test installer rollback and isolated installation flows
-        run: python -m pytest -q tests/unit/test_installer.py
-      - name: Test upgrade from the v0.1.0 directory installation
+      - name: Test installer and legacy upgrade flows
         env:
           AUDIODOC_LEGACY_SOURCE: ${{ github.workspace }}/legacy-v0.1.0
           AUDIODOC_TEST_WHEELHOUSE: ${{ runner.temp }}/audiodoc-wheelhouse
           PIP_FIND_LINKS: ${{ runner.temp }}/audiodoc-wheelhouse
-        run: python -m pytest -q tests/integration/legacy_installer_ci.py
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: release-assets
-          path: dist/
-          retention-days: 7
+        run: make installer
 
-  container:
+  docker:
     name: Docker image smoke test
     needs: [test, integration]
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -506,12 +518,8 @@ jobs:
         run: |
           mkdir -p .cache/whisper
           chmod -R a+rwX .cache/whisper
-      - name: Validate Compose configurations
-        run: |
-          docker compose -f compose.yaml config --quiet
-          docker compose -f compose.yaml -f compose.cuda.yaml config --quiet
-      - name: Build Docker image
-        run: docker compose -f compose.yaml build --pull audiodoc
+      - name: Validate Compose configurations and build Docker image
+        run: make docker
       - name: Initialize persistent volume and run doctor
         run: |
           set -euo pipefail
@@ -535,19 +543,8 @@ jobs:
             sudo chown -R "$(id -u):$(id -g)" .cache/whisper
           fi
 
-  publish-container:
-    name: Publish Docker image to GHCR
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: container
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
       - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -555,6 +552,7 @@ jobs:
             --username "${GITHUB_ACTOR}" \
             --password-stdin
       - name: Build and publish Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
           image="ghcr.io/$(printf '%s' "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
