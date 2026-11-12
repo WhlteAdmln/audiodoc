@@ -1,5 +1,7 @@
 
-PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
+PYTHON_VERSION ?= 3.13
+PYTHON_BOOTSTRAP ?= python$(PYTHON_VERSION)
+PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,$(PYTHON_BOOTSTRAP))
 VERSION ?= dev
 PYTHON_SCRIPTS_DIR = $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_path('scripts'))")
 
@@ -8,7 +10,26 @@ PYTHON_SCRIPTS_DIR = $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get
         cov docs-check contract check clean
 
 venv:
-	@if [ ! -x .venv/bin/python ]; then $(PYTHON) -m venv .venv; else echo "Virtual environment already exists"; fi
+	@set -eu; \
+	expected="$(PYTHON_VERSION)"; \
+	if [ -x .venv/bin/python ] && .venv/bin/python -c \
+		'import sys; raise SystemExit(".".join(map(str, sys.version_info[:2])) != sys.argv[1])' \
+		"$$expected"; then \
+		echo "Virtual environment already uses Python $$expected"; \
+		exit 0; \
+	fi; \
+	if ! command -v "$(PYTHON_BOOTSTRAP)" >/dev/null 2>&1; then \
+		echo "Python $$expected is required. Install it or set PYTHON_BOOTSTRAP." >&2; \
+		exit 1; \
+	fi; \
+	if ! "$(PYTHON_BOOTSTRAP)" -c \
+		'import sys; raise SystemExit(".".join(map(str, sys.version_info[:2])) != sys.argv[1])' \
+		"$$expected"; then \
+		echo "PYTHON_BOOTSTRAP must point to Python $$expected." >&2; \
+		exit 1; \
+	fi; \
+	rm -rf .venv; \
+	"$(PYTHON_BOOTSTRAP)" -m venv .venv
 
 install-dev: venv
 	.venv/bin/python -m pip install -r requirements-dev.txt

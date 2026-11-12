@@ -183,6 +183,19 @@ def test_lint_runs_tools_from_project_environment() -> None:
     assert '"shellcheck-py==0.11.0.1"' in pyproject
 
 
+def test_venv_requires_configured_python_version() -> None:
+    """Ensure virtual environment creation uses the required Python version."""
+    makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
+
+    assert "PYTHON_VERSION ?= 3.13" in makefile
+    assert "PYTHON_BOOTSTRAP ?= python$(PYTHON_VERSION)" in makefile
+    assert 'expected="$(PYTHON_VERSION)"' in makefile
+    assert 'command -v "$(PYTHON_BOOTSTRAP)"' in makefile
+    assert ".venv/bin/python -c" in makefile
+    assert "rm -rf .venv" in makefile
+    assert '"$(PYTHON_BOOTSTRAP)" -m venv .venv' in makefile
+
+
 def test_sdist_manifest_includes_only_the_safe_environment_template() -> None:
     """Ensure the source distribution includes the example but excludes secrets."""
     manifest = (ROOT_DIR / "MANIFEST.in").read_text(encoding="utf-8").splitlines()
