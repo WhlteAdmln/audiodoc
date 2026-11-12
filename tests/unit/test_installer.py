@@ -56,6 +56,9 @@ def main():
         return 0
 
     if args[0] == "doctor":
+        if os.environ.get("FAKE_DOCTOR_FAIL") == "1":
+            print("FAIL forced doctor failure.")
+            return 1
         marker = os.environ.get("FAKE_INSTALL_MARKER")
         if (
             os.environ.get("FAKE_DOCTOR_REQUIRES_NATIVE") == "1"
@@ -74,6 +77,27 @@ def main():
         return 0
 
     if args[:2] == ["service", "install"]:
+        if "--print" in args:
+            unit = (
+                "[Unit]\\n"
+                "Description=audiodoc API service\\n"
+                "After=network-online.target\\n"
+                "Wants=network-online.target\\n\\n"
+                "[Service]\\n"
+                "Type=simple\\n"
+                f"WorkingDirectory={home}\\n"
+                f"EnvironmentFile={home}/.env\\n"
+                f'Environment="AUDIODOC_HOME={home}"\\n'
+                "Environment=PYTHONUNBUFFERED=1\\n"
+                f'ExecStart="{home}/.venv/bin/audiodoc" run\\n'
+                "Restart=on-failure\\n"
+                "RestartSec=5\\n"
+                "UMask=0077\\n\\n"
+                "[Install]\\n"
+                "WantedBy=default.target\\n"
+            )
+            sys.stdout.write(unit)
+            return 0
         (home / "service-installed").write_text("ok", encoding="utf-8")
         return 0
 
@@ -135,6 +159,71 @@ def installed_version(app_home: Path) -> str:
             return line.removeprefix("Version: ")
     message = "Installed audiodoc metadata has no Version field."
     raise AssertionError(message)
+
+
+def prepare_legacy_installation(app_home: Path) -> dict[str, str]:
+    """Replace the installed package with a representative 0.1.0 source tree."""
+    package_path = next(
+        (app_home / ".venv" / "lib").glob("python*/site-packages/audiodoc")
+    )
+    shutil.rmtree(package_path)
+    for metadata_path in (app_home / ".venv" / "lib").glob(
+        "python*/site-packages/audiodoc-*.dist-info"
+    ):
+        shutil.rmtree(metadata_path)
+
+    source_files = {
+        "backend/__init__.py": "# Legacy package\n",
+        "backend/main.py": "# Legacy application entry point\n",
+        "app.py": "# Legacy compatibility entry point\n",
+        "deploy/audiodoc.service": "# Legacy system service example\n",
+        "scripts/legacy.sh": "#!/bin/sh\n",
+        "docs/legacy.md": "# Legacy documentation\n",
+        "requirements.txt": "fastapi\n",
+        "requirements-lock.txt": "fastapi==0.1.0\n",
+        "install.sh": "#!/bin/sh\n",
+        "README.md": "# Legacy README\n",
+        "README.ru.md": "# Устаревшая документация\n",
+        "LICENSE": "Legacy license\n",
+        ".env.example": "LEGACY_EXAMPLE=true\n",
+    }
+    for relative_path, content in source_files.items():
+        source_path = app_home / relative_path
+        source_path.parent.mkdir(parents=True, exist_ok=True)
+        source_path.write_text(content, encoding="utf-8")
+
+    (app_home / ".env").write_text("LEGACY_MARKER=keep\n", encoding="utf-8")
+    models_dir = app_home / "models"
+    models_dir.mkdir(exist_ok=True)
+    (models_dir / "legacy-model.bin").write_bytes(b"legacy-model-data")
+    tmp_dir = app_home / "tmp"
+    tmp_dir.mkdir(exist_ok=True)
+    (tmp_dir / "legacy.tmp").write_bytes(b"legacy-temporary-data")
+    return source_files
+
+
+def create_systemctl_stub(
+    tmp_path: Path,
+    *,
+    active: bool,
+) -> tuple[Path, Path]:
+    """Create a systemctl stub that reports service state and records calls."""
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    log_path = tmp_path / "systemctl.log"
+    active_status = 0 if active else 3
+    systemctl = fake_bin / "systemctl"
+    systemctl.write_text(
+        "#!/bin/sh\n"
+        'printf "%s\\n" "$*" >> "$FAKE_SYSTEMCTL_LOG"\n'
+        'if [ "$2" = "is-active" ]; then exit '
+        f"{active_status}; fi\n"
+        'if [ "$2" = "daemon-reload" ]; then exit 0; fi\n'
+        "exit 1\n",
+        encoding="utf-8",
+    )
+    systemctl.chmod(0o755)
+    return fake_bin, log_path
 
 
 def create_test_wheel(release_dir: Path, *, version: str = "1.2.3") -> Path:
@@ -287,7 +376,7 @@ def test_installer_installs_wheel_and_initializes_application(
     release_url, _release_dir = local_release
     user_home = tmp_path / "user"
     user_home.mkdir()
-    app_home = tmp_path / "custom audiodoc home"
+    app_home = user_home / "custom audiodoc home"
 
     result = run_installer(
         "--no-model",
@@ -441,7 +530,7 @@ def test_installer_does_not_install_os_packages_without_opt_in(
     release_url, _release_dir = local_release
     user_home = tmp_path / "user"
     user_home.mkdir()
-    app_home = tmp_path / "audiodoc"
+    app_home = user_home / "audiodoc"
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
 
@@ -488,7 +577,7 @@ def test_installer_rejects_checksum_mismatch(
 
     user_home = tmp_path / "user"
     user_home.mkdir()
-    app_home = tmp_path / "audiodoc"
+    app_home = user_home / "audiodoc"
 
     result = run_installer(
         "--no-model",
@@ -660,7 +749,7 @@ def test_installer_upgrade_refuses_active_user_service(
     assert not (app_home / ".venv.new").exists()
 
 
-def test_installer_upgrade_rejects_legacy_010_installation(
+def test_installer_upgrades_legacy_010_installation(
     tmp_path: Path,
     local_release: tuple[str, Path],
 ) -> None:
@@ -675,22 +764,154 @@ def test_installer_upgrade_rejects_legacy_010_installation(
         home=user_home,
     )
     assert initial.returncode == 0, initial.stdout + initial.stderr
+    source_files = prepare_legacy_installation(app_home)
 
-    legacy_entrypoint = app_home / "backend" / "main.py"
-    legacy_entrypoint.parent.mkdir(parents=True)
-    legacy_entrypoint.write_text("# Legacy audiodoc entry point\n", encoding="utf-8")
-
-    package_path = next(
-        (app_home / ".venv" / "lib").glob("python*/site-packages/audiodoc")
+    preserved_paths = (
+        app_home / ".env",
+        app_home / "models" / "legacy-model.bin",
+        app_home / "tmp" / "legacy.tmp",
     )
-    shutil.rmtree(package_path)
+    preserved_hashes = {
+        path: hashlib.sha256(path.read_bytes()).hexdigest() for path in preserved_paths
+    }
+    unit_directory = user_home / ".config" / "systemd" / "user"
+    unit_directory.mkdir(parents=True)
+    unit_path = unit_directory / "audiodoc.service"
+    old_unit = "[Service]\nExecStart=/old/uvicorn app:app\n"
+    unit_path.write_text(old_unit, encoding="utf-8")
+    fake_bin, systemctl_log = create_systemctl_stub(tmp_path, active=False)
 
     result = run_installer(
         "--upgrade",
         release_url=release_url,
         home=user_home,
+        extra_env={
+            "PATH": str(fake_bin) + os.pathsep + os.environ["PATH"],
+            "FAKE_SYSTEMCTL_LOG": str(systemctl_log),
+        },
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    legacy_dir = app_home / ".legacy-0.1.0"
+    assert legacy_dir.is_dir()
+    for relative_path, content in source_files.items():
+        assert (legacy_dir / relative_path).read_text(encoding="utf-8") == content
+        assert not (app_home / relative_path).exists()
+    for path, expected_hash in preserved_hashes.items():
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == expected_hash
+    assert (app_home / ".venv" / "bin" / "audiodoc").is_file()
+    assert installed_version(app_home) == "1.2.3"
+    assert (
+        unit_path.with_name("audiodoc.service.bak").read_text(encoding="utf-8")
+        == old_unit
+    )
+    new_unit = unit_path.read_text(encoding="utf-8")
+    assert f'ExecStart="{app_home}/.venv/bin/audiodoc" run' in new_unit
+    assert "uvicorn app:app" not in new_unit
+    systemctl_calls = systemctl_log.read_text(encoding="utf-8").splitlines()
+    assert systemctl_calls == [
+        "--user is-active --quiet audiodoc.service",
+        "--user daemon-reload",
+    ]
+    assert str(legacy_dir) in result.stdout
+    assert "systemctl --user restart audiodoc.service" in result.stdout
+    assert f"change ExecStart to {app_home}/.venv/bin/audiodoc run" in result.stdout
+    assert "uvicorn app:app command keeps working for one release" in result.stdout
+
+    calls = [
+        json.loads(line)
+        for line in (app_home / "calls.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert calls[-2:] == [["service", "install", "--print"], ["doctor"]]
+
+
+def test_installer_legacy_upgrade_rolls_back_after_doctor_failure(
+    tmp_path: Path,
+    local_release: tuple[str, Path],
+) -> None:
+    release_url, _release_dir = local_release
+    user_home = tmp_path / "user"
+    user_home.mkdir()
+    app_home = user_home / "audiodoc"
+
+    initial = run_installer(
+        "--no-model",
+        release_url=release_url,
+        home=user_home,
+    )
+    assert initial.returncode == 0, initial.stdout + initial.stderr
+    source_files = prepare_legacy_installation(app_home)
+
+    unit_directory = user_home / ".config" / "systemd" / "user"
+    unit_directory.mkdir(parents=True)
+    unit_path = unit_directory / "audiodoc.service"
+    old_unit = "[Service]\nExecStart=/old/uvicorn app:app\n"
+    unit_path.write_text(old_unit, encoding="utf-8")
+    fake_bin, systemctl_log = create_systemctl_stub(tmp_path, active=False)
+
+    result = run_installer(
+        "--upgrade",
+        release_url=release_url,
+        home=user_home,
+        extra_env={
+            "PATH": str(fake_bin) + os.pathsep + os.environ["PATH"],
+            "FAKE_SYSTEMCTL_LOG": str(systemctl_log),
+            "FAKE_DOCTOR_FAIL": "1",
+        },
     )
 
     assert result.returncode != 0
-    assert "Legacy audiodoc 0.1.0" in result.stderr
-    assert (app_home / ".venv" / "bin" / "audiodoc").is_file()
+    assert "audiodoc doctor failed" in result.stderr
+    for relative_path, content in source_files.items():
+        assert (app_home / relative_path).read_text(encoding="utf-8") == content
+    assert not (app_home / ".legacy-0.1.0").exists()
+    assert unit_path.read_text(encoding="utf-8") == old_unit
+    assert (
+        unit_path.with_name("audiodoc.service.bak").read_text(encoding="utf-8")
+        == old_unit
+    )
+    systemctl_calls = systemctl_log.read_text(encoding="utf-8").splitlines()
+    assert systemctl_calls == [
+        "--user is-active --quiet audiodoc.service",
+        "--user daemon-reload",
+        "--user daemon-reload",
+    ]
+
+
+def test_installer_legacy_upgrade_refuses_active_user_service(
+    tmp_path: Path,
+    local_release: tuple[str, Path],
+) -> None:
+    release_url, _release_dir = local_release
+    user_home = tmp_path / "user"
+    user_home.mkdir()
+    app_home = user_home / "audiodoc"
+
+    initial = run_installer(
+        "--no-model",
+        release_url=release_url,
+        home=user_home,
+    )
+    assert initial.returncode == 0, initial.stdout + initial.stderr
+    source_files = prepare_legacy_installation(app_home)
+    fake_bin, systemctl_log = create_systemctl_stub(tmp_path, active=True)
+
+    result = run_installer(
+        "--upgrade",
+        release_url=release_url,
+        home=user_home,
+        extra_env={
+            "PATH": str(fake_bin) + os.pathsep + os.environ["PATH"],
+            "FAKE_SYSTEMCTL_LOG": str(systemctl_log),
+        },
+    )
+
+    assert result.returncode != 0
+    assert "user service is active" in result.stderr
+    for relative_path, content in source_files.items():
+        assert (app_home / relative_path).read_text(encoding="utf-8") == content
+    assert not (app_home / ".legacy-0.1.0").exists()
+    assert not (app_home / ".venv" / ".legacy-upgrade-marker").exists()
+    assert systemctl_log.read_text(encoding="utf-8").splitlines() == [
+        "--user is-active --quiet audiodoc.service"
+    ]
