@@ -296,7 +296,7 @@ def create_ocr_image() -> bytes:
             48,
         )
     except OSError:
-        font = image_font_module.load_default()
+        font = image_font_module.load_default(size=48)
     draw.text((50, 70), "Document Engine OCR Test", fill="black", font=font)
     draw.text((50, 170), "Hello! This is a test.", fill="black", font=font)
     output = BytesIO()

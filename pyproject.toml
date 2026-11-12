@@ -1,10 +1,11 @@
+# VENDORED: keep identical in bot-obormot and audiodoc. Source of truth: audiodoc.
 [build-system]
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "audiodoc"
-version = "0.1.0"
+version = "0.2.0"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115,<1.0",

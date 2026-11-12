@@ -1,10 +1,17 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Regression tests for release asset generation and workflow configuration."""
 
+import json
 from pathlib import Path
 
 import pytest
 
+from scripts.check_vendored import (
+    PACKAGE_VENDORED_FILES,
+    VENDORED_FILES,
+    VENDORED_HEADER,
+    check_vendored,
+)
 from scripts.release_notes import extract_release_notes
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -205,3 +212,146 @@ def test_sdist_manifest_includes_only_the_safe_environment_template() -> None:
     manifest = (ROOT_DIR / "MANIFEST.in").read_text(encoding="utf-8").splitlines()
 
     assert manifest == ["include .env.example", "exclude .env"]
+
+
+def _write_vendored_repository(
+    root: Path,
+    package_name: str,
+    *,
+    ruff_line_length: int = 88,
+    pytest_addopts: str = "-q",
+    ci_env: str = "APP_HOME",
+) -> None:
+    """Create a minimal repository containing all vendored files."""
+    for relative_path in VENDORED_FILES:
+        path = root / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if relative_path == "pyproject.toml":
+            content = (
+                f"{VENDORED_HEADER}\n\n"
+                "[tool.ruff]\n"
+                f"line-length = {ruff_line_length}\n\n"
+                "[tool.deptry]\n"
+                f"known_first_party = [{json.dumps(package_name)}]\n\n"
+                "[tool.importlinter]\n"
+                f"root_package = {json.dumps(package_name)}\n\n"
+                "[[tool.importlinter.contracts]]\n"
+                f"source_modules = [{json.dumps(f'{package_name}.api')}]\n"
+                f"forbidden_modules = [{json.dumps(f'{package_name}.main')}]\n\n"
+                "[tool.pytest.ini_options]\n"
+                f"addopts = {json.dumps(pytest_addopts)}\n"
+            )
+        elif relative_path == ".github/workflows/ci.yml":
+            content = (
+                f"{VENDORED_HEADER}\n"
+                "name: CI\n"
+                "jobs:\n"
+                "  test:\n"
+                "    env:\n"
+                f"      PROJECT_HOME: {json.dumps(ci_env)}\n"
+                "    steps:\n"
+                "      - run: make check\n"
+            )
+        else:
+            content = f"{VENDORED_HEADER}\nshared content\n"
+        path.write_text(content, encoding="utf-8")
+
+    package_dir = root / package_name
+    package_dir.mkdir(parents=True, exist_ok=True)
+    for filename in PACKAGE_VENDORED_FILES:
+        (package_dir / filename).write_text(
+            f"{VENDORED_HEADER}\nshared module\n",
+            encoding="utf-8",
+        )
+
+
+def test_check_vendored_accepts_package_names_and_local_env_differences(
+    tmp_path: Path,
+) -> None:
+    """Ignore package names, CI env blocks, and non-lint project settings."""
+    local = tmp_path / "audiodoc"
+    other = tmp_path / "bot-obormot"
+    _write_vendored_repository(local, "audiodoc", ci_env="AUDIODOC_HOME")
+    _write_vendored_repository(
+        other,
+        "bot_obormot",
+        pytest_addopts="-vv",
+        ci_env="BOT_HOME",
+    )
+
+    assert check_vendored(other, root=local) == []
+
+
+def test_check_vendored_reports_lint_configuration_differences(
+    tmp_path: Path,
+) -> None:
+    """Compare lint tables while ignoring package-specific references."""
+    local = tmp_path / "audiodoc"
+    other = tmp_path / "bot-obormot"
+    _write_vendored_repository(local, "audiodoc")
+    _write_vendored_repository(other, "bot_obormot", ruff_line_length=100)
+
+    assert check_vendored(other, root=local) == [
+        "pyproject.toml: lint configuration differs from other repository"
+    ]
+
+
+def test_check_vendored_reports_file_and_header_errors(tmp_path: Path) -> None:
+    """Report changed content, missing headers, and missing package modules."""
+    local = tmp_path / "audiodoc"
+    other = tmp_path / "bot-obormot"
+    _write_vendored_repository(local, "audiodoc")
+    _write_vendored_repository(other, "bot_obormot")
+    (local / "Makefile").write_text(
+        f"{VENDORED_HEADER}\nlocal content\n",
+        encoding="utf-8",
+    )
+    (local / ".editorconfig").write_text("root = true\n", encoding="utf-8")
+    (other / "bot_obormot" / "env_readers.py").unlink()
+
+    errors = check_vendored(other, root=local)
+
+    assert "Makefile: content differs from other repository" in errors
+    assert f"{local / '.editorconfig'}: missing VENDORED header" in errors
+    assert f"{other / 'bot_obormot' / 'env_readers.py'}: file not found" in errors
+
+
+def test_project_vendored_files_have_required_headers() -> None:
+    """Ensure every vendored project file starts with the required marker."""
+    for relative_path in VENDORED_FILES:
+        path = ROOT_DIR / relative_path
+        first_line = path.read_text(encoding="utf-8").splitlines()[0]
+        assert first_line == VENDORED_HEADER
+
+    package_files = sorted(ROOT_DIR.glob("*/log_filters.py"))
+    assert len(package_files) == 1
+    for filename in PACKAGE_VENDORED_FILES:
+        first_line = (
+            (package_files[0].parent / filename)
+            .read_text(encoding="utf-8")
+            .splitlines()[0]
+        )
+        assert first_line == VENDORED_HEADER
+
+
+def test_project_version_and_changelog_prepare_release_020() -> None:
+    """Require the 0.2.0 version and all requested changelog sections."""
+    pyproject = (ROOT_DIR / "pyproject.toml").read_text(encoding="utf-8")
+    changelog = (ROOT_DIR / "CHANGELOG.md").read_text(encoding="utf-8")
+    release_entry = changelog.split("## [0.2.0] - ", maxsplit=1)[1]
+
+    assert 'version = "0.2.0"' in pyproject
+    for section in ("### Added", "### Changed", "### Deprecated", "### Removed"):
+        assert section in release_entry
+    for detail in (
+        "command-line interface",
+        "Docker",
+        "`code` field",
+        "`AUDIODOC_AUDIO_KEY`",
+        "`DOCUMENT_API_KEY`",
+        "`uvicorn app:app`",
+        "`--latest`",
+        "`--nightly`",
+        "`--yes`",
+    ):
+        assert detail in release_entry

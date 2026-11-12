@@ -5,17 +5,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Added (Installer)
+## [0.2.0] - 2026-11-12
 
-- CI smoke coverage for release-wheel installation and virtual environment upgrades.
-- Installer tests for HTTP release assets, version changes, and rollback after a failed offline doctor check.
+### Added (CLI, Docker, and API errors)
+
+- Added a command-line interface for application management.
+- Added Docker and Docker Compose deployment.
+- Added a stable `code` field to API error responses.
+- Added CI smoke coverage for release-wheel installation and virtual environment upgrades.
+- Added installer tests for HTTP release assets, version changes, and rollback after a failed offline doctor check.
 
 ### Changed
 
+- Renamed the Python package and import namespace from `backend` to `audiodoc`.
+- Renamed API key settings to `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`.
 - Replaced the legacy installer interface with verified release-wheel installation and staged `--upgrade`.
-- Removed the legacy installer flags `--latest`, `--nightly`, and `--yes`; the installer now selects the latest stable release automatically.
 - Replaced the `AUDIODOC_INSTALL_DIR` environment variable with `AUDIODOC_HOME`.
 - Documented the legacy 0.1.0 directory upgrade path and rollback behavior.
+
+### Deprecated
+
+- Deprecated `WHISPER_API_KEY`; use `AUDIODOC_AUDIO_KEY` instead.
+- Deprecated `DOCUMENT_API_KEY`; use `AUDIODOC_DOCUMENT_KEY` instead.
+- Deprecated `uvicorn app:app`; use `audiodoc run` instead.
+
+### Removed
+
+- Removed the legacy installer flags `--latest`, `--nightly`, and `--yes`. The installer selects the latest stable release automatically.
 
 ## [0.1.0] - 2026-11-06
 

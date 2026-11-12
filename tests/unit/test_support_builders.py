@@ -11,6 +11,7 @@ import av
 import pymupdf
 import pytest
 from defusedxml import ElementTree
+from PIL import ImageFont
 
 from tests.support import builders
 
@@ -98,3 +99,35 @@ def test_audio_builders_create_decodable_audio() -> None:
 
 def test_ocr_image_builder_creates_png_data() -> None:
     assert builders.create_ocr_image().startswith(b"\x89PNG\r\n\x1a\n")
+
+
+def test_ocr_image_builder_uses_large_fallback_font(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requested_sizes: list[float | None] = []
+    original_load_default = ImageFont.load_default
+    original_truetype = ImageFont.truetype
+
+    def reject_dejavu(
+        font: str | BytesIO,
+        size: int,
+        *,
+        layout_engine: ImageFont.Layout | None = None,
+    ) -> ImageFont.FreeTypeFont:
+        if isinstance(font, str):
+            message = "DejaVuSans is unavailable"
+            raise OSError(message)
+        return original_truetype(font, size, layout_engine=layout_engine)
+
+    def record_load_default(
+        size: float | None = None,
+    ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+        requested_sizes.append(size)
+        return original_load_default(size=size)
+
+    monkeypatch.setattr(ImageFont, "truetype", reject_dejavu)
+    monkeypatch.setattr(ImageFont, "load_default", record_load_default)
+
+    builders.create_ocr_image()
+
+    assert requested_sizes == [48]
