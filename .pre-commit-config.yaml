@@ -73,12 +73,14 @@ repos:
         additional_dependencies: ["shellcheck-py==0.11.0.1"]
         types: [file]
         files: \.(sh|sh\.example)$
+
       - id: ruff-check
         name: Ruff check
         entry: ruff check .
         language: system
         pass_filenames: false
         always_run: true
+
       - id: ruff-format
         name: Ruff format
         entry: ruff format --check .

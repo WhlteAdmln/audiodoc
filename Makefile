@@ -69,6 +69,7 @@ cov:
 	$(PYTHON) -m coverage report --show-missing
 
 docs-check:
+	$(PYTHON) -m scripts.check_docs
 	pre-commit run --all-files
 
 contract:
