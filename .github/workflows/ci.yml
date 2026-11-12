@@ -307,6 +307,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: v0.1.0
+          path: legacy-v0.1.0
+          persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.0.0
         with:
           python-version: "3.12"
@@ -340,6 +345,12 @@ jobs:
           test -s dist/constraints.txt
           test -s dist/SHA256SUMS
           (cd dist && sha256sum --check --status SHA256SUMS)
+      - name: Prepare offline installer wheelhouse
+        run: |
+          mkdir -p "${RUNNER_TEMP}/audiodoc-wheelhouse"
+          python -m pip download \
+            --dest "${RUNNER_TEMP}/audiodoc-wheelhouse" \
+            -r requirements-lock.txt
       - name: Install and upgrade from a locally served release
         shell: bash
         run: |
@@ -459,6 +470,12 @@ jobs:
           bash scripts/build_release.sh "$release_version"
       - name: Test installer rollback and isolated installation flows
         run: python -m pytest -q tests/unit/test_installer.py
+      - name: Test upgrade from the v0.1.0 directory installation
+        env:
+          AUDIODOC_LEGACY_SOURCE: ${{ github.workspace }}/legacy-v0.1.0
+          AUDIODOC_TEST_WHEELHOUSE: ${{ runner.temp }}/audiodoc-wheelhouse
+          PIP_FIND_LINKS: ${{ runner.temp }}/audiodoc-wheelhouse
+        run: python -m pytest -q tests/integration/legacy_installer_ci.py
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-assets

@@ -15,6 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Replaced the legacy installer interface with verified release-wheel installation and staged `--upgrade`.
 - Removed the legacy installer flags `--latest`, `--nightly`, and `--yes`; the installer now selects the latest stable release automatically.
 - Replaced the `AUDIODOC_INSTALL_DIR` environment variable with `AUDIODOC_HOME`.
+- Documented the legacy 0.1.0 directory upgrade path and rollback behavior.
 
 ## [0.1.0] - 2026-11-06
 

@@ -184,3 +184,21 @@ If you do not need to rename the live deployment, leave its existing systemd and
 ## 10. Safe rollback
 
 Keep the previous delivery archive and the previous virtual environment. Stop the service, restore the previous verified code and matching environment, check ownership/permissions and `.env` path, then start the service and verify `/health`, `/ready`, one document request, and one transcription. Never restore secrets from an archive; restore them from the host's protected environment file.
+
+## 11. Upgrading from 0.1.0
+
+The release installer supports legacy directory installations (default: `~/audiodoc`). Download and inspect the current installer as described above, then run:
+
+```bash
+sh install.sh --upgrade
+```
+
+The installer detects the 0.1.0 layout by `backend/main.py` and the absence of the `audiodoc` package in `.venv`. It refuses to proceed while the `audiodoc` user service is active. Legacy source files are moved to `.legacy-0.1.0/`; `.env`, `.venv`, `models/`, and `tmp/` are preserved. The verified release wheel and constrained dependencies are installed into the existing virtual environment.
+
+If a per-user `audiodoc.service` exists, the installer saves it as `audiodoc.service.bak`, replaces it with the output of `audiodoc service install --print`, and reloads the user systemd manager. It does not restart the service. After `audiodoc doctor` succeeds, restart it manually:
+
+```bash
+systemctl --user restart audiodoc.service
+```
+
+If the doctor check fails, the installer restores the moved source files and saved user unit, then exits unsuccessfully. The existing `.venv` is not rolled back. The installer never modifies system-wide systemd units. Operators with a hand-written system unit should change `ExecStart` to `<HOME>/.venv/bin/audiodoc run`; the old `uvicorn app:app` command remains compatible for one release because the wheel ships `app.py`.

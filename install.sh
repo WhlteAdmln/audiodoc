@@ -226,6 +226,15 @@ refuse_active_service() {
 	fi
 }
 
+LEGACY_UPGRADE=0
+LEGACY_DIR=""
+LEGACY_MIGRATION_STARTED=0
+LEGACY_MIGRATION_SUCCEEDED=0
+LEGACY_UNIT_FILE=""
+LEGACY_UNIT_BACKUP=""
+LEGACY_UNIT_BACKED_UP=0
+LEGACY_UNIT_TEMP=""
+
 if [ "$UPGRADE" -eq 1 ]; then
 	[ -d "$HOME_DIR" ] && [ ! -L "$HOME_DIR" ] ||
 		die "Upgrade requires an existing installation directory: $HOME_DIR"
@@ -254,7 +263,17 @@ raise SystemExit(
     else 1
 )' \
 			>/dev/null 2>&1; then
-		die "Legacy audiodoc 0.1.0 installation detected. Follow the migration procedure in task A-4.10 before upgrading."
+		LEGACY_UPGRADE=1
+		LEGACY_DIR="$HOME_DIR/.legacy-0.1.0"
+		[ ! -e "$LEGACY_DIR" ] && [ ! -L "$LEGACY_DIR" ] ||
+			die "Refusing to overwrite legacy source backup: $LEGACY_DIR"
+		LEGACY_UNIT_FILE="$HOME/.config/systemd/user/audiodoc.service"
+		LEGACY_UNIT_BACKUP="$LEGACY_UNIT_FILE.bak"
+		if [ -e "$LEGACY_UNIT_FILE" ] || [ -L "$LEGACY_UNIT_FILE" ]; then
+			[ ! -e "$LEGACY_UNIT_BACKUP" ] &&
+				[ ! -L "$LEGACY_UNIT_BACKUP" ] ||
+				die "Refusing to overwrite systemd unit backup: $LEGACY_UNIT_BACKUP"
+		fi
 	fi
 
 	refuse_active_service
@@ -289,6 +308,39 @@ cleanup() {
 	result=$?
 	trap - 0
 	rm -rf "$TMP_DIR"
+	if [ -n "$LEGACY_UNIT_TEMP" ]; then
+		rm -f "$LEGACY_UNIT_TEMP"
+	fi
+	if [ "$result" -ne 0 ] &&
+		[ "$LEGACY_MIGRATION_STARTED" -eq 1 ] &&
+		[ "$LEGACY_MIGRATION_SUCCEEDED" -ne 1 ]; then
+		log "Restoring the legacy source tree."
+		for legacy_path in \
+			"$LEGACY_DIR/backend" \
+			"$LEGACY_DIR/app.py" \
+			"$LEGACY_DIR/deploy" \
+			"$LEGACY_DIR/scripts" \
+			"$LEGACY_DIR/docs" \
+			"$LEGACY_DIR"/requirements*.txt \
+			"$LEGACY_DIR/install.sh" \
+			"$LEGACY_DIR"/README* \
+			"$LEGACY_DIR/LICENSE" \
+			"$LEGACY_DIR/.env.example"; do
+			if [ -e "$legacy_path" ] || [ -L "$legacy_path" ]; then
+				mv "$legacy_path" "$HOME_DIR/" ||
+					printf '%s\n' "[$APP_NAME] ERROR: Could not restore $legacy_path." >&2
+			fi
+		done
+		if [ "$LEGACY_UNIT_BACKED_UP" -eq 1 ]; then
+			cp -p "$LEGACY_UNIT_BACKUP" "$LEGACY_UNIT_FILE" ||
+				printf '%s\n' "[$APP_NAME] ERROR: Could not restore the user systemd unit." >&2
+			if command -v systemctl >/dev/null 2>&1; then
+				systemctl --user daemon-reload ||
+					printf '%s\n' "[$APP_NAME] ERROR: Could not reload the restored user systemd unit." >&2
+			fi
+		fi
+		rmdir "$LEGACY_DIR" 2>/dev/null || :
+	fi
 	if [ "$UPGRADE" -eq 1 ]; then
 		rm -rf "$HOME_DIR/.venv.new"
 		if [ "$UPGRADE_BACKUP" -eq 1 ] &&
@@ -342,7 +394,7 @@ else
 
 	RELEASE_INFO="$TMP_DIR/release-info.txt"
 	"$PYTHON_BIN" - "$API_JSON" "$RELEASE_INFO" <<'PY' ||
-		die "GitHub returned invalid release metadata."
+                die "GitHub returned invalid release metadata."
 import json
 import re
 import sys
@@ -375,7 +427,8 @@ PY
 	WHEEL_ASSET_COUNT=$(sed -n '2p' "$RELEASE_INFO")
 
 	if [ "$WHEEL_ASSET_COUNT" -eq 0 ]; then
-		die "Release $RELEASE_TAG has no wheel asset. Use the installer at https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$RELEASE_TAG/install.sh"
+		die "Release $RELEASE_TAG has no wheel asset. Use the installer at https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$RELEASE_TAG/insta
+ll.sh"
 	fi
 
 	if [ "$WHEEL_ASSET_COUNT" -ne 1 ]; then
@@ -451,6 +504,94 @@ download_asset constraints.txt
 	die "Release SHA-256 verification failed."
 
 if [ "$UPGRADE" -eq 1 ]; then
+	if [ "$LEGACY_UPGRADE" -eq 1 ]; then
+		log "Moving legacy 0.1.0 source files to $LEGACY_DIR."
+		mkdir -m 700 "$LEGACY_DIR" ||
+			die "Could not create the legacy source backup directory."
+		LEGACY_MIGRATION_STARTED=1
+		for legacy_path in \
+			"$HOME_DIR/backend" \
+			"$HOME_DIR/app.py" \
+			"$HOME_DIR/deploy" \
+			"$HOME_DIR/scripts" \
+			"$HOME_DIR/docs" \
+			"$HOME_DIR"/requirements*.txt \
+			"$HOME_DIR/install.sh" \
+			"$HOME_DIR"/README* \
+			"$HOME_DIR/LICENSE" \
+			"$HOME_DIR/.env.example"; do
+			if [ -e "$legacy_path" ] || [ -L "$legacy_path" ]; then
+				mv "$legacy_path" "$LEGACY_DIR/" ||
+					die "Could not move legacy source file: $legacy_path"
+			fi
+		done
+
+		log "Installing the verified release wheel into the existing virtual environment."
+		"$HOME_DIR/.venv/bin/python" -m pip install \
+			--upgrade \
+			--disable-pip-version-check \
+			--constraint "$TMP_DIR/constraints.txt" \
+			"$TMP_DIR/$WHEEL_NAME" ||
+			die "Could not upgrade the legacy audiodoc virtual environment."
+
+		APP_CLI="$HOME_DIR/.venv/bin/audiodoc"
+		if [ -e "$LEGACY_UNIT_FILE" ] || [ -L "$LEGACY_UNIT_FILE" ]; then
+			log "Updating the existing per-user systemd unit."
+			cp -p "$LEGACY_UNIT_FILE" "$LEGACY_UNIT_BACKUP" ||
+				die "Could not back up the existing user systemd unit."
+			LEGACY_UNIT_BACKED_UP=1
+			AUDIODOC_HOME="$HOME_DIR" "$APP_CLI" service install --print \
+				>"$TMP_DIR/audiodoc.service" ||
+				die "Could not render the new user systemd unit."
+			LEGACY_UNIT_TEMP=$(mktemp "$HOME/.config/systemd/user/.audiodoc.service.XXXXXX") ||
+				die "Could not create a temporary user systemd unit."
+			cat "$TMP_DIR/audiodoc.service" >"$LEGACY_UNIT_TEMP" ||
+				die "Could not write the new user systemd unit."
+			chmod 644 "$LEGACY_UNIT_TEMP" ||
+				die "Could not set permissions on the new user systemd unit."
+			mv "$LEGACY_UNIT_TEMP" "$LEGACY_UNIT_FILE" ||
+				die "Could not replace the existing user systemd unit."
+			LEGACY_UNIT_TEMP=""
+			systemctl --user daemon-reload ||
+				die "Could not reload the user systemd manager."
+		fi
+
+		DOCTOR_OUTPUT="$TMP_DIR/doctor-legacy.txt"
+		if AUDIODOC_HOME="$HOME_DIR" "$APP_CLI" doctor >"$DOCTOR_OUTPUT" 2>&1; then
+			cat "$DOCTOR_OUTPUT"
+		else
+			cat "$DOCTOR_OUTPUT"
+			die "audiodoc doctor failed after the legacy upgrade. The old source and user unit will be restored."
+		fi
+
+		LEGACY_MIGRATION_SUCCEEDED=1
+		INSTALL_SUCCEEDED=1
+		cat <<EOF
+
+Upgrade completed successfully.
+
+Application directory:
+  $HOME_DIR
+
+Legacy source backup:
+  $LEGACY_DIR
+
+Virtual environment:
+  $HOME_DIR/.venv
+
+The installer preserved .env, models/, tmp/, and the existing virtual environment.
+The installer did not restart or enable the systemd service.
+
+When ready, restart the audiodoc user service:
+  systemctl --user restart audiodoc.service
+
+For operators with a hand-written system unit:
+  change ExecStart to $HOME_DIR/.venv/bin/audiodoc run; the old uvicorn app:app command keeps working for one release because the wheel ships app.py.
+EOF
+		log "Upgraded the legacy installation to release $RELEASE_TAG."
+		exit 0
+	fi
+
 	NEW_VENV="$HOME_DIR/.venv.new"
 	NEW_PYTHON="$NEW_VENV/bin/python"
 	NEW_CLI="$NEW_VENV/bin/audiodoc"

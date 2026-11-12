@@ -49,6 +49,24 @@ sh install.sh --upgrade
 
 Upgrade requires the existing `.env` and `.venv`, refuses to run while the user service is active, and validates a staged `.venv.new` with `audiodoc doctor --offline` before switching environments. On failure, the previous environment remains in place. The upgrade preserves `.env`, `models/`, `tmp/`, and the systemd unit; it never restarts the service. Restart it manually when ready with `systemctl --user restart audiodoc.service`.
 
+### Upgrading from 0.1.0
+
+A 0.1.0 directory installation is detected by the presence of `backend/main.py` and the absence of the `audiodoc` package in the existing `.venv`. To migrate it, run:
+
+```bash
+sh install.sh --upgrade
+```
+
+The installer refuses to proceed while the user service is active. It moves the legacy source files into `$AUDIODOC_HOME/.legacy-0.1.0/` (by default, `~/audiodoc/.legacy-0.1.0/`) and preserves `.env`, `.venv`, `models/`, and `tmp/`. It installs the release wheel and constrained dependencies into the existing virtual environment.
+
+If a per-user `audiodoc.service` exists, its original contents are saved as `audiodoc.service.bak`. The installer replaces the unit with the output of `audiodoc service install --print` and reloads the user systemd manager. It does not restart the service. After `audiodoc doctor` succeeds, restart it manually:
+
+```bash
+systemctl --user restart audiodoc.service
+```
+
+If the doctor check fails, the installer restores the moved legacy source files and saved user unit and exits with a non-zero status. The existing `.venv` is not rolled back. System-wide systemd units are never modified. Operators with a hand-written system unit should change `ExecStart` to `<HOME>/.venv/bin/audiodoc run`; the old `uvicorn app:app` command remains compatible for one release because the wheel ships `app.py`.
+
 For direct Python package installation, download the wheel and `constraints.txt` from the same release. Install with `pipx install --pip-args="--constraint constraints.txt" ./audiodoc-*.whl` or `python -m pip install --constraint constraints.txt ./audiodoc-*.whl`, then run `audiodoc init` and `audiodoc doctor`.
 
 ## Quick start
