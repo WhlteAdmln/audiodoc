@@ -189,6 +189,10 @@ def test_venv_requires_configured_python_version() -> None:
 
     assert "PYTHON_VERSION ?= 3.13" in makefile
     assert "PYTHON_BOOTSTRAP ?= python$(PYTHON_VERSION)" in makefile
+    assert (
+        "PYTHON ?= $(if $(wildcard .venv/bin/python),"
+        ".venv/bin/python,python3)" in makefile
+    )
     assert 'expected="$(PYTHON_VERSION)"' in makefile
     assert 'command -v "$(PYTHON_BOOTSTRAP)"' in makefile
     assert ".venv/bin/python -c" in makefile

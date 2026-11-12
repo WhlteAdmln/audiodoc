@@ -1,7 +1,7 @@
 
 PYTHON_VERSION ?= 3.13
 PYTHON_BOOTSTRAP ?= python$(PYTHON_VERSION)
-PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,$(PYTHON_BOOTSTRAP))
+PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 VERSION ?= dev
 PYTHON_SCRIPTS_DIR = $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_path('scripts'))")
 
