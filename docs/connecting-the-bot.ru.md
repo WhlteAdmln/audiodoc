@@ -2,7 +2,7 @@
 
 Это руководство связывает `bot-obormot` и `audiodoc`. Бот отправляет аудио и документы в audiodoc по HTTP; текстовый чат идёт напрямую от бота к LLM-серверу с OpenAI-совместимым API. Изображения, GIF, стикеры и видео бот обрабатывает самостоятельно.
 
-Связанная документация: [HTTP API audiodoc](api.md), [примеры развёртывания](../deploy/README.md), [репозиторий бота](https://github.com/WhlteAdmln/bot-obormot) и [настройка бота](https://github.com/WhlteAdmln/bot-obormot#подключение-audiodoc).
+Связанная документация: [HTTP API audiodoc](api.md), [справочник конфигурации](configuration.md), [production-развёртывание](operations.md#production-deployment), [репозиторий бота](https://github.com/WhlteAdmln/bot-obormot) и [настройка бота](https://github.com/WhlteAdmln/bot-obormot#подключение-audiodoc).
 
 ## 1. Компоненты и поток запросов
 
@@ -26,7 +26,7 @@ bot-obormot (машина A)
 
 | Назначение | `bot-obormot` | `audiodoc` | Примечание |
 | --- | --- | --- | --- |
-| Базовый URL | `AUDIODOC_URL` | host/port Uvicorn | Только базовый URL; бот добавляет пути эндпоинтов |
+| Базовый URL | `AUDIODOC_URL` | `AUDIODOC_HOST`, `AUDIODOC_PORT` | Только базовый URL; бот добавляет пути эндпоинтов |
 | Ключ распознавания | `AUDIODOC_AUDIO_KEY` | `AUDIODOC_AUDIO_KEY` | Значения должны совпадать |
 | Ключ документов | `AUDIODOC_DOCUMENT_KEY` | `AUDIODOC_DOCUMENT_KEY` | Значения должны совпадать и отличаться от ключа аудио |
 | Тайм-ауты запросов | `AUDIODOC_AUDIO_TIMEOUT`, `AUDIODOC_DOCUMENT_TIMEOUT` | — | В секундах; настройки только для бота |
@@ -38,6 +38,22 @@ bot-obormot (машина A)
 `GET /health` не требует ключа. Для `GET /ready` и `POST /process-document` нужен `AUDIODOC_DOCUMENT_KEY`; для `POST /transcribe` — `AUDIODOC_AUDIO_KEY`. Используйте разные ключи. В production оставляйте `ALLOW_UNAUTHENTICATED=false`.
 
 Для миграции audiodoc читает `WHISPER_API_KEY` и `DOCUMENT_API_KEY` как запасные значения, если соответствующий новый ключ пуст. Бот сохраняет совместимость с `WHISPER_API_URL`, `DOCUMENT_API_URL`, `WHISPER_API_KEY`, `DOCUMENT_API_KEY`, `WHISPER_TIMEOUT` и `DOCUMENT_TIMEOUT` в течение двух минорных релизов. Новая настройка имеет приоритет над старой. При использовании старого имени при запуске выводится предупреждение об устаревании.
+
+### Генерация настроек бота командой `audiodoc pair`
+
+На сервере audiodoc выполните команду после настройки обоих ключей в backend `.env`:
+
+```bash
+audiodoc pair
+```
+
+Команда выводит готовые настройки `AUDIODOC_URL`, `AUDIODOC_AUDIO_KEY` и `AUDIODOC_DOCUMENT_KEY` для `.env` бота. По умолчанию URL строится из `AUDIODOC_HOST` и `AUDIODOC_PORT`. Для адреса VPN или HTTPS-хоста укажите явный базовый URL:
+
+```bash
+audiodoc pair --url http://10.8.0.1:8000
+```
+
+Команда требует оба backend-ключа. Вывод содержит секреты: передавайте его на хост бота по защищённому каналу и не вставляйте в задачи, логи или общие записи терминала. URL указывается без `/transcribe` и `/process-document`.
 
 ## 3. Действующие лимиты
 
@@ -94,7 +110,7 @@ AUDIODOC_DOCUMENT_KEY=REPLACE_WITH_RANDOM_KEY_2
 uvicorn app:app --host 10.8.0.1 --port 8000
 ```
 
-Разрешите входящие TCP-порты `8000` (audiodoc) и `8080` (LLM) только от VPN-адреса бота `10.8.0.2`. Перед применением правил файрвола изучите [`deploy/README.md`](../deploy/README.md) и `deploy/ufw-rules.sh.example`. Не открывайте оба сервиса в публичный интернет.
+Разрешите входящие TCP-порты `8000` (audiodoc) и `8080` (LLM) только от VPN-адреса бота `10.8.0.2`. Перед применением правил файрвола изучите раздел [Production deployment](operations.md#production-deployment) и `deploy/ufw-rules.sh.example`. Не открывайте оба сервиса в публичный интернет.
 
 `bot-obormot/.env` на машине A:
 
@@ -190,4 +206,4 @@ API audiodoc принимает несколько действующих клю
 | HTTP `504` или тайм-аут бота | Истёк дедлайн документа или тайм-аут клиента; время очереди также учитывается | Проверьте нагрузку и логи бэкенда перед увеличением тайм-аутов |
 | Первый запуск кажется медленным | Скачивается или загружается модель Whisper | Заранее подготовьте модель, задайте `WHISPER_MODEL_PATH` и включите `WHISPER_OFFLINE=true` |
 
-Подробности эндпоинтов и кодов состояния приведены в [описании API](api.md). Настройка сети и защита хоста описаны в [примерах развёртывания](../deploy/README.md).
+Подробности эндпоинтов и кодов состояния приведены в [описании API](api.md). Настройка сети и защита хоста описаны в разделе [Production deployment](operations.md#production-deployment).

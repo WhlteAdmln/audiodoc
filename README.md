@@ -1,37 +1,33 @@
 # audiodoc
 
-Backend for a Telegram bot: Whisper audio transcription and text extraction from documents.
+Backend for a Telegram bot: Whisper audio transcription and document text extraction.
 
-A standalone FastAPI service for a Telegram bot. It exposes `/transcribe` for Whisper audio recognition and `/process-document` for Document Engine text extraction. The bot remains an HTTP client; image, animation, and video processing stay on the bot side.
+A standalone FastAPI service. It exposes `/transcribe` for audio and `/process-document` for document text. The bot remains an HTTP client; image, animation, and video processing stay on the bot side.
 
 ## Features
 
 - Speech recognition with `faster-whisper`.
-- Text extraction from PDF (including OCR for scans), DOCX, XLSX, PPTX, ODT, ODS, ODP, EPUB, FB2, DJVU (including OCR), TXT, Markdown, HTML, XML, CSV, and RTF.
+- Text extraction from PDF (including OCR), DOCX, XLSX, PPTX, ODT, ODS, ODP, EPUB, FB2, DJVU (including OCR), TXT, Markdown, HTML, XML, CSV, and RTF.
 - Separate Bearer keys for Whisper and Document Engine.
-- Limits for uploads, audio duration, processing time, extracted text, tables, OCR, subprocesses, and work queues.
+- Bounded upload sizes, processing time, extracted text, and work queues.
 - Dependency diagnostics at `/ready`, request correlation with `X-Request-ID`, and log-secret redaction.
 
 Legacy Office formats (`.doc`, `.xls`, `.ppt`) and standalone images are unsupported. Image, animation, and video handling belongs to the bot.
 
 ## Requirements
 
-Python 3.11 or newer is required.
-
-Example Debian/Ubuntu system packages:
+Python 3.11 or newer. On Debian/Ubuntu, install the native OCR and DJVU tools:
 
 ```bash
 sudo apt update
 sudo apt install -y python3 python3-venv python3-pip tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng djvulibre-bin
 ```
 
-OCR requires Tesseract and the `rus`/`eng` language data. DJVU requires `djvutxt`, `djvused`, and `ddjvu`. Check them with authenticated `GET /ready`.
+## Installation
 
-## Release installer
+### 1. Release installer
 
-The installer downloads the latest stable GitHub Release wheel, `constraints.txt`, and `SHA256SUMS`, verifies their checksums, and installs into `~/audiodoc/.venv` by default. It requires Linux with glibc, Python 3.11+, `venv`, `curl`, and `sha256sum`. Alpine is unsupported because release wheels require glibc.
-
-Download and inspect the installer before running it:
+The installer verifies release checksums and installs into `~/audiodoc/.venv` by default. It requires Linux with glibc, Python 3.11+, `venv`, `curl`, and `sha256sum` (Alpine is unsupported). Download and inspect it before running:
 
 ```bash
 curl -fsSLo install.sh https://raw.githubusercontent.com/WhlteAdmln/audiodoc/main/install.sh
@@ -39,41 +35,25 @@ less install.sh
 sh install.sh --no-model --systemd
 ```
 
-The installer selects the latest stable release automatically. Configure it with `--model`, `--device`, `--compute-type`, `--host`, and `--port`; `--no-model` skips the Whisper model download. `--systemd` creates a per-user unit without enabling or starting it. `--os-packages` opts in to the package-manager command recommended by `doctor`. Set `AUDIODOC_HOME` to change the installation directory.
+Use `--model`, `--device`, `--compute-type`, `--host`, and `--port` to configure the install; `--no-model` skips the model download. `--systemd` creates a per-user unit but does not enable or start it. Set `AUDIODOC_HOME` to change the install directory. Upgrade guidance is in [Operations](docs/operations.md).
 
-To upgrade an existing installation, download and inspect the current installer as above, then run:
+### 2. Install a release wheel
+
+Download the wheel and `constraints.txt` from the same GitHub Release, then install either with pipx or pip:
 
 ```bash
-sh install.sh --upgrade
+pipx install --pip-args="--constraint constraints.txt" ./audiodoc-*.whl
+# or
+python -m pip install --constraint constraints.txt ./audiodoc-*.whl
+audiodoc init
+audiodoc doctor
 ```
 
-Upgrade requires the existing `.env` and `.venv`, refuses to run while the user service is active, and validates a staged `.venv.new` with `audiodoc doctor --offline` before switching environments. On failure, the previous environment remains in place. The upgrade preserves `.env`, `models/`, `tmp/`, and the systemd unit; it never restarts the service. Restart it manually when ready with `systemctl --user restart audiodoc.service`.
-
-### Upgrading from 0.1.0
-
-A 0.1.0 directory installation is detected by the presence of `backend/main.py` and the absence of the `audiodoc` package in the existing `.venv`. To migrate it, run:
+### 3. Install from a source checkout
 
 ```bash
-sh install.sh --upgrade
-```
-
-The installer refuses to proceed while the user service is active. It moves the legacy source files into `$AUDIODOC_HOME/.legacy-0.1.0/` (by default, `~/audiodoc/.legacy-0.1.0/`) and preserves `.env`, `.venv`, `models/`, and `tmp/`. It installs the release wheel and constrained dependencies into the existing virtual environment.
-
-If a per-user `audiodoc.service` exists, its original contents are saved as `audiodoc.service.bak`. The installer replaces the unit with the output of `audiodoc service install --print` and reloads the user systemd manager. It does not restart the service. After `audiodoc doctor` succeeds, restart it manually:
-
-```bash
-systemctl --user restart audiodoc.service
-```
-
-If the doctor check fails, the installer restores the moved legacy source files and saved user unit and exits with a non-zero status. The existing `.venv` is not rolled back. System-wide systemd units are never modified. Operators with a hand-written system unit should change `ExecStart` to `<HOME>/.venv/bin/audiodoc run`; the old `uvicorn app:app` command remains compatible for one release because the wheel ships `app.py`.
-
-For direct Python package installation, download the wheel and `constraints.txt` from the same release. Install with `pipx install --pip-args="--constraint constraints.txt" ./audiodoc-*.whl` or `python -m pip install --constraint constraints.txt ./audiodoc-*.whl`, then run `audiodoc init` and `audiodoc doctor`.
-
-## Quick start
-
-From the project root:
-
-```bash
+git clone https://github.com/WhlteAdmln/audiodoc.git
+cd audiodoc
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
@@ -82,78 +62,24 @@ cp .env.example .env
 chmod 600 .env
 ```
 
-Edit `.env` and set two different, long random secrets: `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`. Configure the matching values in the bot's environment. Do not enable `ALLOW_UNAUTHENTICATED` on a production server.
+## Configuration
 
-Generate a key with:
+Set different, long random values for `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`; keep `ALLOW_UNAUTHENTICATED=false` outside local development. Generate a key with `python -c "import secrets; print(secrets.token_urlsafe(32))"`. See [Configuration](docs/configuration.md) for every setting, defaults, examples, and the `audiodoc pair` command. See the [bot connection guide](docs/connecting-the-bot.md) for bot-side settings.
 
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
+## Run and verify
 
-Run locally:
+For a local source-checkout run:
 
 ```bash
 uvicorn app:app --host 127.0.0.1 --port 8000
-```
-
-For a two-machine deployment, bind the service to a private/VPN address, not `0.0.0.0`. UFW, WireGuard, nginx, and systemd examples are in `deploy/`. Replace all example addresses and paths before use; allow administrator SSH access before enabling firewall rules.
-
-On first use, `faster-whisper` may download a model. For an isolated server, prepare a local model first, set `WHISPER_MODEL_PATH`, and enable `WHISPER_OFFLINE=true`; see `docs/operations.md`.
-
-## Verify the service
-
-```bash
 curl -i http://127.0.0.1:8000/health
 curl -i http://127.0.0.1:8000/ready \
   -H "Authorization: Bearer $AUDIODOC_DOCUMENT_KEY"
 ```
 
-`/health` is an unauthenticated liveness endpoint. `/ready` reports native document-processing dependencies and requires the document key. `/docs` and `/openapi.json` are disabled by default.
-
-Test a document upload:
-
-```bash
-curl -i \
-  -H "Authorization: Bearer $DOCUMENT_API_KEY" \
-  -F "file=@sample.txt" \
-  http://127.0.0.1:8000/process-document
-```
-
-For the bot, set `AUDIODOC_URL` to the base URL without an endpoint path; the bot appends `/transcribe` and `/process-document`. Avoid putting production secrets directly into shell command arguments.
-
-## Environment settings
-
-The `.env.example` file lists all environment-backed settings and their defaults.
-
-The legacy names `WHISPER_API_KEY` and `DOCUMENT_API_KEY` remain accepted as fallbacks when the corresponding new setting is empty. The new setting takes precedence. Legacy-name use produces a deprecation warning at startup; migrate within two minor releases.
-
-| Variable | Default | Purpose |
-| --- | ---: | --- |
-| `AUDIODOC_AUDIO_KEY` | empty | Dedicated Bearer key for `/transcribe`; empty only with local auth bypass |
-| `AUDIODOC_DOCUMENT_KEY` | empty | Dedicated Bearer key for `/process-document` and `/ready` |
-| `ALLOW_UNAUTHENTICATED` | `false` | Local development bypass; never enable on a production server |
-| `BACKEND_TEMP_DIR` | `tmp/` in the project root | Private temporary-file directory |
-| `MAX_AUDIO_SIZE` | `26214400` | Maximum audio upload size in bytes (25 MiB) |
-| `MAX_AUDIO_DURATION` | `600` | Maximum audio duration in seconds |
-| `MAX_CONCURRENT_TRANSCRIPTIONS` | `1` | Active transcription workers |
-| `MAX_WAITING_DOCUMENTS` | `4` | Waiting document jobs (2 active workers) |
-| `MAX_WAITING_TRANSCRIPTIONS` | `4` | Waiting transcription jobs |
-| `WHISPER_MODEL_SIZE` | `small` | Model identifier when no local path is set |
-| `WHISPER_MODEL_PATH` | empty | Optional pre-downloaded local model path; takes precedence over model size |
-| `WHISPER_DEVICE` | `cpu` | Model device (`cpu` or supported `cuda`) |
-| `WHISPER_COMPUTE_TYPE` | `int8` | Compute type compatible with the selected device |
-| `WHISPER_OFFLINE` | `false` | Passes `local_files_only=true` to prevent model downloads |
-| `WHISPER_CPU_THREADS` | `6` | Whisper CPU thread count |
-| `WHISPER_LANGUAGE` | `ru` | Language hint for transcription |
-| `WHISPER_BEAM_SIZE` | `5` | Whisper beam size |
-| `ENABLE_DOCS` | `false` | Enables `/docs` and `/openapi.json`; development only |
-| `LOG_LEVEL` | `INFO` | Python logging level |
-
-Other Document Engine limits are constants in `audiodoc/document_engine/limits.py`: 50 MiB per document, 500 pages, two million extracted characters, a 180-second processing deadline, two concurrent documents, and separate ZIP/table/image/OCR/DJVU limits.
+`/health` is unauthenticated. `/ready` requires `AUDIODOC_DOCUMENT_KEY`. Bind to a private/VPN address or loopback behind a TLS reverse proxy; do not expose the service on an untrusted network. For offline startup, prepare a local model and set `WHISPER_MODEL_PATH` and `WHISPER_OFFLINE=true`; see [Operations](docs/operations.md).
 
 ## Tests
-
-Install development dependencies and run the test suites separately:
 
 ```bash
 python -m pip install -r requirements-dev.txt
@@ -161,16 +87,12 @@ python -m pytest -q
 python -m pytest -q -m integration
 ```
 
-Integration tests need Tesseract with the `rus` and `eng` language data, plus DjVuLibre. They use a fake Whisper model; no real Whisper model is downloaded or loaded. Install the Python dependencies from `requirements-lock.txt` before running them. See `docs/operations.md`.
+Integration tests require Tesseract with `rus` and `eng` data plus DjVuLibre. They use a fake Whisper model and do not load a real model.
 
 ## Documentation
 
-- [Architecture (EN)](docs/architecture.md) · [Архитектура (RU)](docs/architecture.ru.md)
-- [HTTP API](docs/api.md)
-- [Telegram bot connection guide](docs/connecting-the-bot.md)
-- [Operations](docs/operations.md)
-- [Adding a format](docs/adding-a-format.md)
-- [Security checklist](docs/security-checklist.md)
-- [Deployment acceptance checklist (historical)](docs/history/final-acceptance.md)
-- [Deployment examples](deploy/README.md)
-- [Refactoring history](docs/history/REFACTORING_LOG.md)
+- [Architecture](docs/architecture.md) · [Архитектура](docs/architecture.ru.md)
+- [HTTP API](docs/api.md) · [Configuration](docs/configuration.md)
+- [Telegram bot connection](docs/connecting-the-bot.md)
+- [Operations and production deployment](docs/operations.md)
+- [Adding a format](docs/adding-a-format.md) · [Security checklist](docs/security-checklist.md)

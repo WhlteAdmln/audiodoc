@@ -2,7 +2,7 @@
 
 This guide connects `bot-obormot` to `audiodoc`. The bot sends audio and documents to audiodoc over HTTP; text chat goes directly from the bot to the OpenAI-compatible LLM server. Image, GIF, sticker, and video handling remains in the bot.
 
-Related documentation: [audiodoc API](api.md), [deployment examples](../deploy/README.md), [bot repository](https://github.com/WhlteAdmln/bot-obormot), and the bot's [configuration guide](https://github.com/WhlteAdmln/bot-obormot#connecting-to-audiodoc).
+Related documentation: [audiodoc API](api.md), [configuration reference](configuration.md), [production deployment](operations.md#production-deployment), [bot repository](https://github.com/WhlteAdmln/bot-obormot), and the bot's [configuration guide](https://github.com/WhlteAdmln/bot-obormot#connecting-to-audiodoc).
 
 ## 1. Components and request flow
 
@@ -26,7 +26,7 @@ The bot builds endpoint paths from `AUDIODOC_URL`. Set this to the base URL only
 
 | Purpose | `bot-obormot` | `audiodoc` | Notes |
 | --- | --- | --- | --- |
-| Base URL | `AUDIODOC_URL` | Uvicorn host/port | Base URL only; the bot adds endpoint paths |
+| Base URL | `AUDIODOC_URL` | `AUDIODOC_HOST`, `AUDIODOC_PORT` | Base URL only; the bot adds endpoint paths |
 | Transcription key | `AUDIODOC_AUDIO_KEY` | `AUDIODOC_AUDIO_KEY` | Values must match |
 | Document key | `AUDIODOC_DOCUMENT_KEY` | `AUDIODOC_DOCUMENT_KEY` | Values must match and differ from the audio key |
 | Request timeouts | `AUDIODOC_AUDIO_TIMEOUT`, `AUDIODOC_DOCUMENT_TIMEOUT` | — | Seconds; bot settings only |
@@ -38,6 +38,22 @@ The bot builds endpoint paths from `AUDIODOC_URL`. Set this to the base URL only
 `GET /health` is unauthenticated. `GET /ready` and `POST /process-document` use `AUDIODOC_DOCUMENT_KEY`; `POST /transcribe` uses `AUDIODOC_AUDIO_KEY`. Keep the two keys different. In production, keep `ALLOW_UNAUTHENTICATED=false`.
 
 For migration, audiodoc reads `WHISPER_API_KEY` and `DOCUMENT_API_KEY` as fallbacks when the corresponding new key is empty. The bot retains compatibility with `WHISPER_API_URL`, `DOCUMENT_API_URL`, `WHISPER_API_KEY`, `DOCUMENT_API_KEY`, `WHISPER_TIMEOUT`, and `DOCUMENT_TIMEOUT` for two minor releases. A new setting takes precedence over its old counterpart. Legacy-name use produces a deprecation warning at startup.
+
+### Generate bot settings with `audiodoc pair`
+
+On the backend host, after setting both backend keys in its `.env`, run:
+
+```bash
+audiodoc pair
+```
+
+The command prints the bot-side `AUDIODOC_URL`, `AUDIODOC_AUDIO_KEY`, and `AUDIODOC_DOCUMENT_KEY` assignments. By default, the URL is derived from `AUDIODOC_HOST` and `AUDIODOC_PORT`. To use a VPN address or HTTPS hostname, override the base URL:
+
+```bash
+audiodoc pair --url http://10.8.0.1:8000
+```
+
+Both backend keys must be configured. The output contains secrets: transfer it to the bot host through a protected channel and do not paste it into tickets, logs, or shared terminal recordings. The URL must not include `/transcribe` or `/process-document`.
 
 ## 3. Effective limits
 
@@ -94,7 +110,7 @@ On machine B, bind audiodoc to its private VPN address:
 uvicorn app:app --host 10.8.0.1 --port 8000
 ```
 
-Allow inbound TCP ports `8000` (audiodoc) and `8080` (LLM) only from the bot's VPN address `10.8.0.2`. Review [`deploy/README.md`](../deploy/README.md) and `deploy/ufw-rules.sh.example` before applying firewall changes. Do not expose either service to the public internet.
+Allow inbound TCP ports `8000` (audiodoc) and `8080` (LLM) only from the bot's VPN address `10.8.0.2`. Review [Production deployment](operations.md#production-deployment) and `deploy/ufw-rules.sh.example` before applying firewall changes. Do not expose either service to the public internet.
 
 `bot-obormot/.env` on machine A:
 
@@ -119,7 +135,7 @@ Keep the same matching Bearer keys as configured in audiodoc. Do not disable cer
 
 ### Resource note
 
-The LLM and Whisper can compete for CPU, RAM, and GPU memory when they share machine B. audiodoc defaults to CPU inference (`WHISPER_DEVICE=cpu`). If you move Whisper to a GPU, account for the LLM's VRAM needs and tune the systemd resource controls in the deployment example.
+The LLM and Whisper can compete for CPU, RAM, and GPU memory when they share machine B. audiodoc defaults to CPU inference (`WHISPER_DEVICE=cpu`). If you move Whisper to a GPU, account for the LLM's VRAM needs and tune the systemd resource controls in the deployment guide.
 
 ## 5. Verify the connection
 
@@ -190,4 +206,4 @@ Do not combine the Whisper and document keys; they protect different endpoints.
 | HTTP `504` or bot timeout | Document deadline or client timeout elapsed; queue wait may contribute | Inspect backend logs and load before increasing timeouts |
 | First startup appears slow | Whisper model is being downloaded or loaded | Pre-download a model, set `WHISPER_MODEL_PATH`, and use `WHISPER_OFFLINE=true` when ready |
 
-For endpoint details and status codes, see [the API reference](api.md). For host hardening and network setup, see [deployment examples](../deploy/README.md).
+For endpoint details and status codes, see [the API reference](api.md). For host hardening and network setup, see [Production deployment](operations.md#production-deployment).
