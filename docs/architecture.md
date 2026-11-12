@@ -22,9 +22,43 @@ Audio flow:
 
 ## 2. Application startup and shutdown
 
-`app.py` remains a thin entry point and the production import target is `uvicorn app:app`. `audiodoc/main.py` loads `.env` from the project root before importing settings, configures root logging filters, creates the FastAPI app, and registers middleware, error handlers, and routers.
+`audiodoc/cli.py` is the supported command-line entry point. `audiodoc run` loads the selected environment file before validating settings and starts Uvicorn with `audiodoc.main:create_app` and `factory=True`. `audiodoc/main.py` does not load `.env`; `create_app()` reads the process environment through `get_settings()` unless an explicit `Settings` object is supplied. `app.py` remains a compatibility entry point for `uvicorn app:app`.
 
 During lifespan startup the service sets `umask(077)`, verifies that the API keys are configured unless the explicit local-only bypass is enabled, creates a private temporary directory, removes stale service-owned audio files, and loads the Whisper model in a worker thread. The process is shut down by the ASGI server; the model is released with the process.
+
+### Settings, factory, and CLI
+
+`Settings` is a frozen dataclass. `load_settings(environ)` parses and validates values; `get_settings()` caches process-environment settings. Canonical keys are `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`; legacy key names remain compatibility aliases.
+
+`audiodoc run` loads its env file, builds validated settings, configures logging, and starts Uvicorn. Other CLI commands are `version`, `doctor`, `init`, `pair`, `model download`, `config check`, and `service install`.
+
+`create_app(settings=None)` accepts explicit settings or calls `get_settings()`. It stores `settings`, `transcription_queue`, and `document_queue` on `app.state`; lifespan creates `model_holder`, loads Whisper, then starts both queues. Shutdown stops both queues. `ENABLE_DOCS` controls the OpenAPI and Swagger routes.
+
+### Request flow
+
+`RequestIdMiddleware` is outermost; the body-size middleware rejects oversized bodies before route processing. Route authentication, bounded queue admission, upload limits, and cleanup are endpoint-specific.
+
+```mermaid
+flowchart TD
+    A[HTTP request] --> B[RequestIdMiddleware]
+    B --> C[BodySizeLimitMiddleware]
+    C --> D{POST route}
+    D -->|/transcribe| T1[Audio Bearer authentication]
+    T1 --> T2[Check model; acquire transcription slot]
+    T2 --> T3[Save bounded upload to private temp file]
+    T3 --> T4[transcription/service.py: worker-thread inference]
+    T4 --> T5[TranscribeResponse: text, language, duration]
+    D -->|/process-document| F1[Document Bearer authentication]
+    F1 --> F2[Acquire document slot; read bounded upload]
+    F2 --> F3[process_document: pipeline and extractor registry]
+    F3 --> F4[DocumentResponse]
+    T5 --> R[Close upload; release slot; remove audio file]
+    F4 --> S[Close upload; release slot]
+    T1 -. errors .-> H[Registered error handlers]
+    F1 -. errors .-> H
+    T2 -. errors .-> H
+    F2 -. errors .-> H
+```
 
 ## 3. HTTP layer
 
