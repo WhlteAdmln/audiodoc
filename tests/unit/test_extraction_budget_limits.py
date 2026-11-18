@@ -10,7 +10,7 @@ from audiodoc.common.text_budget import TextBudget
 from audiodoc.document_engine.extractors.base import ExtractContext
 from audiodoc.document_engine.extractors.odf import extract_odf
 from audiodoc.document_engine.extractors.xlsx import extract_xlsx
-from tests.builders import create_ods
+from tests.support.builders import create_ods
 
 
 def test_xlsx_passes_fixed_row_and_column_caps_to_openpyxl(monkeypatch):

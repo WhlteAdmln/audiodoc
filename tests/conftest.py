@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Shared backend test configuration.
+"""Shared test configuration.
 
 Set environment variables before importing app because application settings are loaded
 when the application is created.
@@ -11,8 +11,8 @@ from pathlib import Path
 import pytest
 
 os.environ.setdefault("ALLOW_UNAUTHENTICATED", "true")
-os.environ.setdefault("WHISPER_API_KEY", "")
-os.environ.setdefault("DOCUMENT_API_KEY", "")
+os.environ.setdefault("AUDIODOC_AUDIO_KEY", "")
+os.environ.setdefault("AUDIODOC_DOCUMENT_KEY", "")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
 
 _TEST_MARKERS = {"unit", "integration", "contract", "e2e"}

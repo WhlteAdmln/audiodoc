@@ -3,7 +3,7 @@
 import pytest
 
 from audiodoc.document_engine import process_document_sync
-from tests.builders import (
+from tests.support.builders import (
     create_docx,
     create_epub,
     create_fb2,

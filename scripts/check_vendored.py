@@ -19,18 +19,20 @@ if TYPE_CHECKING:
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _VENDORED_HEADER_PREFIX = "# VENDORED: keep identical in bot-obormot and audiodoc."
 VENDORED_HEADER = f"{_VENDORED_HEADER_PREFIX} Source of truth: audiodoc."
+# The Makefile and the CI workflow are intentionally not shared: they run
+# project-specific jobs (OCR and Whisper for audiodoc, Telegram for the bot).
 VENDORED_FILES = (
-    "Makefile",
     ".editorconfig",
     ".pre-commit-config.yaml",
-    ".github/workflows/ci.yml",
     ".github/dependabot.yml",
     "scripts/check_lock.py",
     "scripts/check_vendored.py",
     "pyproject.toml",
 )
 PACKAGE_VENDORED_FILES = ("log_filters.py", "env_readers.py")
-LINT_TOOL_NAMES = ("ruff", "mypy", "deptry", "vulture", "importlinter")
+# Only style and typing rules are shared. The dependency, dead-code and import
+# contract tables describe each project's own structure and must differ.
+LINT_TOOL_NAMES = ("ruff", "mypy")
 
 
 def _read_vendored_file(path: Path, errors: list[str]) -> bytes | None:
@@ -62,33 +64,6 @@ def _normalize_package_references(
             for key, item in value.items()
         }
     return value
-
-
-def _strip_ci_env_blocks(content: bytes, path: Path, errors: list[str]) -> bytes | None:
-    try:
-        lines = content.decode("utf-8").splitlines(keepends=True)
-    except UnicodeDecodeError as error:
-        errors.append(f"{path}: invalid UTF-8: {error}")
-        return None
-
-    result: list[str] = []
-    skipped_indent: int | None = None
-    for line in lines:
-        if skipped_indent is not None:
-            if not line.strip():
-                continue
-            indentation = len(line) - len(line.lstrip(" "))
-            if indentation > skipped_indent:
-                continue
-            skipped_indent = None
-
-        match = re.fullmatch(r"( *)env:[ \t]*(?:#.*)?(?:\r?\n)?", line)
-        if match is not None:
-            skipped_indent = len(match.group(1))
-            continue
-        result.append(line)
-
-    return "".join(result).encode("utf-8")
 
 
 def _lint_configuration_hash(
@@ -138,12 +113,6 @@ def _content_hash(
 ) -> str | None:
     if path.name == "pyproject.toml":
         return _lint_configuration_hash(content, path, package_name, errors)
-
-    if path.parts[-3:] == (".github", "workflows", "ci.yml"):
-        normalized = _strip_ci_env_blocks(content, path, errors)
-        if normalized is None:
-            return None
-        content = normalized
 
     return hashlib.sha256(content).hexdigest()
 

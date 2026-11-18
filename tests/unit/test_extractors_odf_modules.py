@@ -9,7 +9,7 @@ from audiodoc.document_engine.extractors.odf import extract_odf
 from audiodoc.document_engine.extractors.odf.odp import extract_odp
 from audiodoc.document_engine.extractors.odf.ods import extract_ods
 from audiodoc.document_engine.extractors.odf.odt import extract_odt
-from tests.builders import create_odp, create_ods, create_odt
+from tests.support.builders import create_odp, create_ods, create_odt
 
 
 def _load(data: bytes):

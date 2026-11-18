@@ -9,7 +9,7 @@ import pytest
 from PIL import Image
 
 from audiodoc.document_engine.extractors.djvu import extract_djvu
-from tests.builders import create_ocr_image
+from tests.support.builders import create_ocr_image
 
 pytestmark = pytest.mark.integration
 

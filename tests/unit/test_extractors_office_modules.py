@@ -11,7 +11,7 @@ from audiodoc.document_engine.extractors.base import ExtractContext
 from audiodoc.document_engine.extractors.docx import extract_docx
 from audiodoc.document_engine.extractors.pptx import extract_pptx
 from audiodoc.document_engine.extractors.xlsx import extract_xlsx
-from tests.builders import create_docx, create_pptx, create_xlsx
+from tests.support.builders import create_docx, create_pptx, create_xlsx
 
 
 def test_docx_extracts_paragraphs_and_table_cells():

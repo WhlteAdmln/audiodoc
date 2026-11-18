@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The installer could not read the latest release metadata from GitHub because a shell command was placed inside a here-document, and one error message contained a broken URL. Both are fixed and covered by tests.
+- `uvicorn app:app` now loads the `.env` file before creating the application, so units written for 0.1.0 keep their configuration after an upgrade.
+- CI now runs the type, dependency, dead-code and import-contract gates.
+
+### Changed
+
+- `get_home_dir()` derives the home variable and directory from the package name, so `env_readers.py` is identical in audiodoc and bot-obormot.
+- `scripts/check_vendored.py` compares only the shared lint tables (`ruff`, `mypy`) and the files that are really shared; the Makefile and CI workflow stay project-specific.
+
 ## [0.2.0] - 2026-11-12
 
 ### Added (CLI, Docker, and API errors)

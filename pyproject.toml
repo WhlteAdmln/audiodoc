@@ -68,11 +68,12 @@ include = ["audiodoc*"]
 [tool.ruff]
 line-length = 88
 target-version = "py311"
-extend-exclude = ["tmp", "models", "build"]
+extend-exclude = ["data", "tmp", "models", "build"]
 namespace-packages = ["scripts", "tests/contract", "tests/integration", "tests/unit"]
 
 [tool.ruff.lint]
 select = ["ALL"]
+allowed-confusables = ["×", "А", "В", "Е", "К", "Н", "О", "С", "У", "а", "б", "г", "е", "о", "р", "с", "у", "х", "ℹ"]
 ignore = [
     "COM812",
     "ISC001",

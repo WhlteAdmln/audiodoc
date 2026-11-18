@@ -6,7 +6,7 @@ from typing import Protocol, cast
 import pytest
 
 from audiodoc.document_engine.ocr import extract_image_text
-from tests.builders import create_ocr_image
+from tests.support.builders import create_ocr_image
 
 pytestmark = pytest.mark.integration
 
