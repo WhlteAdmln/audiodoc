@@ -1,5 +1,3 @@
-# VENDORED: keep identical in bot-obormot and audiodoc. Source of truth: audiodoc.
-
 PYTHON_VERSION ?= 3.13
 PYTHON_BOOTSTRAP ?= python$(PYTHON_VERSION)
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)

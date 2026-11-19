@@ -6,7 +6,7 @@ import pytest
 from audiodoc.document_engine.extractors.fb2 import extract_fb2
 from audiodoc.document_engine.limits import MAX_EXTRACTED_TEXT_LENGTH
 from audiodoc.errors.documents import DocumentRejectedError
-from tests.builders import create_fb2
+from tests.support.builders import create_fb2
 
 
 def test_fb2_extracts_titles_paragraphs_and_nested_text():

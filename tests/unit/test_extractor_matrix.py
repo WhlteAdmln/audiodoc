@@ -23,8 +23,9 @@ from audiodoc.document_engine.extractors.odf.odp import extract_odp
 from audiodoc.document_engine.extractors.pptx import extract_pptx
 from audiodoc.document_engine.pipeline import process_document_sync
 from audiodoc.errors.base import BackendError
-from tests.builders import (
+from tests.support.builders import (
     create_csv,
+    create_djvu,
     create_docx,
     create_epub,
     create_fb2,
@@ -40,7 +41,6 @@ from tests.builders import (
     create_xlsx,
     create_xml,
 )
-from tests.support.builders import create_djvu
 
 Builder = Callable[[], bytes]
 UNICODE_TEXT = "Привет 😀"

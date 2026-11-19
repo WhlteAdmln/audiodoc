@@ -12,7 +12,7 @@ from audiodoc.document_engine.extractors.base import ExtractContext
 from audiodoc.document_engine.extractors.pdf import extract_pdf
 from audiodoc.document_engine.limits import MAX_DOCUMENT_PAGES
 from audiodoc.errors.documents import DocumentRejectedError
-from tests.builders import create_pdf
+from tests.support.builders import create_pdf
 
 
 class _FakePixmap:

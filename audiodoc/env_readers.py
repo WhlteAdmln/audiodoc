@@ -10,19 +10,26 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+# The application name comes from the top-level package ("audiodoc" or
+# "bot_obormot"), so this module stays identical in both repositories.
+_APP_NAME = __name__.partition(".")[0].replace("_", "-")
+HOME_VARIABLE = f"{_APP_NAME.upper().replace('-', '_')}_HOME"
+
 
 def get_home_dir(environ: Mapping[str, str] | None = None) -> Path:
-    """Return the application home directory."""
+    """Return the application home directory.
+
+    The directory comes from ``<APP>_HOME`` (``AUDIODOC_HOME`` or
+    ``BOT_OBORMOT_HOME``) and defaults to ``~/<app-name>``.
+    """
     source = os.environ if environ is None else environ
-    configured_home = source.get("AUDIODOC_HOME", "").strip()
+    configured_home = source.get(HOME_VARIABLE, "").strip()
     configured_user_home = source.get("HOME", "").strip()
     user_home = (
         Path(configured_user_home).expanduser() if configured_user_home else Path.home()
     )
     home = (
-        Path(configured_home).expanduser()
-        if configured_home
-        else user_home / "audiodoc"
+        Path(configured_home).expanduser() if configured_home else user_home / _APP_NAME
     )
     return home if home.is_absolute() else Path.cwd() / home
 

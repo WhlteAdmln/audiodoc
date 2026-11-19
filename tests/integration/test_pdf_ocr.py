@@ -6,7 +6,7 @@ from typing import Protocol, cast
 import pytest
 
 from audiodoc.document_engine.extractors.pdf import extract_pdf
-from tests.builders import create_scanned_pdf
+from tests.support.builders import create_scanned_pdf
 
 pytestmark = pytest.mark.integration
 

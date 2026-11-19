@@ -394,7 +394,6 @@ else
 
 	RELEASE_INFO="$TMP_DIR/release-info.txt"
 	"$PYTHON_BIN" - "$API_JSON" "$RELEASE_INFO" <<'PY' ||
-                die "GitHub returned invalid release metadata."
 import json
 import re
 import sys
@@ -423,12 +422,12 @@ with open(destination, "w", encoding="utf-8") as stream:
     stream.write(tag + "\n")
     stream.write(str(len(wheels)) + "\n")
 PY
-		RELEASE_TAG=$(sed -n '1p' "$RELEASE_INFO")
+		die "GitHub returned invalid release metadata."
+	RELEASE_TAG=$(sed -n '1p' "$RELEASE_INFO")
 	WHEEL_ASSET_COUNT=$(sed -n '2p' "$RELEASE_INFO")
 
 	if [ "$WHEEL_ASSET_COUNT" -eq 0 ]; then
-		die "Release $RELEASE_TAG has no wheel asset. Use the installer at https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$RELEASE_TAG/insta
-ll.sh"
+		die "Release $RELEASE_TAG has no wheel asset. Use the installer at https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$RELEASE_TAG/install.sh"
 	fi
 
 	if [ "$WHEEL_ASSET_COUNT" -ne 1 ]; then

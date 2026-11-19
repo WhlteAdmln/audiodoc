@@ -111,6 +111,15 @@ def test_ci_build_job_verifies_both_release_distribution_formats() -> None:
     assert "sha256sum --check --status SHA256SUMS" in workflow
 
 
+def test_ci_lint_job_runs_every_static_analysis_gate() -> None:
+    """Type checking, dependency, dead-code and import gates must run in CI."""
+    workflow = (ROOT_DIR / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "run: make types deptry vulture import-lint" in workflow
+
+
 def test_ci_jobs_use_the_required_make_targets() -> None:
     """Ensure every CI job delegates its checks to the Makefile."""
     workflow = (ROOT_DIR / ".github" / "workflows" / "ci.yml").read_text(
@@ -220,7 +229,6 @@ def _write_vendored_repository(
     *,
     ruff_line_length: int = 88,
     pytest_addopts: str = "-q",
-    ci_env: str = "APP_HOME",
 ) -> None:
     """Create a minimal repository containing all vendored files."""
     for relative_path in VENDORED_FILES:
@@ -241,17 +249,6 @@ def _write_vendored_repository(
                 "[tool.pytest.ini_options]\n"
                 f"addopts = {json.dumps(pytest_addopts)}\n"
             )
-        elif relative_path == ".github/workflows/ci.yml":
-            content = (
-                f"{VENDORED_HEADER}\n"
-                "name: CI\n"
-                "jobs:\n"
-                "  test:\n"
-                "    env:\n"
-                f"      PROJECT_HOME: {json.dumps(ci_env)}\n"
-                "    steps:\n"
-                "      - run: make check\n"
-            )
         else:
             content = f"{VENDORED_HEADER}\nshared content\n"
         path.write_text(content, encoding="utf-8")
@@ -265,19 +262,14 @@ def _write_vendored_repository(
         )
 
 
-def test_check_vendored_accepts_package_names_and_local_env_differences(
+def test_check_vendored_accepts_package_names_and_non_lint_settings(
     tmp_path: Path,
 ) -> None:
-    """Ignore package names, CI env blocks, and non-lint project settings."""
+    """Ignore package names and project settings outside the shared lint tables."""
     local = tmp_path / "audiodoc"
     other = tmp_path / "bot-obormot"
-    _write_vendored_repository(local, "audiodoc", ci_env="AUDIODOC_HOME")
-    _write_vendored_repository(
-        other,
-        "bot_obormot",
-        pytest_addopts="-vv",
-        ci_env="BOT_HOME",
-    )
+    _write_vendored_repository(local, "audiodoc")
+    _write_vendored_repository(other, "bot_obormot", pytest_addopts="-vv")
 
     assert check_vendored(other, root=local) == []
 
@@ -302,7 +294,7 @@ def test_check_vendored_reports_file_and_header_errors(tmp_path: Path) -> None:
     other = tmp_path / "bot-obormot"
     _write_vendored_repository(local, "audiodoc")
     _write_vendored_repository(other, "bot_obormot")
-    (local / "Makefile").write_text(
+    (local / ".pre-commit-config.yaml").write_text(
         f"{VENDORED_HEADER}\nlocal content\n",
         encoding="utf-8",
     )
@@ -311,7 +303,7 @@ def test_check_vendored_reports_file_and_header_errors(tmp_path: Path) -> None:
 
     errors = check_vendored(other, root=local)
 
-    assert "Makefile: content differs from other repository" in errors
+    assert ".pre-commit-config.yaml: content differs from other repository" in errors
     assert f"{local / '.editorconfig'}: missing VENDORED header" in errors
     assert f"{other / 'bot_obormot' / 'env_readers.py'}: file not found" in errors
 
