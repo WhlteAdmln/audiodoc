@@ -37,8 +37,6 @@ bot-obormot (машина A)
 
 `GET /health` не требует ключа. Для `GET /ready` и `POST /process-document` нужен `AUDIODOC_DOCUMENT_KEY`; для `POST /transcribe` — `AUDIODOC_AUDIO_KEY`. Используйте разные ключи. В production оставляйте `ALLOW_UNAUTHENTICATED=false`.
 
-Для миграции audiodoc читает `WHISPER_API_KEY` и `DOCUMENT_API_KEY` как запасные значения, если соответствующий новый ключ пуст. Бот сохраняет совместимость с `WHISPER_API_URL`, `DOCUMENT_API_URL`, `WHISPER_API_KEY`, `DOCUMENT_API_KEY`, `WHISPER_TIMEOUT` и `DOCUMENT_TIMEOUT` в течение двух минорных релизов. Новая настройка имеет приоритет над старой. При использовании старого имени при запуске выводится предупреждение об устаревании.
-
 ### Генерация настроек бота командой `audiodoc pair`
 
 На сервере audiodoc выполните команду после настройки обоих ключей в backend `.env`:
@@ -86,7 +84,7 @@ ALLOW_UNAUTHENTICATED=false
 Запустите audiodoc из корня проекта:
 
 ```bash
-uvicorn app:app --host 127.0.0.1 --port 8000
+audiodoc run --host 127.0.0.1 --port 8000
 ```
 
 `bot-obormot/.env`:
@@ -107,7 +105,7 @@ AUDIODOC_DOCUMENT_KEY=REPLACE_WITH_RANDOM_KEY_2
 На машине B привяжите audiodoc к приватному VPN-адресу:
 
 ```bash
-uvicorn app:app --host 10.8.0.1 --port 8000
+audiodoc run --host 10.8.0.1 --port 8000
 ```
 
 Разрешите входящие TCP-порты `8000` (audiodoc) и `8080` (LLM) только от VPN-адреса бота `10.8.0.2`. Перед применением правил файрвола изучите раздел [Production deployment](operations.md#production-deployment) и `deploy/ufw-rules.sh.example`. Не открывайте оба сервиса в публичный интернет.

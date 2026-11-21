@@ -83,12 +83,7 @@ def test_docker_entrypoint_uses_keys_from_persistent_home() -> None:
     """Ensure host environment keys cannot mask keys generated in the volume."""
     entrypoint = (ROOT_DIR / "docker-entrypoint.sh").read_text(encoding="utf-8")
 
-    for key in (
-        "AUDIODOC_AUDIO_KEY",
-        "AUDIODOC_DOCUMENT_KEY",
-        "WHISPER_API_KEY",
-        "DOCUMENT_API_KEY",
-    ):
+    for key in ("AUDIODOC_AUDIO_KEY", "AUDIODOC_DOCUMENT_KEY"):
         assert f"unset {key}" in entrypoint
     assert 'exec "$@"' in entrypoint
 

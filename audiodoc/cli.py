@@ -512,12 +512,7 @@ def _configuration_problems(environ: Mapping[str, str]) -> list[str]:
 def _settings_for_security_check(environ: Mapping[str, str]) -> Settings:
     """Build the authentication settings even when other settings are invalid."""
     audio_key = environ.get("AUDIODOC_AUDIO_KEY", "").strip()
-    if not audio_key:
-        audio_key = environ.get("WHISPER_API_KEY", "").strip()
-
     document_key = environ.get("AUDIODOC_DOCUMENT_KEY", "").strip()
-    if not document_key:
-        document_key = environ.get("DOCUMENT_API_KEY", "").strip()
 
     try:
         allow_unauthenticated = get_bool("ALLOW_UNAUTHENTICATED", environ=environ)

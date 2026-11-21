@@ -63,18 +63,15 @@ def check_security_settings(settings: Settings) -> None:
     """Fail closed when API keys are absent or shared between APIs."""
     missing: list[str] = []
     configured_keys: dict[str, set[str]] = {}
-    key_settings = (
-        ("AUDIODOC_AUDIO_KEY", "WHISPER_API_KEY"),
-        ("AUDIODOC_DOCUMENT_KEY", "DOCUMENT_API_KEY"),
-    )
+    key_names = ("AUDIODOC_AUDIO_KEY", "AUDIODOC_DOCUMENT_KEY")
 
-    for name, legacy_name in key_settings:
-        value = getattr(settings, name, "") or getattr(settings, legacy_name, "")
+    for name in key_names:
+        value: str = getattr(settings, name)
         configured = {key.strip() for key in value.split(",") if key.strip()}
         configured_keys[name] = configured
 
         if not configured:
-            missing.append(f"{name} (legacy: {legacy_name})")
+            missing.append(name)
 
     if missing and not settings.ALLOW_UNAUTHENTICATED:
         raise RuntimeError(

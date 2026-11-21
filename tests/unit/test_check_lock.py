@@ -89,7 +89,7 @@ def test_cli_loads_environment_before_running_uvicorn(monkeypatch) -> None:
     ]
 
 
-def test_wheel_excludes_tests_and_scripts_and_contains_legacy_app(
+def test_wheel_excludes_tests_and_scripts(
     tmp_path: Path,
 ) -> None:
     output_dir = tmp_path / "dist"
@@ -97,7 +97,6 @@ def test_wheel_excludes_tests_and_scripts_and_contains_legacy_app(
     source_dir = tmp_path / "source"
     source_dir.mkdir()
     shutil.copytree(PROJECT_ROOT / "audiodoc", source_dir / "audiodoc")
-    shutil.copy2(PROJECT_ROOT / "app.py", source_dir / "app.py")
     shutil.copy2(PROJECT_ROOT / "pyproject.toml", source_dir / "pyproject.toml")
 
     previous_directory = Path.cwd()
@@ -116,5 +115,4 @@ def test_wheel_excludes_tests_and_scripts_and_contains_legacy_app(
         paths = archive.namelist()
 
     assert not any(path.startswith(("tests/", "scripts/")) for path in paths)
-    assert "app.py" in paths
     assert "audiodoc/main.py" in paths

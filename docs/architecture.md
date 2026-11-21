@@ -22,13 +22,13 @@ Audio flow:
 
 ## 2. Application startup and shutdown
 
-`audiodoc/cli.py` is the supported command-line entry point. `audiodoc run` loads the selected environment file before validating settings and starts Uvicorn with `audiodoc.main:create_app` and `factory=True`. `audiodoc/main.py` does not load `.env`; `create_app()` reads the process environment through `get_settings()` unless an explicit `Settings` object is supplied. `app.py` remains a compatibility entry point for `uvicorn app:app`.
+`audiodoc/cli.py` is the supported command-line entry point. `audiodoc run` loads the selected environment file before validating settings and starts Uvicorn with `audiodoc.main:create_app` and `factory=True`. `audiodoc/main.py` does not load `.env`; `create_app()` reads the process environment through `get_settings()` unless an explicit `Settings` object is supplied.
 
 During lifespan startup the service sets `umask(077)`, verifies that the API keys are configured unless the explicit local-only bypass is enabled, creates a private temporary directory, removes stale service-owned audio files, and loads the Whisper model in a worker thread. The process is shut down by the ASGI server; the model is released with the process.
 
 ### Settings, factory, and CLI
 
-`Settings` is a frozen dataclass. `load_settings(environ)` parses and validates values; `get_settings()` caches process-environment settings. Canonical keys are `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`; legacy key names remain compatibility aliases.
+`Settings` is a frozen dataclass. `load_settings(environ)` parses and validates values; `get_settings()` caches process-environment settings. Canonical keys are `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`.
 
 `audiodoc run` loads its env file, builds validated settings, configures logging, and starts Uvicorn. Other CLI commands are `version`, `doctor`, `init`, `pair`, `model download`, `config check`, and `service install`.
 
@@ -118,7 +118,6 @@ The root logger uses a consistent format with the request ID. The request ID is 
 
 ```text
 audiodoc/
-├── app.py
 ├── audiodoc/
 │   ├── api/
 │   ├── common/

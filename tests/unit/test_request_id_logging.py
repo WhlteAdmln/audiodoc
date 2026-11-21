@@ -6,8 +6,6 @@ import sys
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from audiodoc.common.log_filters import SecretsFilter as LegacySecretsFilter
-from audiodoc.common.logging_setup import configure_logging as legacy_configure_logging
 from audiodoc.common.request_id import (
     RequestIdFilter,
     RequestIdMiddleware,
@@ -82,14 +80,6 @@ def test_secrets_filter_redacts_message_arguments_and_traceback():
     assert error_record.exc_text is not None
     assert sensitive_value not in error_record.exc_text
     assert "[REDACTED]" in error_record.exc_text
-
-
-def test_legacy_secrets_filter_import_is_preserved():
-    assert LegacySecretsFilter is SecretsFilter
-
-
-def test_legacy_logging_setup_import_is_preserved() -> None:
-    assert legacy_configure_logging is configure_logging
 
 
 def test_secrets_filter_redacts_telegram_and_bearer_tokens():

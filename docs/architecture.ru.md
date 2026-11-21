@@ -22,13 +22,13 @@ audiodoc — отдельный FastAPI-сервис для Telegram-бота. �
 
 ## 2. Создание, запуск и остановка
 
-`audiodoc/cli.py` — основная точка входа командной строки. Команда `audiodoc run` загружает выбранный env-файл до проверки настроек и запускает Uvicorn через `audiodoc.main:create_app` с `factory=True`. `audiodoc/main.py` не загружает `.env`: без явно переданного объекта `Settings` функция `create_app()` читает настройки процесса через `get_settings()`. `app.py` сохраняет совместимость с `uvicorn app:app`.
+`audiodoc/cli.py` — основная точка входа командной строки. Команда `audiodoc run` загружает выбранный env-файл до проверки настроек и запускает Uvicorn через `audiodoc.main:create_app` с `factory=True`. `audiodoc/main.py` не загружает `.env`: без явно переданного объекта `Settings` функция `create_app()` читает настройки процесса через `get_settings()`.
 
 Во время startup lifespan сервис устанавливает `umask(077)`, проверяет наличие ключей (кроме явно разрешённого локального режима), создаёт приватный временный каталог, удаляет устаревшие аудиофайлы сервиса и загружает Whisper в рабочем потоке. При завершении ASGI-процесса модель освобождается вместе с процессом.
 
 ### Настройки, фабрика приложения и CLI
 
-`Settings` — неизменяемый dataclass. `load_settings(environ)` разбирает и проверяет значения окружения, а `get_settings()` кэширует настройки текущего процесса. Канонические ключи авторизации — `AUDIODOC_AUDIO_KEY` и `AUDIODOC_DOCUMENT_KEY`; старые имена сохранены как совместимые псевдонимы.
+`Settings` — неизменяемый dataclass. `load_settings(environ)` разбирает и проверяет значения окружения, а `get_settings()` кэширует настройки текущего процесса. Канонические ключи авторизации — `AUDIODOC_AUDIO_KEY` и `AUDIODOC_DOCUMENT_KEY`.
 
 `audiodoc run` загружает env-файл, проверяет настройки, конфигурирует логирование и запускает Uvicorn. Остальные команды CLI: `version`, `doctor`, `init`, `pair`, `model download`, `config check` и `service install`.
 
@@ -118,7 +118,6 @@ flowchart TD
 
 ```text
 audiodoc/
-├── app.py
 ├── audiodoc/
 │   ├── api/
 │   ├── common/

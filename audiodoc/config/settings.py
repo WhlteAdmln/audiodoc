@@ -43,8 +43,6 @@ class Settings:
     TEMP_DIR: str = field(default_factory=lambda: str(get_home_dir() / "tmp"))
 
     # Authentication and resource limits.
-    WHISPER_API_KEY: str = ""
-    DOCUMENT_API_KEY: str = ""
     ALLOW_UNAUTHENTICATED: bool = False
     MAX_AUDIO_SIZE: int = 25 * 1024 * 1024
     MAX_AUDIO_DURATION: int = 600
@@ -52,26 +50,9 @@ class Settings:
     MAX_WAITING_DOCUMENTS: int = 4
     MAX_WAITING_TRANSCRIPTIONS: int = 4
 
-    # Canonical shared API keys.
+    # Shared API keys.
     AUDIODOC_AUDIO_KEY: str = ""
     AUDIODOC_DOCUMENT_KEY: str = ""
-    _deprecated_environment_names: tuple[str, ...] = field(
-        default=(), compare=False, repr=False
-    )
-
-    def __post_init__(self) -> None:
-        """Synchronize legacy attributes with canonical API keys."""
-        audio_key = self.AUDIODOC_AUDIO_KEY or self.WHISPER_API_KEY
-        document_key = self.AUDIODOC_DOCUMENT_KEY or self.DOCUMENT_API_KEY
-        object.__setattr__(self, "AUDIODOC_AUDIO_KEY", audio_key)
-        object.__setattr__(self, "WHISPER_API_KEY", audio_key)
-        object.__setattr__(self, "AUDIODOC_DOCUMENT_KEY", document_key)
-        object.__setattr__(self, "DOCUMENT_API_KEY", document_key)
-
-    @property
-    def deprecated_environment_names(self) -> tuple[str, ...]:
-        """Return legacy environment variable names used for authentication."""
-        return self._deprecated_environment_names
 
 
 def load_settings(environ: Mapping[str, str]) -> Settings:
@@ -101,12 +82,6 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
         except ValueError as error:
             errors.append(str(error))
             return default
-
-    audio_key, document_key, deprecated_environment_names = _read_api_keys(
-        environ,
-        read_str("AUDIODOC_AUDIO_KEY", defaults.AUDIODOC_AUDIO_KEY, strip=True),
-        read_str("AUDIODOC_DOCUMENT_KEY", defaults.AUDIODOC_DOCUMENT_KEY, strip=True),
-    )
 
     model_path = read_str("WHISPER_MODEL_PATH", defaults.WHISPER_MODEL_PATH, strip=True)
     if model_path:
@@ -149,36 +124,18 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
         MAX_WAITING_TRANSCRIPTIONS=read_int(
             "MAX_WAITING_TRANSCRIPTIONS", defaults.MAX_WAITING_TRANSCRIPTIONS
         ),
-        AUDIODOC_AUDIO_KEY=audio_key,
-        AUDIODOC_DOCUMENT_KEY=document_key,
-        _deprecated_environment_names=deprecated_environment_names,
+        AUDIODOC_AUDIO_KEY=read_str(
+            "AUDIODOC_AUDIO_KEY", defaults.AUDIODOC_AUDIO_KEY, strip=True
+        ),
+        AUDIODOC_DOCUMENT_KEY=read_str(
+            "AUDIODOC_DOCUMENT_KEY", defaults.AUDIODOC_DOCUMENT_KEY, strip=True
+        ),
     )
 
     if errors:
         raise ConfigError(errors)
 
     return result
-
-
-def _read_api_keys(
-    environ: Mapping[str, str],
-    audio_key: str,
-    document_key: str,
-) -> tuple[str, str, tuple[str, ...]]:
-    """Read canonical API keys and identify legacy environment variables."""
-    deprecated_names: list[str] = []
-
-    if not audio_key:
-        audio_key = environ.get("WHISPER_API_KEY", "").strip()
-        if audio_key:
-            deprecated_names.append("WHISPER_API_KEY")
-
-    if not document_key:
-        document_key = environ.get("DOCUMENT_API_KEY", "").strip()
-        if document_key:
-            deprecated_names.append("DOCUMENT_API_KEY")
-
-    return audio_key, document_key, tuple(deprecated_names)
 
 
 @lru_cache(maxsize=1)
@@ -209,34 +166,18 @@ def reset_settings_cache() -> None:
     _load_cached_settings.cache_clear()
 
 
-_SETTING_COMPATIBILITY_ALIASES = {
-    "WHISPER_API_KEY": "AUDIODOC_AUDIO_KEY",
-    "DOCUMENT_API_KEY": "AUDIODOC_DOCUMENT_KEY",
-}
-_SETTING_COMPATIBILITY_PAIRS = {
-    "AUDIODOC_AUDIO_KEY": "WHISPER_API_KEY",
-    "AUDIODOC_DOCUMENT_KEY": "DOCUMENT_API_KEY",
-}
-
-
 def _set_setting(name: str, value: object) -> None:
     """Replace one cached field for compatibility with existing test patches."""
     if name not in Settings.__dataclass_fields__:
         raise AttributeError(name)
 
-    canonical_name = _SETTING_COMPATIBILITY_ALIASES.get(name, name)
-    changes = {canonical_name: value}
-    legacy_name = _SETTING_COMPATIBILITY_PAIRS.get(canonical_name)
-    if legacy_name is not None:
-        changes[legacy_name] = value
-
-    updated = replace(get_settings(), **cast("Any", changes))
+    updated = replace(get_settings(), **cast("Any", {name: value}))
     baseline = _load_cached_settings()
     _settings_state.override = None if updated == baseline else updated
 
 
 class _SettingsProxy:
-    """Resolve settings lazily while retaining legacy attribute access."""
+    """Resolve settings lazily for module-level attribute access."""
 
     def __getattr__(self, name: str) -> object:
         return getattr(get_settings(), name)

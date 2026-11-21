@@ -137,6 +137,5 @@ A client may send an identifier containing 8–64 ASCII letters, digits, dots, u
 - `/health` is intentionally unauthenticated.
 - `/ready` and `/process-document` use `AUDIODOC_DOCUMENT_KEY`.
 - `/transcribe` uses `AUDIODOC_AUDIO_KEY`.
-- During migration, `WHISPER_API_KEY` and `DOCUMENT_API_KEY` are fallbacks only when their corresponding new keys are empty. New keys take precedence; using legacy names produces a startup deprecation warning.
 - `ALLOW_UNAUTHENTICATED=true` is only for isolated local development and must remain `false` in production.
 - The bot's established paths, multipart field `file`, and required successful response fields remain unchanged.

@@ -39,10 +39,8 @@ The defaults below match `.env.example` and the CLI defaults. Empty means that n
 | `WHISPER_TIMEOUT` | `180` | Timeout in seconds for the Whisper model operation | `WHISPER_TIMEOUT=180` |
 | `ENABLE_DOCS` | `false` | Enables `/docs` and `/openapi.json`; keep disabled on production deployments unless access is restricted | `ENABLE_DOCS=false` |
 | `LOG_LEVEL` | `INFO` | Python logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`) | `LOG_LEVEL=INFO` |
-| `WHISPER_API_KEY` (legacy) | empty | Deprecated fallback for `AUDIODOC_AUDIO_KEY`, used only when the new name is empty | `WHISPER_API_KEY=<old-audio-key>` |
-| `DOCUMENT_API_KEY` (legacy) | empty | Deprecated fallback for `AUDIODOC_DOCUMENT_KEY`, used only when the new name is empty | `DOCUMENT_API_KEY=<old-document-key>` |
 
-The new key names take precedence over the legacy fallbacks. Using a legacy name emits a deprecation warning; migrate within two minor releases. Multiple comma-separated values are accepted for each current key during a rotation window. Do not combine the audio and document keys.
+Multiple comma-separated values are accepted for each current key during a rotation window. Do not combine the audio and document keys.
 
 The Document Engine also enforces limits that are not environment settings, including document size, page count, extracted characters, processing deadline, and active document workers. See `audiodoc/document_engine/limits.py` for those fixed limits.
 
