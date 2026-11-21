@@ -4,7 +4,7 @@ PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 VERSION ?= dev
 PYTHON_SCRIPTS_DIR = $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_path('scripts'))")
 
-.PHONY: venv install-dev lint fix types deptry vulture import-lint test \
+.PHONY: venv install-dev lint fix types pylint deptry vulture import-lint test \
         test-integration test-e2e integration e2e audit build docker installer \
         cov docs-check contract check clean
 
@@ -49,6 +49,9 @@ fix:
 
 types:
 	$(PYTHON) -m mypy audiodoc
+
+pylint:
+	$(PYTHON) -m pylint audiodoc scripts tests
 
 deptry:
 	$(PYTHON_SCRIPTS_DIR)/deptry .
@@ -99,7 +102,7 @@ docs-check:
 contract:
 	$(PYTHON) -m scripts.export_openapi
 
-check: lint types deptry vulture import-lint test docs-check
+check: lint types pylint deptry vulture import-lint test docs-check
 
 build:
 	bash scripts/build_release.sh "$(VERSION)"

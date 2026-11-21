@@ -118,7 +118,7 @@ def test_ci_lint_job_runs_every_static_analysis_gate() -> None:
         encoding="utf-8"
     )
 
-    assert "run: make types deptry vulture import-lint" in workflow
+    assert "run: make types pylint deptry vulture import-lint" in workflow
 
 
 def test_ci_jobs_use_the_required_make_targets() -> None:
@@ -156,7 +156,7 @@ def test_make_check_includes_documentation_and_fix_formats_code() -> None:
     """Keep local aggregate checks aligned with the CI Makefile entry point."""
     makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
 
-    assert "check: lint types deptry vulture import-lint test docs-check" in makefile
+    assert "check: lint types pylint deptry vulture import-lint test docs-check" in makefile
     docs_check = (
         "docs-check:\n"
         "\t$(PYTHON) -m scripts.check_docs\n"
