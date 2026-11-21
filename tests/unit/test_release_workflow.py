@@ -156,7 +156,10 @@ def test_make_check_includes_documentation_and_fix_formats_code() -> None:
     """Keep local aggregate checks aligned with the CI Makefile entry point."""
     makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
 
-    assert "check: lint types pylint deptry vulture import-lint test docs-check" in makefile
+    assert (
+        "check: lint types pylint deptry vulture import-lint test docs-check"
+        in makefile
+    )
     docs_check = (
         "docs-check:\n"
         "\t$(PYTHON) -m scripts.check_docs\n"
