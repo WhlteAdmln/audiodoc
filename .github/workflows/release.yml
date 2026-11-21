@@ -1,4 +1,4 @@
-name: Manual release
+name: Blow it Up (manual release)
 
 on:
   workflow_dispatch:
