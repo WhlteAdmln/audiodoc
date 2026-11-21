@@ -14,7 +14,7 @@ Complete this checklist on the actual machines A (bot) and B (audiodoc/LLM). The
 | 8 | Environment file permissions are restricted | `stat -c '%a %U %n' .env` on A and B | `600` or service-group `640` |
 | 9 | Secrets are absent from command-line arguments | `ps aux \| grep -E 'api-key\|uvicorn\|llama'` | No API key/token values |
 | 10 | Backend runs without root | `ps -o user= -C uvicorn` | Dedicated `audiodoc` account |
-| 11 | Service cannot modify backend code | `sudo -u audiodoc touch /opt/audiodoc/app.py` | `Permission denied` |
+| 11 | Service cannot modify backend code | `sudo -u audiodoc touch /opt/audiodoc/audiodoc/main.py` | `Permission denied` |
 | 12 | Backend has no unrestricted internet egress | `sudo -u audiodoc curl -m 3 https://example.org` or inspect `IPAddressDeny` | No connection |
 | 13 | Whisper loads without network | Disconnect external network on B and restart service | Service starts; `/health` returns `loaded: true` |
 | 14 | Resource limits are active | `systemctl show audiodoc -p MemoryMax -p CPUQuotaPerSecUSec` | Values are set |

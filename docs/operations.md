@@ -91,7 +91,7 @@ After installing a trusted release, create a baseline outside the writable servi
 
 ```bash
 cd /opt/audiodoc
-sudo find audiodoc app.py -type f -name '*.py' -exec sha256sum {} + | sudo tee /root/audiodoc.baseline.sha256 >/dev/null
+sudo find audiodoc -type f -name '*.py' -exec sha256sum {} + | sudo tee /root/audiodoc.baseline.sha256 >/dev/null
 ```
 
 Check it periodically:
@@ -164,7 +164,7 @@ systemctl --user stop audiodoc.service
 For the system-wide unit installed using the production guide, use `sudo systemctl` instead of `systemctl --user`. Do not run two audiodoc instances against the same temp directory or port. When starting manually for development, run the command from the application environment and bind to loopback unless the network layout explicitly requires a private interface:
 
 ```bash
-uvicorn app:app --host 127.0.0.1 --port 8000
+audiodoc run --host 127.0.0.1 --port 8000
 ```
 
 The release installer supports reviewing the installer before execution. Do not pipe an unreviewed remote script directly into a shell:
@@ -222,33 +222,8 @@ The service accepts `X-Request-ID` and includes the request identifier in its lo
 - Run `pip-audit -r requirements-lock.txt` periodically on a machine with package-index access. Review the findings; do not blindly upgrade parser libraries directly on production.
 - After changing the deployed code, regenerate the integrity baseline described in [Production deployment](#production-deployment) and verify it periodically.
 
-<!-- TODO: Remove this compatibility section after release 0.2.0. -->
-## 9. Migrating from previous deployment names
-
-The compatibility period supports installations that still use the previous application home, service account, or deployment names. Do not rename a live service directory or systemd unit by copying example files over it. First back up the current service definition, `.env`, model directory, temporary data that must be retained, and the existing virtual environment. Record the current `ExecStart`, owner/group, file permissions, bind address, and port.
-
-Use the current installer or `audiodoc service install` output to identify the new paths and unit definition. Review the generated configuration before replacing the live unit. Keep the old environment and service definition until the new service passes `audiodoc doctor`, `/health`, `/ready`, and an end-to-end bot request. The installer restores moved source files and a saved user unit if its migration doctor check fails, but it does not roll back an existing virtual environment or modify system-wide systemd units. Operators with a hand-written system unit should change `ExecStart` to `<AUDIODOC_HOME>/.venv/bin/audiodoc run`; the old `uvicorn app:app` command remains compatible for one release because the wheel ships `app.py`.
-
-## 10. Safe rollback
+## 9. Safe rollback
 
 Keep the previous release, virtual environment, and service definition available until the upgraded service is verified. To roll back, stop the service, restore the prior application files and unit definition from the backup, verify `.env` ownership and permissions, reload systemd, and restart the prior unit. Do not restore a stale `.env` over a newer one without checking key rotations and configuration changes.
 
 After rollback, check `/health`, `/ready`, and one representative audio and document request from the bot host. Preserve the failed release and its logs for diagnosis; do not delete the only copy before identifying the cause.
-
-## 11. Upgrading from 0.1.0
-
-The `0.1.0` deployment may have run directly from `backend/main.py` or an older project directory. Back up `.env`, the model directory, temporary files that must be retained, and the existing service definition before upgrading. Use the reviewed release installer in upgrade mode:
-
-```bash
-sh install.sh --upgrade
-```
-
-The upgrade keeps the existing application home and virtual environment available for recovery and places legacy files in the `AUDIODOC_HOME` migration backup directory when applicable. Review the install output, then run:
-
-```bash
-audiodoc doctor --offline
-systemctl --user daemon-reload
-systemctl --user restart audiodoc.service
-```
-
-If the service is system-wide, use the corresponding `sudo systemctl` commands. Confirm the active `ExecStart`, `/health`, `/ready`, and a real bot request before removing any backup. The installer does not rewrite arbitrary hand-maintained system units; review their paths explicitly.

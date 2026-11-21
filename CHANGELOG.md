@@ -5,16 +5,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Fixed
+## [0.3.0] - 2026-11-21
 
-- The installer could not read the latest release metadata from GitHub because a shell command was placed inside a here-document, and one error message contained a broken URL. Both are fixed and covered by tests.
-- `uvicorn app:app` now loads the `.env` file before creating the application, so units written for 0.1.0 keep their configuration after an upgrade.
-- CI now runs the type, dependency, dead-code and import-contract gates.
+Deprecated functionality is not supported starting with 0.3.0.
+
+### Removed
+
+- The `WHISPER_API_KEY` and `DOCUMENT_API_KEY` environment variables. Use `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`.
+- The `app.py` module and the `uvicorn app:app` entry point. Use `audiodoc run`.
+- The duplicate modules `audiodoc.common.logging_setup`, `audiodoc.common.log_filters` and `audiodoc.config.env`. Import `audiodoc.logging_setup`, `audiodoc.log_filters` and `audiodoc.env_readers` instead.
+- The 0.1.x migration in `install.sh` and its CI job.
 
 ### Changed
 
+- The installer tests, documentation and CI no longer cover the 0.1.x layout.
 - `get_home_dir()` derives the home variable and directory from the package name, so `env_readers.py` is identical in audiodoc and bot-obormot.
 - `scripts/check_vendored.py` compares only the shared lint tables (`ruff`, `mypy`) and the files that are really shared; the Makefile and CI workflow stay project-specific.
+- CI now runs the type, dependency, dead-code and import-contract gates, and the test matrix includes Python 3.14.
+- Fixed the installer reading the latest release metadata from GitHub and a broken URL in one installer error message.
+
+### Added
+
+- `AGENTS.md` with the rules for LLM agents working in this repository.
+- Python 3.14 classifiers and a Python 3.14 CI job.
 
 ## [0.2.0] - 2026-11-12
 

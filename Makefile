@@ -86,7 +86,6 @@ docker:
 
 installer:
 	$(PYTHON) -m pytest -q tests/unit/test_installer.py
-	$(PYTHON) -m pytest -q tests/integration/legacy_installer_ci.py
 
 cov:
 	$(PYTHON) -m coverage xml --fail-under=0

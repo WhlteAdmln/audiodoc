@@ -19,7 +19,6 @@ _IMPORT_DEPENDENCIES = (
     "audiodoc.api.auth",
     "audiodoc.api.error_handlers",
     "audiodoc.api.middleware",
-    "audiodoc.common.logging_setup",
     "audiodoc.common.request_id",
     "audiodoc.config",
     "audiodoc.document_engine",

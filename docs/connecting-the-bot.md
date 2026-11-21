@@ -37,8 +37,6 @@ The bot builds endpoint paths from `AUDIODOC_URL`. Set this to the base URL only
 
 `GET /health` is unauthenticated. `GET /ready` and `POST /process-document` use `AUDIODOC_DOCUMENT_KEY`; `POST /transcribe` uses `AUDIODOC_AUDIO_KEY`. Keep the two keys different. In production, keep `ALLOW_UNAUTHENTICATED=false`.
 
-For migration, audiodoc reads `WHISPER_API_KEY` and `DOCUMENT_API_KEY` as fallbacks when the corresponding new key is empty. The bot retains compatibility with `WHISPER_API_URL`, `DOCUMENT_API_URL`, `WHISPER_API_KEY`, `DOCUMENT_API_KEY`, `WHISPER_TIMEOUT`, and `DOCUMENT_TIMEOUT` for two minor releases. A new setting takes precedence over its old counterpart. Legacy-name use produces a deprecation warning at startup.
-
 ### Generate bot settings with `audiodoc pair`
 
 On the backend host, after setting both backend keys in its `.env`, run:
@@ -86,7 +84,7 @@ ALLOW_UNAUTHENTICATED=false
 Start audiodoc from its project root:
 
 ```bash
-uvicorn app:app --host 127.0.0.1 --port 8000
+audiodoc run --host 127.0.0.1 --port 8000
 ```
 
 `bot-obormot/.env`:
@@ -107,7 +105,7 @@ The deployment examples use machine A (bot) at `10.8.0.2` and machine B (audiodo
 On machine B, bind audiodoc to its private VPN address:
 
 ```bash
-uvicorn app:app --host 10.8.0.1 --port 8000
+audiodoc run --host 10.8.0.1 --port 8000
 ```
 
 Allow inbound TCP ports `8000` (audiodoc) and `8080` (LLM) only from the bot's VPN address `10.8.0.2`. Review [Production deployment](operations.md#production-deployment) and `deploy/ufw-rules.sh.example` before applying firewall changes. Do not expose either service to the public internet.

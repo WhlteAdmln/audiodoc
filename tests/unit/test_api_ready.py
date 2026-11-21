@@ -149,7 +149,7 @@ def create_ready_app():
 
 
 def test_ready_is_public_and_reports_native_dependencies(monkeypatch):
-    monkeypatch.setattr(settings, "DOCUMENT_API_KEY", "document-ready-test-key")
+    monkeypatch.setattr(settings, "AUDIODOC_DOCUMENT_KEY", "document-ready-test-key")
     monkeypatch.setattr(
         ready_module,
         "check_native_tools",
@@ -175,7 +175,7 @@ def test_ready_is_public_and_reports_native_dependencies(monkeypatch):
 
 
 def test_ready_reports_missing_programs_without_raising(monkeypatch):
-    monkeypatch.setattr(settings, "DOCUMENT_API_KEY", "document-ready-test-key")
+    monkeypatch.setattr(settings, "AUDIODOC_DOCUMENT_KEY", "document-ready-test-key")
     monkeypatch.setattr(
         ready_module,
         "check_native_tools",

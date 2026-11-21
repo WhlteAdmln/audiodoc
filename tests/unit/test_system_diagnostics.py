@@ -84,11 +84,11 @@ def test_env_file_check_reports_inspection_errors(
     assert "Cannot inspect" in result.message
 
 
-def test_api_key_check_accepts_distinct_keys_and_legacy_names() -> None:
+def test_api_key_check_accepts_distinct_keys() -> None:
     result = diagnostics.check_api_keys(
         {
-            "WHISPER_API_KEY": "audio-one, audio-two",
-            "DOCUMENT_API_KEY": "document-one",
+            "AUDIODOC_AUDIO_KEY": "audio-one, audio-two",
+            "AUDIODOC_DOCUMENT_KEY": "document-one",
         }
     )
 

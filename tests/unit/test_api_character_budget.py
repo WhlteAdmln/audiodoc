@@ -3,9 +3,9 @@
 
 from fastapi.testclient import TestClient
 
-from app import app
+from audiodoc.main import create_app
 
-client = TestClient(app)
+client = TestClient(create_app())
 
 
 def test_document_endpoint_accepts_optional_character_budget():

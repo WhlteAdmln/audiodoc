@@ -135,7 +135,7 @@ def test_ready_reports_unloaded_model_after_model_load_failure(monkeypatch):
     with pytest.raises(_ModelBuildError):
         app.state.model_holder.load()
 
-    monkeypatch.setattr(settings, "DOCUMENT_API_KEY", "")
+    monkeypatch.setattr(settings, "AUDIODOC_DOCUMENT_KEY", "")
     monkeypatch.setattr(settings, "ALLOW_UNAUTHENTICATED", True)
     monkeypatch.setattr(
         ready_module,

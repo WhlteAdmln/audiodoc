@@ -281,12 +281,7 @@ def test_config_check_reports_valid_configuration(
 ) -> None:
     monkeypatch.setattr(cli, "load_env_file", lambda _path=None: None)
     monkeypatch.setenv("ALLOW_UNAUTHENTICATED", "true")
-    for name in (
-        "AUDIODOC_AUDIO_KEY",
-        "AUDIODOC_DOCUMENT_KEY",
-        "WHISPER_API_KEY",
-        "DOCUMENT_API_KEY",
-    ):
+    for name in ("AUDIODOC_AUDIO_KEY", "AUDIODOC_DOCUMENT_KEY"):
         monkeypatch.delenv(name, raising=False)
 
     assert cli.main(["config", "check"]) == 0
@@ -298,14 +293,13 @@ def test_config_check_collects_problems_without_printing_secrets(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr(cli, "load_env_file", lambda _path=None: None)
-    monkeypatch.setenv("WHISPER_API_KEY", "audio-secret")
+    monkeypatch.setenv("AUDIODOC_AUDIO_KEY", "audio-secret")
     monkeypatch.setenv("WHISPER_CPU_THREADS", "secret-value")
     monkeypatch.setenv("WHISPER_OFFLINE", "sometimes")
     monkeypatch.setenv("MAX_AUDIO_SIZE", "0")
     monkeypatch.setenv("ALLOW_UNAUTHENTICATED", "invalid-secret-value")
     monkeypatch.setenv("LOG_LEVEL", "secret-log-level")
-    for name in ("AUDIODOC_AUDIO_KEY", "AUDIODOC_DOCUMENT_KEY", "DOCUMENT_API_KEY"):
-        monkeypatch.delenv(name, raising=False)
+    monkeypatch.delenv("AUDIODOC_DOCUMENT_KEY", raising=False)
 
     assert cli.main(["config", "check"]) == 1
     output = capsys.readouterr().out

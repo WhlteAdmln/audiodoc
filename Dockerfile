@@ -5,7 +5,6 @@ FROM python:3.12-slim AS builder
 WORKDIR /build
 
 COPY pyproject.toml requirements-lock.txt ./
-COPY app.py ./
 COPY audiodoc ./audiodoc
 
 RUN python -m pip wheel \

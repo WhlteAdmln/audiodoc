@@ -82,20 +82,16 @@ def check_env_file(environ: Mapping[str, str]) -> DiagnosticCheck:
     )
 
 
-def _key_values(
-    environ: Mapping[str, str], canonical_name: str, legacy_name: str
-) -> set[str]:
-    """Read comma-separated API keys using canonical and legacy names."""
-    value = environ.get(canonical_name, "").strip()
-    if not value:
-        value = environ.get(legacy_name, "")
+def _key_values(environ: Mapping[str, str], name: str) -> set[str]:
+    """Read comma-separated API keys from one environment variable."""
+    value = environ.get(name, "")
     return {item.strip() for item in value.split(",") if item.strip()}
 
 
 def check_api_keys(environ: Mapping[str, str]) -> DiagnosticCheck:
     """Check that both API keys exist and do not share values."""
-    audio_keys = _key_values(environ, "AUDIODOC_AUDIO_KEY", "WHISPER_API_KEY")
-    document_keys = _key_values(environ, "AUDIODOC_DOCUMENT_KEY", "DOCUMENT_API_KEY")
+    audio_keys = _key_values(environ, "AUDIODOC_AUDIO_KEY")
+    document_keys = _key_values(environ, "AUDIODOC_DOCUMENT_KEY")
     missing = [
         name
         for name, keys in (

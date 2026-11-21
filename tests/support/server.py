@@ -82,8 +82,8 @@ def _configure_live_server_settings(
     temp_dir: Path,
 ) -> None:
     """Configure isolated application settings for a live test."""
-    monkeypatch.setattr(settings, "WHISPER_API_KEY", options.whisper_api_key)
-    monkeypatch.setattr(settings, "DOCUMENT_API_KEY", options.document_api_key)
+    monkeypatch.setattr(settings, "AUDIODOC_AUDIO_KEY", options.whisper_api_key)
+    monkeypatch.setattr(settings, "AUDIODOC_DOCUMENT_KEY", options.document_api_key)
     monkeypatch.setattr(
         settings, "ALLOW_UNAUTHENTICATED", options.allow_unauthenticated
     )

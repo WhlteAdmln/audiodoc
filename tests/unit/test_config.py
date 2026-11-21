@@ -15,7 +15,6 @@ from audiodoc.config import (
     reset_settings_cache,
     settings,
 )
-from audiodoc.config.env import load_env_file as legacy_load_env_file
 from audiodoc.env_readers import (
     get_bool,
     get_float,
@@ -102,10 +101,6 @@ def test_get_log_level_validates_values_and_warns_on_invalid_value() -> None:
         assert get_log_level(environ={"LOG_LEVEL": "trace"}) == "INFO"
 
 
-def test_legacy_environment_reader_module_reexports_vendored_functions() -> None:
-    assert legacy_load_env_file is load_env_file
-
-
 def test_log_safe_removes_line_breaks_and_non_printable_characters() -> None:
     assert log_safe("user\nname\r\x00", limit=30) == "user\\nname\\r?"
 
@@ -136,43 +131,7 @@ def test_load_settings_uses_supplied_environment_and_normalizes_values(
     assert loaded.WHISPER_OFFLINE is True
     assert loaded.AUDIODOC_AUDIO_KEY == "whisper-key"
     assert loaded.AUDIODOC_DOCUMENT_KEY == "document-key"
-    assert loaded.WHISPER_API_KEY == "whisper-key"
-    assert loaded.DOCUMENT_API_KEY == "document-key"
     assert loaded.MAX_AUDIO_SIZE == 25 * 1024 * 1024
-
-
-def test_load_settings_falls_back_to_legacy_api_keys() -> None:
-    loaded = load_settings(
-        {
-            "AUDIODOC_AUDIO_KEY": " ",
-            "WHISPER_API_KEY": " legacy-audio ",
-            "DOCUMENT_API_KEY": " legacy-document ",
-        }
-    )
-
-    assert loaded.AUDIODOC_AUDIO_KEY == "legacy-audio"
-    assert loaded.AUDIODOC_DOCUMENT_KEY == "legacy-document"
-    assert loaded.deprecated_environment_names == (
-        "WHISPER_API_KEY",
-        "DOCUMENT_API_KEY",
-    )
-
-
-def test_load_settings_prefers_new_api_keys_when_both_names_are_set() -> None:
-    loaded = load_settings(
-        {
-            "AUDIODOC_AUDIO_KEY": "new-audio",
-            "WHISPER_API_KEY": "old-audio",
-            "AUDIODOC_DOCUMENT_KEY": "new-document",
-            "DOCUMENT_API_KEY": "old-document",
-        }
-    )
-
-    assert loaded.AUDIODOC_AUDIO_KEY == "new-audio"
-    assert loaded.AUDIODOC_DOCUMENT_KEY == "new-document"
-    assert loaded.WHISPER_API_KEY == "new-audio"
-    assert loaded.DOCUMENT_API_KEY == "new-document"
-    assert loaded.deprecated_environment_names == ()
 
 
 @pytest.mark.parametrize(

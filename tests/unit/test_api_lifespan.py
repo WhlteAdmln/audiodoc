@@ -12,13 +12,14 @@ from fastapi.testclient import TestClient
 
 import audiodoc.main as main_module
 import audiodoc.transcription.model as model_module
-from app import app
 from audiodoc.api import ready as ready_module
 from audiodoc.common.work_queue import WorkQueue
 from audiodoc.config import Settings, load_settings, settings
 from audiodoc.document_engine.limits import MAX_CONCURRENT_DOCUMENTS
 from audiodoc.errors.base import ServerBusyError
 from audiodoc.transcription.model import ModelHolder
+
+app = main_module.create_app()
 
 
 class FakeModel:
@@ -235,15 +236,14 @@ def test_lifespan_checks_configuration_prepares_storage_and_loads_model(
     ]
 
 
-def test_lifespan_logs_one_legacy_key_warning_and_redacts_new_secrets(
+def test_lifespan_redacts_configured_api_keys(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    caplog: pytest.LogCaptureFixture,
 ) -> None:
     configured_settings = load_settings(
         {
-            "WHISPER_API_KEY": "legacy-audio",
-            "DOCUMENT_API_KEY": "legacy-document",
+            "AUDIODOC_AUDIO_KEY": "audio-secret",
+            "AUDIODOC_DOCUMENT_KEY": "document-secret",
         }
     )
     application = main_module.create_app(configured_settings)
@@ -262,26 +262,18 @@ def test_lifespan_logs_one_legacy_key_warning_and_redacts_new_secrets(
         lambda _configured_settings: FakeModel(),
     )
 
-    with caplog.at_level("WARNING"), TestClient(application):
+    with TestClient(application):
         pass
 
-    warning_lines = [
-        record.getMessage()
-        for record in caplog.records
-        if "Deprecated API key environment variables" in record.getMessage()
-    ]
-    assert len(warning_lines) == 1
-    assert "WHISPER_API_KEY" in warning_lines[0]
-    assert "DOCUMENT_API_KEY" in warning_lines[0]
     assert logging_calls == [
-        ("INFO", ("legacy-audio", "legacy-document")),
+        ("INFO", ("audio-secret", "document-secret")),
     ]
 
 
 @pytest.mark.parametrize(
     ("whisper_key", "document_key", "expected_message"),
     [
-        ("", "document-test-key", "WHISPER_API_KEY"),
+        ("", "document-test-key", "AUDIODOC_AUDIO_KEY"),
         (
             "shared-test-key",
             "shared-test-key",

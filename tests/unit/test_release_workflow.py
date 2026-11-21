@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from scripts.check_vendored import (
+    HEADERLESS_VENDORED_FILES,
     PACKAGE_VENDORED_FILES,
     VENDORED_FILES,
     VENDORED_HEADER,
@@ -87,8 +88,8 @@ def test_release_build_produces_sdist_wheel_and_checksums() -> None:
     script = (ROOT_DIR / "scripts" / "build_release.sh").read_text(encoding="utf-8")
 
     assert "python3 -m build --sdist --wheel --outdir dist ." in script
-    assert "sdists=(dist/audiodoc-*.tar.gz)" in script
-    assert "wheels=(dist/audiodoc-*.whl)" in script
+    assert 'sdists=("dist/${DIST_NAME}"-*.tar.gz)' in script
+    assert 'wheels=("dist/${DIST_NAME}"-*.whl)' in script
     assert 'tar -tzf "${sdists[0]}"' in script
     assert '"${SDIST_ROOT}/.env.example"' in script
     assert '"${SDIST_ROOT}/.env"' in script
@@ -253,6 +254,11 @@ def _write_vendored_repository(
             content = f"{VENDORED_HEADER}\nshared content\n"
         path.write_text(content, encoding="utf-8")
 
+    for relative_path in HEADERLESS_VENDORED_FILES:
+        path = root / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("shared content\n", encoding="utf-8")
+
     package_dir = root / package_name
     package_dir.mkdir(parents=True, exist_ok=True)
     for filename in PACKAGE_VENDORED_FILES:
@@ -308,6 +314,19 @@ def test_check_vendored_reports_file_and_header_errors(tmp_path: Path) -> None:
     assert f"{other / 'bot_obormot' / 'env_readers.py'}: file not found" in errors
 
 
+def test_check_vendored_reports_headerless_file_differences(tmp_path: Path) -> None:
+    """Compare shared files that cannot carry a header byte for byte."""
+    local = tmp_path / "audiodoc"
+    other = tmp_path / "bot-obormot"
+    _write_vendored_repository(local, "audiodoc")
+    _write_vendored_repository(other, "bot_obormot")
+    (other / "AGENTS.md").write_text("changed\n", encoding="utf-8")
+
+    assert check_vendored(other, root=local) == [
+        "AGENTS.md: content differs from other repository"
+    ]
+
+
 def test_project_vendored_files_have_required_headers() -> None:
     """Ensure every vendored project file starts with the required marker."""
     for relative_path in VENDORED_FILES:
@@ -326,24 +345,27 @@ def test_project_vendored_files_have_required_headers() -> None:
         assert first_line == VENDORED_HEADER
 
 
-def test_project_version_and_changelog_prepare_release_020() -> None:
-    """Require the 0.2.0 version and all requested changelog sections."""
+def test_project_version_and_changelog_prepare_release_030() -> None:
+    """Require the 0.3.0 version and its changelog sections."""
     pyproject = (ROOT_DIR / "pyproject.toml").read_text(encoding="utf-8")
+    changelog = (ROOT_DIR / "CHANGELOG.md").read_text(encoding="utf-8")
+    release_entry = changelog.split("## [0.3.0] - ", maxsplit=1)[1].split(
+        "\n## [", maxsplit=1
+    )[0]
+
+    assert 'version = "0.3.0"' in pyproject
+    for section in ("### Added", "### Changed", "### Removed"):
+        assert section in release_entry
+    assert (
+        "Deprecated functionality is not supported starting with 0.3.0."
+        in release_entry
+    )
+
+
+def test_changelog_keeps_the_release_020_entry() -> None:
+    """Version 0.2.0 keeps its historical changelog entry."""
     changelog = (ROOT_DIR / "CHANGELOG.md").read_text(encoding="utf-8")
     release_entry = changelog.split("## [0.2.0] - ", maxsplit=1)[1]
 
-    assert 'version = "0.2.0"' in pyproject
     for section in ("### Added", "### Changed", "### Deprecated", "### Removed"):
         assert section in release_entry
-    for detail in (
-        "command-line interface",
-        "Docker",
-        "`code` field",
-        "`AUDIODOC_AUDIO_KEY`",
-        "`DOCUMENT_API_KEY`",
-        "`uvicorn app:app`",
-        "`--latest`",
-        "`--nightly`",
-        "`--yes`",
-    ):
-        assert detail in release_entry

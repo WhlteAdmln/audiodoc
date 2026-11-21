@@ -71,7 +71,7 @@ chmod 600 .env
 Для локального запуска из исходников:
 
 ```bash
-uvicorn app:app --host 127.0.0.1 --port 8000
+audiodoc run --host 127.0.0.1 --port 8000
 curl -i http://127.0.0.1:8000/health
 curl -i http://127.0.0.1:8000/ready \
   -H "Authorization: Bearer $AUDIODOC_DOCUMENT_KEY"

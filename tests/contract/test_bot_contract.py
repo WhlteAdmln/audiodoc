@@ -7,8 +7,8 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from jsonschema import validate
 
-from app import app
 from audiodoc.common.work_queue import WorkQueue
+from audiodoc.main import create_app
 from audiodoc.transcription.model import ModelHolder
 from scripts.export_openapi import render_openapi
 
@@ -17,6 +17,7 @@ FIXTURE_PATH = Path(__file__).parent / "fixtures" / "audiodoc_responses.json"
 CONTRACT = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
 OPENAPI_PATH = ROOT / "contract" / "openapi.json"
 OPENAPI = json.loads(OPENAPI_PATH.read_text(encoding="utf-8"))
+app = create_app()
 app.state.model_holder = ModelHolder()
 client = TestClient(app)
 
