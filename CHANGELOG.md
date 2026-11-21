@@ -18,6 +18,7 @@ Deprecated functionality is not supported starting with 0.3.0.
 
 ### Changed
 
+- Renovate replaces Dependabot version updates and opens and merges the dependency pull requests. Dependabot alerts stay enabled as a second source of vulnerability reports.
 - The installer tests, documentation and CI no longer cover the 0.1.x layout.
 - `get_home_dir()` derives the home variable and directory from the package name, so `env_readers.py` is identical in audiodoc and bot-obormot.
 - `scripts/check_vendored.py` compares only the shared lint tables (`ruff`, `mypy`) and the files that are really shared; the Makefile and CI workflow stay project-specific.
