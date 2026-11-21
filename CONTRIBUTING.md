@@ -14,8 +14,14 @@
 
 ## Files shared with bot-obormot
 
-`.editorconfig`, `.pre-commit-config.yaml`, `.github/dependabot.yml`, `scripts/check_lock.py`,
+`.editorconfig`, `.pre-commit-config.yaml`, `.github/renovate.json5`, `scripts/check_lock.py`,
 `scripts/check_vendored.py`, `scripts/build_release.sh`, `.markdownlint-cli2.yaml`, `AGENTS.md`, the `ruff` and `mypy` tables of `pyproject.toml`,
 `audiodoc/log_filters.py` and `audiodoc/env_readers.py` are copied into bot-obormot.
 audiodoc is the source of truth. After changing one of them, copy it to the bot repository
 and run `python scripts/check_vendored.py --other ../bot-obormot` in both repositories.
+
+## Dependency updates
+
+Renovate is the only tool that updates dependencies, opens pull requests and merges them; its configuration is `.github/renovate.json5`. Minor and patch updates are merged automatically after every check passes, except for the parsers and network libraries listed in the configuration, which are merged automatically only for patches. Major updates and `0.x` releases wait for a human. A release must be 14 days old before it is proposed; security fixes are not delayed.
+
+Dependabot alerts and the dependency graph stay enabled as a second source of vulnerability reports, and Renovate reads the alerts. Dependabot security updates and version updates are disabled so that only one tool opens pull requests.
