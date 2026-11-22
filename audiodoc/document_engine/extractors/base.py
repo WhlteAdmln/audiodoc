@@ -1,7 +1,10 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Shared extraction context and helpers for bounded document extractors."""
 
-from collections.abc import Callable, Iterable
+from collections.abc import (  # pylint: disable=unused-import  # string cast
+    Callable,
+    Iterable,
+)
 from dataclasses import dataclass
 from operator import attrgetter
 from typing import cast

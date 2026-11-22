@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import threading
 from contextlib import suppress
-from typing import IO, cast
+from typing import IO, cast  # pylint: disable=unused-import  # string cast
 
 MAX_SUBPROCESS_OUTPUT = 20 * 1024 * 1024
 MAX_STDERR_PREVIEW = 4096
@@ -139,7 +139,8 @@ def run_limited(
     timeout_value = _validate_run_limited_args(args, timeout, max_output)
 
     with tempfile.TemporaryFile(mode="w+b") as stderr_file:
-        process = subprocess.Popen(  # noqa: S603 - internal argv; shell=False.
+        # _collect_process_output owns the child: it kills and reaps it itself.
+        process = subprocess.Popen(  # noqa: S603  # pylint: disable=consider-using-with
             args,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,

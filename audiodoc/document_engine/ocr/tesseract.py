@@ -64,12 +64,13 @@ def _get_tesseract_command() -> str:
 class _PytesseractProxy:
     """Provide lazy access to the pytesseract API."""
 
-    def get_languages(self, config: str = "") -> list[str]:
+    @staticmethod
+    def get_languages(config: str = "") -> list[str]:
         """Return available OCR languages."""
         return _get_pytesseract().get_languages(config=config)
 
+    @staticmethod
     def image_to_string(
-        self,
         image: "Image.Image",
         *,
         lang: str,

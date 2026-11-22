@@ -90,6 +90,8 @@ async def transcribe(
         The recognized text, detected language, and audio duration.
 
     Raises:
+        AppError: Re-raised unchanged when queueing or transcription reports a
+            backend error.
         HTTPException: For missing model, invalid duration, oversized audio, or
             an internal transcription failure.
 

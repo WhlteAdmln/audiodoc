@@ -3,9 +3,9 @@
 
 import os
 from collections.abc import Mapping
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, fields, replace
 from functools import lru_cache
-from typing import Any, cast
+from typing import Any, cast  # pylint: disable=unused-import  # string cast
 
 from audiodoc.env_readers import (
     get_bool,
@@ -24,8 +24,9 @@ class ConfigError(ValueError):
         super().__init__("Invalid configuration:\n" + "\n".join(errors))
 
 
+# One field per environment variable; splitting them would only hide the schema.
 @dataclass(frozen=True, slots=True)
-class Settings:
+class Settings:  # pylint: disable=too-many-instance-attributes
     """Environment-backed defaults for Whisper, HTTP access, and resource limits."""
 
     # Whisper model and inference settings.
@@ -168,7 +169,7 @@ def reset_settings_cache() -> None:
 
 def _set_setting(name: str, value: object) -> None:
     """Replace one cached field for compatibility with existing test patches."""
-    if name not in Settings.__dataclass_fields__:
+    if name not in {item.name for item in fields(Settings)}:
         raise AttributeError(name)
 
     updated = replace(get_settings(), **cast("Any", {name: value}))

@@ -4,9 +4,12 @@ PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 VERSION ?= dev
 PYTHON_SCRIPTS_DIR = $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_path('scripts'))")
 
+LOCK_PYTHON_VERSION ?= 3.11
+LOCK_MIN_RELEASE_AGE_DAYS ?= 14
+
 .PHONY: venv install-dev lint fix types pylint deptry vulture import-lint test \
         test-integration test-e2e integration e2e audit build docker installer \
-        cov docs-check contract check clean
+        cov docs-check lock contract check clean
 
 venv:
 	@set -eu; \
@@ -78,6 +81,10 @@ test-e2e:
 integration: test-integration
 
 e2e: test-e2e
+
+lock:
+	UV_EXCLUDE_NEWER="$$($(PYTHON) -c "from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) - timedelta(days=$(LOCK_MIN_RELEASE_AGE_DAYS))).strftime('%Y-%m-%dT%H:%M:%SZ'))")" \
+	uv pip compile pyproject.toml --python-version $(LOCK_PYTHON_VERSION) -o requirements-lock.txt
 
 audit:
 	$(PYTHON_SCRIPTS_DIR)/pip-audit -r requirements-lock.txt

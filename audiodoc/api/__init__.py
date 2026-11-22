@@ -17,9 +17,6 @@ def register_routes(app: FastAPI) -> None:
     Args:
         app: FastAPI application receiving the API routers.
 
-    Returns:
-        None.
-
     """
     # Import routers only when assembling the application. This keeps helpers
     # such as audiodoc.api.auth independently importable in narrow unit tests.

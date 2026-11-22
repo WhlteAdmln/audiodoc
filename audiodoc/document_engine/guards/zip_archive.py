@@ -61,7 +61,6 @@ def validate_zip_archive(data: bytes) -> None:
         EOFError,
         OSError,
         RuntimeError,
-        NotImplementedError,
         zlib.error,
     ) as error:
         raise _CorruptZipArchiveError from error

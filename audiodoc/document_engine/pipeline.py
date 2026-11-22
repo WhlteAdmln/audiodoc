@@ -71,7 +71,9 @@ def process_document_sync(
         A dictionary with ``format``, ``text``, ``characters``, and ``truncated``.
 
     Raises:
-        BackendError: For invalid, unsupported, oversized, or timed-out documents.
+        UnsupportedFormatError: If the document format is not recognized.
+        ProcessingTimeoutError: If the shared deadline expires.
+        BackendError: For other invalid or oversized documents.
 
     """
     limit = _get_text_limit(max_characters)

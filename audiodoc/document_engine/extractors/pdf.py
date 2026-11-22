@@ -3,7 +3,7 @@
 
 import logging
 import math
-from typing import Any, Protocol, cast
+from typing import Any, Protocol, cast  # pylint: disable=unused-import  # string cast
 
 import pymupdf
 

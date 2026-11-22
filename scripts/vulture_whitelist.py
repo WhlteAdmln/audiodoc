@@ -1,6 +1,8 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Vulture whitelist for symbols accessed indirectly."""
 
+# pylint: disable=invalid-name  # entries repeat the names vulture reports
+
 from typing import IO
 
 from pptx.shapes.autoshape import Shape
