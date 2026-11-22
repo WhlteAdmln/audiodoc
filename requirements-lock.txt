@@ -134,7 +134,7 @@ pyyaml==6.0.3
     #   huggingface-hub
     #   pymupdf
     #   uvicorn
-soupsieve==2.10
+soupsieve==4.0
     # via beautifulsoup4
 starlette==1.10.0
     # via
