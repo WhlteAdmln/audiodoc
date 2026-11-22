@@ -46,15 +46,10 @@ def _quote_systemd_value(value: str) -> str:
     return f'"{escaped}"'
 
 
-def render_service_unit(
-    home: Path,
-    *,
-    mode: ServiceMode,
-    memory_high: str = "10G",
-    memory_max: str = "12G",
-    ip_address_allow: Sequence[str] = DEFAULT_IP_ADDRESS_ALLOW,
-) -> str:
-    """Render a systemd unit without filesystem or system side effects."""
+def _validate_unit_arguments(
+    home: Path, mode: ServiceMode, memory_high: str, memory_max: str
+) -> None:
+    """Reject a relative home, an unknown mode, or a malformed memory limit."""
     if not home.is_absolute():
         message = "The audiodoc home directory must be an absolute path."
         raise ValueError(message)
@@ -66,19 +61,37 @@ def render_service_unit(
             message = f"{name} must be a positive integer with an optional unit."
             raise ValueError(message)
 
+
+def _validated_ip_addresses(ip_address_allow: Sequence[str]) -> tuple[str, ...]:
+    """Return the allowed networks after checking that each one is valid."""
+    addresses = tuple(ip_address_allow)
+    if not addresses:
+        message = "At least one IPAddressAllow entry is required."
+        raise ValueError(message)
+    for address in addresses:
+        try:
+            ipaddress.ip_network(address, strict=False)
+        except ValueError as error:
+            message = f"Invalid IPAddressAllow entry: {address}"
+            raise ValueError(message) from error
+    return addresses
+
+
+def render_service_unit(
+    home: Path,
+    *,
+    mode: ServiceMode,
+    memory_high: str = "10G",
+    memory_max: str = "12G",
+    ip_address_allow: Sequence[str] = DEFAULT_IP_ADDRESS_ALLOW,
+) -> str:
+    """Render a systemd unit without filesystem or system side effects."""
+    _validate_unit_arguments(home, mode, memory_high, memory_max)
+
     addresses: tuple[str, ...] = ()
     directives = ["Type=simple"]
     if mode == "system":
-        addresses = tuple(ip_address_allow)
-        if not addresses:
-            message = "At least one IPAddressAllow entry is required."
-            raise ValueError(message)
-        for address in addresses:
-            try:
-                ipaddress.ip_network(address, strict=False)
-            except ValueError as error:
-                message = f"Invalid IPAddressAllow entry: {address}"
-                raise ValueError(message) from error
+        addresses = _validated_ip_addresses(ip_address_allow)
         directives.extend(("User=audiodoc", "Group=audiodoc"))
 
     executable = _quote_systemd_value(str(home / ".venv" / "bin" / "audiodoc"))
