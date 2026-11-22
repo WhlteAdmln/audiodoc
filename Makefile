@@ -4,7 +4,8 @@ PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 VERSION ?= dev
 PYTHON_SCRIPTS_DIR = $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_path('scripts'))")
 
-LOCK_PYTHON_VERSION ?= 3.11
+# soupsieve 4.x, the fix for GHSA-mmhr-3c5m-f64f, requires Python 3.11.5 or newer.
+LOCK_PYTHON_VERSION ?= 3.11.5
 # Releases younger than this are skipped; 0 turns the cutoff off.
 LOCK_MIN_RELEASE_AGE_DAYS ?= 14
 
