@@ -82,7 +82,7 @@ def _parse_compute_type(value: str) -> str:
     return value
 
 
-def _build_parser() -> argparse.ArgumentParser:
+def build_parser() -> argparse.ArgumentParser:
     """Build the command-line argument parser."""
     parser = argparse.ArgumentParser(prog="audiodoc")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -154,7 +154,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the audiodoc command-line interface."""
-    parser = _build_parser()
+    parser = build_parser()
     args = parser.parse_args(argv)
 
     handlers: dict[str, CommandHandler] = {
@@ -199,10 +199,11 @@ def _handle_doctor_command(
 ) -> int:
     """Handle installation diagnostics."""
     load_env_file()
-    if _args.offline:
-        checks = collect_doctor_checks(os.environ, offline=True)
-    else:
-        checks = collect_doctor_checks(os.environ)
+    checks = (
+        collect_doctor_checks(os.environ, offline=True)
+        if _args.offline
+        else collect_doctor_checks(os.environ)
+    )
     for check in checks:
         sys.stdout.write(f"{check.status:4} {check.name}: {check.message}\n")
 
@@ -333,18 +334,12 @@ def _handle_service_command(
 
     sys.stdout.write(f"Installed {args.service_mode} systemd unit: {unit_path}\n")
     sys.stdout.write("The service was not enabled or started. When ready, run:\n")
-    if args.service_mode == "user":
-        commands = (
-            "systemctl --user daemon-reload",
-            "systemctl --user enable --now audiodoc.service",
-            "systemctl --user status audiodoc.service",
-        )
-    else:
-        commands = (
-            "sudo systemctl daemon-reload",
-            "sudo systemctl enable --now audiodoc.service",
-            "sudo systemctl status audiodoc.service",
-        )
+    prefix = "systemctl --user" if args.service_mode == "user" else "sudo systemctl"
+    commands = (
+        f"{prefix} daemon-reload",
+        f"{prefix} enable --now audiodoc.service",
+        f"{prefix} status audiodoc.service",
+    )
     for command in commands:
         sys.stdout.write(f"  {command}\n")
     return 0
@@ -365,7 +360,7 @@ def _run_server(host: str | None, port: int | None, env_file: Path | None) -> No
     else:
         resolved_port = port
 
-    secrets = tuple(
+    configured_secrets = tuple(
         part.strip()
         for value in (
             configured_settings.AUDIODOC_AUDIO_KEY,
@@ -374,7 +369,7 @@ def _run_server(host: str | None, port: int | None, env_file: Path | None) -> No
         for part in value.split(",")
         if part.strip()
     )
-    configure_logging(configured_settings.LOG_LEVEL, secrets)
+    configure_logging(configured_settings.LOG_LEVEL, configured_secrets)
 
     if resolved_host == ALL_INTERFACES_HOST:
         logger.warning(

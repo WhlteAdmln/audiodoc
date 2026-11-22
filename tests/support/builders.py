@@ -322,7 +322,7 @@ def create_wav() -> bytes:
         samples.byteswap()
 
     output = BytesIO()
-    with wave.open(output, "wb") as audio:
+    with wave.Wave_write(output) as audio:
         audio.setnchannels(1)
         audio.setsampwidth(2)
         audio.setframerate(sample_rate)

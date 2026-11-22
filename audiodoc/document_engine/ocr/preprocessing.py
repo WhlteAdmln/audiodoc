@@ -32,7 +32,7 @@ def _prepare_image(image: Image.Image) -> Image.Image:
     image = ImageOps.exif_transpose(image)
 
     # Handle transparency.
-    if image.mode in ("RGBA", "LA"):
+    if image.mode in {"RGBA", "LA"}:
         rgba = image.convert("RGBA")
         background = Image.new(
             "RGBA",

@@ -9,7 +9,6 @@ import sys
 from pathlib import Path
 
 from defusedxml import ElementTree
-from defusedxml.common import DefusedXmlException
 
 _ROOT = Path(__file__).resolve().parents[1]
 _BRANCH_COUNTS = re.compile(r"\((\d+)/(\d+)\)\s*$")
@@ -100,8 +99,8 @@ def find_coverage_gaps(
     Raises:
         OSError: If the report cannot be read.
         ElementTree.ParseError: If the report is not valid XML.
-        DefusedXmlException: If the report contains forbidden XML constructs.
-        ValueError: If the limit or coverage metadata is invalid.
+        ValueError: If the report contains forbidden XML constructs (defusedxml
+            raises a ``ValueError`` subclass) or the limit or metadata is invalid.
     """
     if limit < 1:
         raise ValueError(_LIMIT_ERROR)
@@ -142,7 +141,7 @@ def main() -> int:
 
     try:
         results = find_coverage_gaps(args.xml, args.limit)
-    except (OSError, ElementTree.ParseError, DefusedXmlException, ValueError) as exc:
+    except (OSError, ElementTree.ParseError, ValueError) as exc:
         sys.stderr.write(f"ERROR: {exc}\n")
         return 1
 
