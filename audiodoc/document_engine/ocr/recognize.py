@@ -62,6 +62,28 @@ def recognize_pages(
     return "\n\n".join(result)
 
 
+def _run_tesseract(
+    prepared: Image.Image, languages: str, deadline: Deadline | None
+) -> str:
+    """Run Tesseract on a prepared page within the page and shared deadlines."""
+    if deadline is not None:
+        deadline.check()
+        timeout = min(OCR_PAGE_TIMEOUT, max(deadline.remaining(), 0.001))
+    else:
+        timeout = OCR_PAGE_TIMEOUT
+    try:
+        return pytesseract.image_to_string(
+            prepared,
+            lang=languages,
+            config="--psm 3",
+            timeout=timeout,
+        )
+    except RuntimeError as error:
+        if deadline is not None:
+            deadline.check()
+        raise _ImageRecognitionFailedError from error
+
+
 def _recognize_page(
     image: Image.Image,
     page_index: int,
@@ -80,21 +102,7 @@ def _recognize_page(
 
     prepared = _prepare_image(image.copy())
     try:
-        if deadline is not None:
-            deadline.check()
-            timeout = min(OCR_PAGE_TIMEOUT, max(deadline.remaining(), 0.001))
-        else:
-            timeout = OCR_PAGE_TIMEOUT
-        text = pytesseract.image_to_string(
-            prepared,
-            lang=languages,
-            config="--psm 3",
-            timeout=timeout,
-        )
-    except RuntimeError as error:
-        if deadline is not None:
-            deadline.check()
-        raise _ImageRecognitionFailedError from error
+        text = _run_tesseract(prepared, languages, deadline)
     finally:
         prepared.close()
 

@@ -13,6 +13,7 @@ from audiodoc.document_engine.guards.xml_safe import parse_xml
 from audiodoc.errors.documents import DocumentRejectedError
 from audiodoc.errors.messages import ERROR_MESSAGES
 
+BODY_TAG = "body"
 BLOCK_TAGS = {"title", "subtitle", "p", "v", "text-author", "date"}
 
 
@@ -43,7 +44,7 @@ def extract_fb2(data: bytes, *, context: ExtractContext | None = None) -> str:
     """Extract FB2 block text, checking the deadline and budget as it walks."""
     ctx = make_context(context)
     root = parse_xml(data)
-    bodies = [item for item in root.iter() if item.tag.split("}")[-1] == "body"]
+    bodies = [item for item in root.iter() if item.tag.split("}")[-1] == BODY_TAG]
     if not bodies:
         raise _MissingFb2BodyError
 

@@ -77,6 +77,12 @@ def _render_dpi(page: object) -> int:
     raise _PdfPageTooLargeError
 
 
+def _render_page_png(page: object) -> bytes:
+    """Render a page without alpha at the capped OCR DPI as PNG bytes."""
+    pixmap = cast("Any", page).get_pixmap(dpi=_render_dpi(page), alpha=False)
+    return cast("bytes", pixmap.tobytes("png"))
+
+
 def extract_pdf(
     data: bytes,
     *,
@@ -98,15 +104,9 @@ def extract_pdf(
             ctx.check()
             if not text:
                 logger.info("PDF page %s has no text layer; starting OCR", index + 1)
-                pixmap = None
-                try:
-                    ctx.check()
-                    pixmap = page.get_pixmap(dpi=_render_dpi(page), alpha=False)
-                    image_data = pixmap.tobytes("png")
-                    text = extract_image_text(image_data, deadline=ctx.deadline).strip()
-                finally:
-                    if pixmap is not None:
-                        del pixmap
+                ctx.check()
+                image_data = _render_page_png(page)
+                text = extract_image_text(image_data, deadline=ctx.deadline).strip()
 
             if text:
                 add_chunk(

@@ -19,15 +19,32 @@ from dotenv import dotenv_values
 
 from audiodoc.api.auth import check_security_settings
 from audiodoc.config import ConfigError, Settings, load_env_file, load_settings
-from audiodoc.doctor import collect_doctor_checks
+from audiodoc.doctor import (
+    CUDA_DEVICE,
+    DJVULIBRE_CHECK_NAME,
+    TESSERACT_CHECK_NAME,
+    collect_doctor_checks,
+)
 from audiodoc.env_readers import get_bool, get_home_dir, get_log_level
-from audiodoc.logging_setup import configure_logging
-from audiodoc.service import install_service_unit, render_service_unit
-from audiodoc.system_diagnostics import DiagnosticCheck
+from audiodoc.logging_setup import configure_logging, split_secrets
+from audiodoc.service import (
+    SYSTEM_MODE,
+    USER_MODE,
+    install_service_unit,
+    render_service_unit,
+)
+from audiodoc.system_diagnostics import (
+    FAIL_STATUS,
+    IPV6_HOST_MARKER,
+    DiagnosticCheck,
+)
 
 logger = logging.getLogger(__name__)
 MAX_PORT = 65_535
 ALL_INTERFACES_HOST = str(IPv4Address(0))
+LINE_FEED = "\n"
+CARRIAGE_RETURN = "\r"
+CONFIG_CHECK_COMMAND = "check"
 CommandHandler = Callable[[argparse.Namespace, argparse.ArgumentParser], int]
 SUPPORTED_MODEL_NAMES = (
     "tiny",
@@ -76,7 +93,7 @@ def _parse_host(value: str) -> str:
 
 def _parse_compute_type(value: str) -> str:
     """Reject empty compute types and line breaks."""
-    if not value or "\n" in value or "\r" in value:
+    if not value or LINE_FEED in value or CARRIAGE_RETURN in value:
         message = "Compute type must be a non-empty single-line value."
         raise argparse.ArgumentTypeError(message)
     return value
@@ -140,12 +157,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     mode_group = install_parser.add_mutually_exclusive_group()
     mode_group.add_argument(
-        "--user", dest="service_mode", action="store_const", const="user"
+        "--user", dest="service_mode", action="store_const", const=USER_MODE
     )
     mode_group.add_argument(
-        "--system", dest="service_mode", action="store_const", const="system"
+        "--system", dest="service_mode", action="store_const", const=SYSTEM_MODE
     )
-    install_parser.set_defaults(service_mode="user")
+    install_parser.set_defaults(service_mode=USER_MODE)
     install_parser.add_argument("--print", dest="print_unit", action="store_true")
     install_parser.add_argument("--force", action="store_true")
 
@@ -213,21 +230,21 @@ def _handle_doctor_command(
         for distribution, command in install_commands:
             sys.stdout.write(f"  {distribution}: {command}\n")
 
-    return 1 if any(check.status == "FAIL" for check in checks) else 0
+    return 1 if any(check.status == FAIL_STATUS for check in checks) else 0
 
 
 def _native_install_commands(
     checks: Sequence[DiagnosticCheck],
 ) -> tuple[tuple[str, str], ...]:
     """Return OS-specific installation commands for missing native tools."""
-    failed_names = {check.name for check in checks if check.status == "FAIL"}
+    failed_names = {check.name for check in checks if check.status == FAIL_STATUS}
     packages: dict[str, list[str]] = {
         "apt": [],
         "dnf": [],
         "pacman": [],
     }
 
-    if "Tesseract" in failed_names:
+    if TESSERACT_CHECK_NAME in failed_names:
         packages["apt"].extend(
             ("tesseract-ocr", "tesseract-ocr-rus", "tesseract-ocr-eng")
         )
@@ -238,7 +255,7 @@ def _native_install_commands(
             ("tesseract", "tesseract-data-rus", "tesseract-data-eng")
         )
 
-    if "DjVuLibre" in failed_names:
+    if DJVULIBRE_CHECK_NAME in failed_names:
         packages["apt"].append("djvulibre-bin")
         packages["dnf"].append("djvulibre")
         packages["pacman"].append("djvulibre")
@@ -257,7 +274,9 @@ def _handle_init_command(
     args: argparse.Namespace, parser: argparse.ArgumentParser
 ) -> int:
     """Handle the init command."""
-    compute_type = args.compute_type or ("float16" if args.device == "cuda" else "int8")
+    compute_type = args.compute_type or (
+        "float16" if args.device == CUDA_DEVICE else "int8"
+    )
     try:
         env_path = _write_initial_env(
             model=args.model,
@@ -302,7 +321,7 @@ def _handle_config_command(
     args: argparse.Namespace, _parser: argparse.ArgumentParser
 ) -> int:
     """Handle configuration inspection commands."""
-    if args.config_command == "check":
+    if args.config_command == CONFIG_CHECK_COMMAND:
         load_env_file()
         problems = _configuration_problems(os.environ)
         if problems:
@@ -315,26 +334,34 @@ def _handle_config_command(
     return 2
 
 
+def _print_or_install_unit(args: argparse.Namespace, home: Path) -> Path | None:
+    """Print the unit and return None, or install it and return its path."""
+    if args.print_unit:
+        sys.stdout.write(render_service_unit(home, mode=args.service_mode))
+        return None
+    return install_service_unit(
+        home,
+        mode=args.service_mode,
+        force=args.force,
+    )
+
+
 def _handle_service_command(
     args: argparse.Namespace, parser: argparse.ArgumentParser
 ) -> int:
     """Handle systemd service installation."""
     home = get_home_dir()
     try:
-        if args.print_unit:
-            sys.stdout.write(render_service_unit(home, mode=args.service_mode))
-            return 0
-        unit_path = install_service_unit(
-            home,
-            mode=args.service_mode,
-            force=args.force,
-        )
+        unit_path = _print_or_install_unit(args, home)
     except (OSError, ValueError) as error:
         parser.error(str(error))
 
+    if unit_path is None:
+        return 0
+
     sys.stdout.write(f"Installed {args.service_mode} systemd unit: {unit_path}\n")
     sys.stdout.write("The service was not enabled or started. When ready, run:\n")
-    prefix = "systemctl --user" if args.service_mode == "user" else "sudo systemctl"
+    prefix = "systemctl --user" if args.service_mode == USER_MODE else "sudo systemctl"
     commands = (
         f"{prefix} daemon-reload",
         f"{prefix} enable --now audiodoc.service",
@@ -360,14 +387,9 @@ def _run_server(host: str | None, port: int | None, env_file: Path | None) -> No
     else:
         resolved_port = port
 
-    configured_secrets = tuple(
-        part.strip()
-        for value in (
-            configured_settings.AUDIODOC_AUDIO_KEY,
-            configured_settings.AUDIODOC_DOCUMENT_KEY,
-        )
-        for part in value.split(",")
-        if part.strip()
+    configured_secrets = split_secrets(
+        configured_settings.AUDIODOC_AUDIO_KEY,
+        configured_settings.AUDIODOC_DOCUMENT_KEY,
     )
     configure_logging(configured_settings.LOG_LEVEL, configured_secrets)
 
@@ -384,6 +406,24 @@ def _run_server(host: str | None, port: int | None, env_file: Path | None) -> No
         port=resolved_port,
         server_header=False,
     )
+
+
+def _publish_env_file(
+    descriptor: int,
+    content: str,
+    temporary_path: Path,
+    env_path: Path,
+    *,
+    force: bool,
+) -> None:
+    """Write the content to the temporary file and move it into place."""
+    with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+        stream.write(content)
+    temporary_path.chmod(0o600)
+    if force:
+        temporary_path.replace(env_path)
+    else:
+        os.link(temporary_path, env_path)
 
 
 def _write_initial_env(
@@ -426,13 +466,7 @@ def _write_initial_env(
     descriptor, temporary_name = tempfile.mkstemp(prefix=".env.", dir=home)
     temporary_path = Path(temporary_name)
     try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            stream.write(content)
-        temporary_path.chmod(0o600)
-        if force:
-            temporary_path.replace(env_path)
-        else:
-            os.link(temporary_path, env_path)
+        _publish_env_file(descriptor, content, temporary_path, env_path, force=force)
     finally:
         temporary_path.unlink(missing_ok=True)
 
@@ -461,7 +495,7 @@ def _build_pair_configuration(url: str | None) -> str:
         port = values.get("AUDIODOC_PORT") or "8000"
         if host in {ALL_INTERFACES_HOST, "::"}:
             host = "127.0.0.1"
-        elif ":" in host and not host.startswith("["):
+        elif IPV6_HOST_MARKER in host and not host.startswith("["):
             host = f"[{host}]"
         base_url = f"http://{host}:{port}"
 

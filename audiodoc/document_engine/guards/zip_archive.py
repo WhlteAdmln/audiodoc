@@ -16,6 +16,8 @@ from audiodoc.document_engine.limits import (
     READ_CHUNK_SIZE,
 )
 
+NULL_CHARACTER = "\x00"
+PARENT_DIRECTORY_PART = ".."
 _NESTED_ARCHIVE_SIGNATURES = (
     b"PK\x03\x04",
     b"PK\x05\x06",
@@ -53,8 +55,7 @@ def validate_zip_archive(data: bytes) -> None:
         raise _InvalidZipContainerError
 
     try:
-        with zipfile.ZipFile(io.BytesIO(data)) as archive:
-            _validate_archive_entries(archive)
+        _validate_zip_bytes(data)
 
     except (
         zipfile.BadZipFile,
@@ -64,6 +65,11 @@ def validate_zip_archive(data: bytes) -> None:
         zlib.error,
     ) as error:
         raise _CorruptZipArchiveError from error
+
+
+def _validate_zip_bytes(data: bytes) -> None:
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        _validate_archive_entries(archive)
 
 
 def _validate_archive_entries(archive: zipfile.ZipFile) -> None:
@@ -99,10 +105,10 @@ def _validate_archive_entry(
 
     if (
         not original_name
-        or "\x00" in original_name
+        or NULL_CHARACTER in original_name
         or normalized_name.startswith("/")
         or PureWindowsPath(original_name).drive
-        or ".." in normalized_name.split("/")
+        or PARENT_DIRECTORY_PART in normalized_name.split("/")
     ):
         message = f"Unsafe ZIP member path: {item.filename}"
         raise ValueError(message)

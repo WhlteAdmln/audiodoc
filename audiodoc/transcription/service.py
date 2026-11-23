@@ -2,6 +2,7 @@
 """Threaded Whisper execution with bounded admission and active concurrency."""
 
 import asyncio
+from functools import partial
 from pathlib import Path
 from typing import Any, cast
 
@@ -10,7 +11,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from audiodoc.common.deadline import Deadline, DeadlineExceededError
-from audiodoc.common.work_queue import WorkQueue
+from audiodoc.common.work_queue import WorkQueue, await_worker, run_in_slot
 from audiodoc.config import settings
 from audiodoc.errors.messages import ERROR_MESSAGES
 from audiodoc.errors.transcription import (
@@ -22,6 +23,7 @@ from audiodoc.errors.transcription import (
 from audiodoc.transcription.model import ModelHolder
 
 SAMPLE_RATE = 16_000
+AUDIO_STREAM_TYPE = "audio"
 
 
 def _collect_audio_frames(
@@ -48,49 +50,63 @@ def _collect_audio_frames(
     return sample_count
 
 
+def _decode_stream(
+    path: Path, deadline: Deadline, chunks: list[NDArray[np.float32]]
+) -> bool:
+    """Decode the first audio stream into chunks; return whether one exists."""
+    sample_count = 0
+    maximum_samples = settings.MAX_AUDIO_DURATION * SAMPLE_RATE
+
+    with av.open(str(path), mode="r") as container:
+        audio_stream = next(
+            (
+                stream
+                for stream in container.streams
+                if stream.type == AUDIO_STREAM_TYPE
+            ),
+            None,
+        )
+
+        if audio_stream is None:
+            return False
+
+        resampler = av.AudioResampler(
+            format="fltp",
+            layout="mono",
+            rate=SAMPLE_RATE,
+        )
+
+        for frame in container.decode(audio=audio_stream.index):
+            deadline.check()
+            sample_count = _collect_audio_frames(
+                resampler.resample(frame),
+                chunks,
+                sample_count,
+                maximum_samples,
+                deadline,
+            )
+
+        _collect_audio_frames(
+            resampler.resample(None),
+            chunks,
+            sample_count,
+            maximum_samples,
+            deadline,
+        )
+    return True
+
+
 def _decode_audio(path: Path, deadline: Deadline) -> NDArray[np.float32]:
     """Decode audio into mono float32 samples at 16 kHz."""
     deadline.check()
     chunks: list[NDArray[np.float32]] = []
-    sample_count = 0
-    maximum_samples = settings.MAX_AUDIO_DURATION * SAMPLE_RATE
-    audio_stream = None
 
     try:
-        with av.open(str(path), mode="r") as container:
-            audio_stream = next(
-                (stream for stream in container.streams if stream.type == "audio"),
-                None,
-            )
-
-            if audio_stream is not None:
-                resampler = av.AudioResampler(
-                    format="fltp",
-                    layout="mono",
-                    rate=SAMPLE_RATE,
-                )
-
-                for frame in container.decode(audio=audio_stream.index):
-                    deadline.check()
-                    sample_count = _collect_audio_frames(
-                        resampler.resample(frame),
-                        chunks,
-                        sample_count,
-                        maximum_samples,
-                        deadline,
-                    )
-
-                sample_count = _collect_audio_frames(
-                    resampler.resample(None),
-                    chunks,
-                    sample_count,
-                    maximum_samples,
-                    deadline,
-                )
+        has_audio_stream = _decode_stream(path, deadline, chunks)
     except (av.error.FFmpegError, OSError, ValueError) as error:
         raise InvalidAudioError from error
 
-    if audio_stream is None or not chunks:
+    if not has_audio_stream or not chunks:
         raise InvalidAudioError
 
     deadline.check()
@@ -148,17 +164,9 @@ async def _run_transcription(
         )
     )
     try:
-        return await asyncio.shield(worker)
+        return await await_worker(worker)
     except DeadlineExceededError as error:
         raise TranscriptionTimeoutError from error
-    except asyncio.CancelledError:
-        cleanup = asyncio.gather(worker, return_exceptions=True)
-        while not cleanup.done():
-            try:
-                await asyncio.shield(cleanup)
-            except asyncio.CancelledError:
-                continue
-        raise
 
 
 async def transcribe_file(
@@ -174,8 +182,8 @@ async def transcribe_file(
     before copying the uploaded file to private temporary storage.
     ``queue`` is owned by the application or direct caller.
     """
-    if _slot_acquired:
-        return await _run_transcription(path, configured_model_holder)
-
-    async with queue.slot():
-        return await _run_transcription(path, configured_model_holder)
+    return await run_in_slot(
+        queue,
+        partial(_run_transcription, path, configured_model_holder),
+        slot_acquired=_slot_acquired,
+    )

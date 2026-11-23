@@ -8,6 +8,7 @@ from odf.text import H, P
 from audiodoc.document_engine.extractors.base import (
     ExtractContext,
     add_chunk,
+    finish_extraction,
     make_context,
     odf_elements,
 )
@@ -42,5 +43,4 @@ def extract_odp(document: object, *, context: ExtractContext | None = None) -> s
         if ctx.budget.is_truncated():
             break
 
-    ctx.check()
-    return "\n".join(result)
+    return finish_extraction(result, ctx)

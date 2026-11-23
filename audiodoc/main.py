@@ -20,7 +20,7 @@ from audiodoc.document_engine.limits import (
     MAX_DOCUMENT_SIZE,
 )
 from audiodoc.errors.base import ServerBusyError
-from audiodoc.logging_setup import configure_logging
+from audiodoc.logging_setup import configure_logging, split_secrets
 from audiodoc.transcription.model import ModelHolder
 from audiodoc.transcription.temp_files import cleanup_stale_files, ensure_temp_dir
 
@@ -35,14 +35,10 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     document_queue: WorkQueue = _app.state.document_queue
     configure_logging(
         configured_settings.LOG_LEVEL,
-        [
-            part.strip()
-            for value in (
-                configured_settings.AUDIODOC_AUDIO_KEY,
-                configured_settings.AUDIODOC_DOCUMENT_KEY,
-            )
-            for part in value.split(",")
-        ],
+        split_secrets(
+            configured_settings.AUDIODOC_AUDIO_KEY,
+            configured_settings.AUDIODOC_DOCUMENT_KEY,
+        ),
     )
     os.umask(0o077)
     check_security_settings(configured_settings)

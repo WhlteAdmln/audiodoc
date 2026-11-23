@@ -8,9 +8,12 @@ import uuid
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from audiodoc.common.asgi import HTTP_RESPONSE_START, HTTP_SCOPE_TYPE
+
 request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
     "request_id", default="-"
 )
+REQUEST_ID_HEADER = b"x-request-id"
 _VALID_REQUEST_ID = re.compile(r"[A-Za-z0-9._-]{8,64}")
 
 
@@ -27,12 +30,12 @@ class RequestIdMiddleware:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Process an ASGI request with a validated correlation ID."""
-        if scope["type"] != "http":
+        if scope["type"] != HTTP_SCOPE_TYPE:
             await self.app(scope, receive, send)
             return
 
         headers = dict(scope.get("headers", []))
-        supplied = headers.get(b"x-request-id", b"").decode("latin-1")
+        supplied = headers.get(REQUEST_ID_HEADER, b"").decode("latin-1")
         request_id = (
             supplied if _VALID_REQUEST_ID.fullmatch(supplied) else uuid.uuid4().hex
         )
@@ -40,13 +43,13 @@ class RequestIdMiddleware:
 
         async def send_with_request_id(message: Message) -> None:
             """Echo the validated identifier on the ASGI response start."""
-            if message["type"] == "http.response.start":
+            if message["type"] == HTTP_RESPONSE_START:
                 response_headers = [
                     (name, value)
                     for name, value in message.get("headers", [])
-                    if name.lower() != b"x-request-id"
+                    if name.lower() != REQUEST_ID_HEADER
                 ]
-                response_headers.append((b"x-request-id", request_id.encode("ascii")))
+                response_headers.append((REQUEST_ID_HEADER, request_id.encode("ascii")))
                 message["headers"] = response_headers
             await send(message)
 

@@ -66,12 +66,14 @@ class _EnvironmentReader:
     def read_str(
         self, name: str, default: str, *, strip: bool = False, lower: bool = False
     ) -> str:
+        """Return the string value, optionally stripped or lowercased."""
         value = self.environ.get(name, default)
         if strip:
             value = value.strip()
         return value.lower() if lower else value
 
     def read_bool(self, name: str, default: bool) -> bool:
+        """Return the boolean value, or the default after recording an error."""
         try:
             return get_bool(name, default, environ=self.environ)
         except ValueError as error:
@@ -79,6 +81,7 @@ class _EnvironmentReader:
             return default
 
     def read_int(self, name: str, default: int) -> int:
+        """Return the integer value, or the default after recording an error."""
         try:
             return get_int(name, str(default), environ=self.environ)
         except ValueError as error:

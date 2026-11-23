@@ -85,21 +85,28 @@ def process_document_sync(
     )
 
     try:
-        _validate_document_input(data, context)
-        filetype = detect_format(data, filename)
-        if filetype is None:
-            raise UnsupportedFormatError
-
-        context.check()
-        _validate_zip_document(data, filetype)
-        context.check()
-
-        text = _extract_document_text(data, filetype, context)
-        context.check()
-        return build_result(filetype, text, truncated=context.budget.truncated)
+        return _run_extraction(data, filename, context)
 
     except DeadlineExceededError as error:
         raise ProcessingTimeoutError from error
+
+
+def _run_extraction(
+    data: bytes, filename: str, context: ExtractContext
+) -> DocumentResult:
+    """Validate the input, extract its text and build the result."""
+    _validate_document_input(data, context)
+    filetype = detect_format(data, filename)
+    if filetype is None:
+        raise UnsupportedFormatError
+
+    context.check()
+    _validate_zip_document(data, filetype)
+    context.check()
+
+    text = _extract_document_text(data, filetype, context)
+    context.check()
+    return build_result(filetype, text, truncated=context.budget.truncated)
 
 
 def _get_text_limit(max_characters: int | None) -> int:

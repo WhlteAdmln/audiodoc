@@ -1,6 +1,8 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Document signature checks."""
 
+_OLE_EXTENSION_FORMATS = {".doc": "doc", ".xls": "xls", ".ppt": "ppt"}
+
 
 def detect_pdf_signature(data: bytes) -> str | None:
     """Return ``pdf`` when the payload starts with the PDF file signature.
@@ -40,13 +42,7 @@ def detect_ole_signature(
     if not data.startswith(bytes.fromhex("D0CF11E0A1B11AE1")):
         return None
 
-    if file_extension == ".doc":
-        return "doc"
-    if file_extension == ".xls":
-        return "xls"
-    if file_extension == ".ppt":
-        return "ppt"
-    return "ole"
+    return _OLE_EXTENSION_FORMATS.get(file_extension, "ole")
 
 
 def detect_rtf_signature(data: bytes) -> str | None:

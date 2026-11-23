@@ -16,6 +16,8 @@ from importlib import import_module
 from io import BytesIO, StringIO
 from pathlib import Path
 
+_LITTLE_ENDIAN = "little"
+
 
 def create_txt() -> bytes:
     """Create a small plain-text document."""
@@ -318,7 +320,7 @@ def create_wav() -> bytes:
             for index in range(sample_count)
         ),
     )
-    if sys.byteorder != "little":
+    if sys.byteorder != _LITTLE_ENDIAN:
         samples.byteswap()
 
     output = BytesIO()

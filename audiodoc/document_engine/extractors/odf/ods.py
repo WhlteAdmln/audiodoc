@@ -9,6 +9,8 @@ from odf.table import Table
 from audiodoc.document_engine.extractors.base import (
     ExtractContext,
     add_chunk,
+    add_rows,
+    finish_extraction,
     make_context,
     odf_attribute,
     odf_elements,
@@ -36,6 +38,17 @@ def _iter_descendants(element: object, qname: tuple[str, str]) -> Iterator[objec
             stack.append(iter(children))
 
 
+def _row_text(row: object) -> str:
+    """Join the text of at most the configured number of cells in a row."""
+    cells = _iter_descendants(row, _TABLE_CELL_QNAME)
+    cell_text = []
+    for index, cell in enumerate(cells):
+        if index >= MAX_SHEET_COLUMNS:
+            break
+        cell_text.append(teletype.extractText(cell).strip())
+    return " | ".join(cell_text)
+
+
 def extract_ods(document: object, *, context: ExtractContext | None = None) -> str:
     """Extract at most the configured number of rows and columns from each sheet."""
     ctx = make_context(context)
@@ -53,23 +66,14 @@ def extract_ods(document: object, *, context: ExtractContext | None = None) -> s
         if ctx.budget.is_truncated():
             break
 
-        for row_number, row in enumerate(
-            _iter_descendants(table, _TABLE_ROW_QNAME), start=1
-        ):
-            ctx.check()
-            cells = _iter_descendants(row, _TABLE_CELL_QNAME)
-            cell_text = []
-            for index, cell in enumerate(cells):
-                if index >= MAX_SHEET_COLUMNS:
-                    break
-                cell_text.append(teletype.extractText(cell).strip())
-            line = " | ".join(cell_text)
-            if line.strip():
-                add_chunk(result, ctx, line)
-            if row_number >= MAX_SHEET_ROWS or ctx.budget.is_truncated():
-                break
+        add_rows(
+            result,
+            ctx,
+            _iter_descendants(table, _TABLE_ROW_QNAME),
+            _row_text,
+            max_rows=MAX_SHEET_ROWS,
+        )
         if ctx.budget.is_truncated():
             break
 
-    ctx.check()
-    return "\n".join(result)
+    return finish_extraction(result, ctx)

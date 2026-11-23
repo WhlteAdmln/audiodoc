@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from audiodoc.common.asgi import HTTP_REQUEST, HTTP_RESPONSE_START, HTTP_SCOPE_TYPE
+
 
 class _InvalidBodySizeLimitError(ValueError):
     """Raised when the configured request body size limit is invalid."""
@@ -65,7 +67,7 @@ class _LimitedReceive:
     async def __call__(self) -> Message:
         """Receive a message and reject bodies exceeding the limit."""
         message = await self.receive()
-        if message["type"] == "http.request":
+        if message["type"] == HTTP_REQUEST:
             self.state.received += len(message.get("body", b""))
             if self.state.received > self.max_body_size:
                 self.state.body_too_large = True
@@ -94,7 +96,7 @@ class _TrackedSend:
         if self.state.response_replaced:
             return
         if self.state.body_too_large and not self.state.response_started:
-            if message["type"] == "http.response.start":
+            if message["type"] == HTTP_RESPONSE_START:
                 self.state.response_started = True
                 self.state.response_replaced = True
                 await _send_body_too_large_response(
@@ -103,7 +105,7 @@ class _TrackedSend:
                     self.send,
                 )
             return
-        if message["type"] == "http.response.start":
+        if message["type"] == HTTP_RESPONSE_START:
             self.state.response_started = True
         await self.send(message)
 
@@ -125,7 +127,7 @@ class BodySizeLimitMiddleware:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Process an ASGI request and enforce the body size limit."""
-        if scope["type"] != "http":
+        if scope["type"] != HTTP_SCOPE_TYPE:
             await self.app(scope, receive, send)
             return
         if _declared_body_exceeds_limit(scope, self.max_body_size):
