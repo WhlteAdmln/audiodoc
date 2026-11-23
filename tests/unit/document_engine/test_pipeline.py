@@ -46,6 +46,9 @@ from tests.support.builders import (
     create_xlsx,
 )
 from tests.support.extractor_matrix import MATRIX, Builder
+from tests.support.server import live_server
+
+__all__ = ["live_server"]
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

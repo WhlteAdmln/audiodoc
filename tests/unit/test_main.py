@@ -30,7 +30,7 @@ from audiodoc.transcription.model import ModelHolder
 from tests.support.bot_client import upload_file
 from tests.support.builders import create_wav
 from tests.support.import_safety import check_import_safety
-from tests.support.server import LiveServer, LiveServerOptions
+from tests.support.server import LiveServer, LiveServerOptions, live_server
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -38,6 +38,8 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
 
     from audiodoc.common.work_queue import WorkQueue
+
+__all__ = ["live_server"]
 
 
 async def _upload_without_authorization(url: str, file_path: Path) -> int:
