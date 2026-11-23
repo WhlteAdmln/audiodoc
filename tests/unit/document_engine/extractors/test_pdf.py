@@ -16,8 +16,11 @@ from tests.support.builders import create_pdf
 
 
 class _FakePixmap:
-    def tobytes(self, image_format: str) -> bytes:
-        assert image_format == "png"
+    @staticmethod
+    def tobytes(image_format: str) -> bytes:
+        """Provide the ``tobytes`` behaviour the test relies on."""
+        expected_image_format = "png"
+        assert image_format == expected_image_format
         return b"fake-png"
 
 
@@ -28,10 +31,13 @@ class _FakePage:
         self.rect = SimpleNamespace(width=595.276, height=841.89)
 
     def get_text(self, kind: str) -> str:
-        assert kind == "text"
+        """Provide the ``get_text`` behaviour the test relies on."""
+        expected_kind = "text"
+        assert kind == expected_kind
         return self.text
 
     def get_pixmap(self, **kwargs: object) -> object:
+        """Provide the ``get_pixmap`` behaviour the test relies on."""
         self.render_arguments = kwargs
         return _FakePixmap()
 
@@ -54,8 +60,10 @@ class _FakeDocument:
 def test_pdf_extracts_existing_text_layer() -> None:
     text = extract_pdf(create_pdf())
 
-    assert "--- Страница 1 ---" in text
-    assert "PDF document test" in text
+    expected_fragment = "--- Страница 1 ---"
+    assert expected_fragment in text
+    expected_fragment = "PDF document test"
+    assert expected_fragment in text
 
 
 def test_pdf_uses_ocr_for_page_without_text_layer(
@@ -72,7 +80,8 @@ def test_pdf_uses_ocr_for_page_without_text_layer(
 
     text = extract_pdf(b"fake-pdf")
 
-    assert text == "--- Страница 1 ---\nOCR result"
+    expected_text = "--- Страница 1 ---\nOCR result"
+    assert text == expected_text
     assert page.render_arguments == {"dpi": 200, "alpha": False}
 
 
@@ -88,16 +97,19 @@ def test_pdf_rejects_too_many_pages(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_pdf_render_dpi_is_reduced_for_oversized_page() -> None:
+    # pylint: disable=protected-access  # the DPI fallback has no public seam
     page = _FakePage()
     page.rect = SimpleNamespace(width=200 * 72, height=200 * 72)
-    assert pdf_module._render_dpi(page) == 31
+    expected_render_dpi = 31
+    assert pdf_module._render_dpi(page) == expected_render_dpi  # noqa: SLF001
 
 
 def test_pdf_rejects_page_that_cannot_fit_even_at_minimum_dpi() -> None:
+    # pylint: disable=protected-access  # the DPI fallback has no public seam
     page = _FakePage()
     page.rect = SimpleNamespace(width=1000 * 72, height=1000 * 72)
     with pytest.raises(DocumentRejectedError, match="слишком велика"):
-        pdf_module._render_dpi(page)
+        pdf_module._render_dpi(page)  # noqa: SLF001
 
 
 def test_pdf_marks_output_incomplete_when_pages_remain_after_exact_fit(

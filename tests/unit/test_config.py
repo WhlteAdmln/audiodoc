@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Environment readers and application settings validation."""
 
+from collections.abc import Iterator
 from dataclasses import FrozenInstanceError, is_dataclass
 from pathlib import Path
 
@@ -51,10 +52,12 @@ def test_get_int_reads_default_environment_and_minimum(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("INT_SETTING", raising=False)
-    assert get_int("INT_SETTING", "6") == 6
+    expected_get_int = 6
+    assert get_int("INT_SETTING", "6") == expected_get_int
 
     monkeypatch.setenv("INT_SETTING", "12")
-    assert get_int("INT_SETTING", "6") == 12
+    expected_get_int = 12
+    assert get_int("INT_SETTING", "6") == expected_get_int
 
     with pytest.raises(ValueError, match="at least"):
         get_int("INT_SETTING", "6", minimum=13)
@@ -64,7 +67,8 @@ def test_get_float_enforces_finite_value_and_bounds(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("FLOAT_SETTING", "0.75")
-    assert get_float("FLOAT_SETTING", "0.5", minimum=0, maximum=1) == 0.75
+    expected_get_float = 0.75
+    assert get_float("FLOAT_SETTING", "0.5", minimum=0, maximum=1) == expected_get_float
 
     monkeypatch.setenv("FLOAT_SETTING", "nan")
     with pytest.raises(ValueError, match="finite number"):
@@ -74,7 +78,11 @@ def test_get_float_enforces_finite_value_and_bounds(
 def test_get_optional_int_reads_missing_blank_and_value() -> None:
     assert get_optional_int("OPTIONAL_INT", environ={}) is None
     assert get_optional_int("OPTIONAL_INT", environ={"OPTIONAL_INT": " "}) is None
-    assert get_optional_int("OPTIONAL_INT", environ={"OPTIONAL_INT": "3"}) == 3
+    expected_get_optional_int = 3
+    assert (
+        get_optional_int("OPTIONAL_INT", environ={"OPTIONAL_INT": "3"})
+        == expected_get_optional_int
+    )
 
     with pytest.raises(ValueError, match="integer"):
         get_optional_int("OPTIONAL_INT", environ={"OPTIONAL_INT": "invalid"})
@@ -95,14 +103,17 @@ def test_parse_ids_reads_unique_positive_ids() -> None:
 
 
 def test_get_log_level_validates_values_and_warns_on_invalid_value() -> None:
-    assert get_log_level(environ={"LOG_LEVEL": " warning "}) == "WARNING"
+    expected_get_log_level = "WARNING"
+    assert get_log_level(environ={"LOG_LEVEL": " warning "}) == expected_get_log_level
 
+    expected_get_log_level = "INFO"
     with pytest.warns(RuntimeWarning, match="Invalid LOG_LEVEL"):
-        assert get_log_level(environ={"LOG_LEVEL": "trace"}) == "INFO"
+        assert get_log_level(environ={"LOG_LEVEL": "trace"}) == expected_get_log_level
 
 
 def test_log_safe_removes_line_breaks_and_non_printable_characters() -> None:
-    assert log_safe("user\nname\r\x00", limit=30) == "user\\nname\\r?"
+    expected_log_safe = "user\\nname\\r?"
+    assert log_safe("user\nname\r\x00", limit=30) == expected_log_safe
 
 
 def test_load_settings_uses_supplied_environment_and_normalizes_values(
@@ -123,14 +134,21 @@ def test_load_settings_uses_supplied_environment_and_normalizes_values(
         }
     )
 
-    assert loaded.WHISPER_MODEL_SIZE == "large"
-    assert loaded.WHISPER_CPU_THREADS == 8
-    assert loaded.WHISPER_DEVICE == "cuda"
-    assert loaded.WHISPER_COMPUTE_TYPE == "float16"
-    assert loaded.WHISPER_MODEL_PATH == "/models/whisper"
+    expected_whisper_model_size = "large"
+    assert expected_whisper_model_size == loaded.WHISPER_MODEL_SIZE
+    expected_whisper_cpu_threads = 8
+    assert expected_whisper_cpu_threads == loaded.WHISPER_CPU_THREADS
+    expected_whisper_device = "cuda"
+    assert expected_whisper_device == loaded.WHISPER_DEVICE
+    expected_whisper_compute_type = "float16"
+    assert expected_whisper_compute_type == loaded.WHISPER_COMPUTE_TYPE
+    expected_whisper_model_path = "/models/whisper"
+    assert expected_whisper_model_path == loaded.WHISPER_MODEL_PATH
     assert loaded.WHISPER_OFFLINE is True
-    assert loaded.AUDIODOC_AUDIO_KEY == "whisper-key"
-    assert loaded.AUDIODOC_DOCUMENT_KEY == "document-key"
+    expected_audiodoc_audio_key = "whisper-key"
+    assert expected_audiodoc_audio_key == loaded.AUDIODOC_AUDIO_KEY
+    expected_audiodoc_document_key = "document-key"
+    assert expected_audiodoc_document_key == loaded.AUDIODOC_DOCUMENT_KEY
     assert loaded.MAX_AUDIO_SIZE == 25 * 1024 * 1024
 
 
@@ -189,7 +207,8 @@ def test_load_settings_collects_all_errors() -> None:
             }
         )
 
-    assert len(error.value.errors) == 3
+    expected_count = 3
+    assert len(error.value.errors) == expected_count
     assert all(
         name in str(error.value)
         for name in ("WHISPER_CPU_THREADS", "WHISPER_OFFLINE", "MAX_AUDIO_SIZE")
@@ -205,41 +224,46 @@ def test_settings_is_a_frozen_slotted_dataclass() -> None:
         setattr(Settings(), field_name, "large")
 
 
+@pytest.fixture(name="fresh_settings_cache")
+def fixture_fresh_settings_cache() -> Iterator[None]:
+    """Start with an empty settings cache and leave none behind."""
+    reset_settings_cache()
+    yield
+    reset_settings_cache()
+
+
+@pytest.mark.usefixtures("fresh_settings_cache")
 def test_settings_proxy_is_cached_and_resettable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    reset_settings_cache()
+    with monkeypatch.context() as scoped:
+        scoped.setenv("WHISPER_MODEL_SIZE", "first")
+        expected_whisper_model_size = "first"
+        assert expected_whisper_model_size == settings.WHISPER_MODEL_SIZE
 
-    try:
-        with monkeypatch.context() as scoped:
-            scoped.setenv("WHISPER_MODEL_SIZE", "first")
-            assert settings.WHISPER_MODEL_SIZE == "first"
+        scoped.setenv("WHISPER_MODEL_SIZE", "second")
+        expected_whisper_model_size = "first"
+        assert expected_whisper_model_size == get_settings().WHISPER_MODEL_SIZE
 
-            scoped.setenv("WHISPER_MODEL_SIZE", "second")
-            assert get_settings().WHISPER_MODEL_SIZE == "first"
-
-            reset_settings_cache()
-            assert settings.WHISPER_MODEL_SIZE == "second"
-    finally:
         reset_settings_cache()
+        expected_whisper_model_size = "second"
+        assert expected_whisper_model_size == settings.WHISPER_MODEL_SIZE
 
 
+@pytest.mark.usefixtures("fresh_settings_cache")
 def test_settings_proxy_deletion_restores_cached_values() -> None:
-    reset_settings_cache()
     original = get_settings()
 
-    try:
-        settings.WHISPER_MODEL_SIZE = "temporary"
-        settings.WHISPER_LANGUAGE = "temporary"
+    settings.WHISPER_MODEL_SIZE = "temporary"
+    settings.WHISPER_LANGUAGE = "temporary"
 
-        del settings.WHISPER_MODEL_SIZE
-        assert settings.WHISPER_MODEL_SIZE == original.WHISPER_MODEL_SIZE
-        assert settings.WHISPER_LANGUAGE == "temporary"
+    del settings.WHISPER_MODEL_SIZE
+    assert settings.WHISPER_MODEL_SIZE == original.WHISPER_MODEL_SIZE
+    expected_whisper_language = "temporary"
+    assert expected_whisper_language == settings.WHISPER_LANGUAGE
 
-        del settings.WHISPER_LANGUAGE
-        assert get_settings() is original
-    finally:
-        reset_settings_cache()
+    del settings.WHISPER_LANGUAGE
+    assert get_settings() is original
 
 
 def test_load_settings_resolves_relative_paths_against_application_home(

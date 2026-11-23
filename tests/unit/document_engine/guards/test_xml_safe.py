@@ -25,8 +25,10 @@ def test_safe_parser_rejects_dtd_and_entity_declarations(payload: bytes) -> None
 
 def test_safe_parser_accepts_regular_xml() -> None:
     root = parse_xml(b"<?xml version='1.0'?><root><item>safe</item></root>")
-    assert root.tag == "root"
-    assert root.findtext("item") == "safe"
+    expected_tag = "root"
+    assert root.tag == expected_tag
+    expected_findtext = "safe"
+    assert root.findtext("item") == expected_findtext
 
 
 def test_safe_parser_maps_malformed_xml_to_safe_error() -> None:

@@ -13,7 +13,6 @@ from PIL import Image
 from audiodoc.common.subprocess_runner import (
     SubprocessTimeoutError,
 )
-from audiodoc.document_engine.ocr import recognize as ocr_package_recognize
 from audiodoc.document_engine.ocr import recognize as recognize_module
 from audiodoc.document_engine.ocr import tesseract as tesseract_module
 from audiodoc.errors.documents import DocumentRejectedError
@@ -32,10 +31,14 @@ class _OversizedImage:
     width = 100
     height = 100
 
-    def seek(self, _index: object) -> None:
-        return None
+    @staticmethod
+    def seek(_index: object) -> None:
+        """Provide the ``seek`` behaviour the test relies on."""
+        return
 
-    def copy(self) -> Never:
+    @staticmethod
+    def copy() -> Never:
+        """Provide the ``copy`` behaviour the test relies on."""
         raise _UnexpectedImageCopyError
 
 
@@ -65,7 +68,8 @@ def test_ocr_timeout_returns_clean_error_and_removes_image_directory(
     ):
         recognize_module.recognize_pages(image, "eng")
 
-    assert error.value.status_code == 400
+    expected_status_code = 400
+    assert error.value.status_code == expected_status_code
     assert directories
     assert all(not directory.exists() for directory in directories)
 
@@ -74,13 +78,18 @@ def test_recognize_pages_preserves_page_headers_and_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class DummyPrepared:
+        """Stand in for the real DummyPrepared object."""
+
         def __init__(self) -> None:
             self.closed = False
 
         def close(self) -> None:
+            """Provide the ``close`` behaviour the test relies on."""
             self.closed = True
 
     class DummyImage:
+        """Stand in for the real DummyImage object."""
+
         n_frames = 2
         width = 10
         height = 10
@@ -89,9 +98,12 @@ def test_recognize_pages_preserves_page_headers_and_timeout(
             self.current_page = None
 
         def seek(self, page: object) -> None:
+            """Provide the ``seek`` behaviour the test relies on."""
             self.current_page = page
 
-        def copy(self) -> object:
+        @staticmethod
+        def copy() -> object:
+            """Provide the ``copy`` behaviour the test relies on."""
             return object()
 
     prepared_images = []
@@ -108,16 +120,17 @@ def test_recognize_pages_preserves_page_headers_and_timeout(
         calls.append((lang, config, timeout))
         return f" page {len(calls)} "
 
-    monkeypatch.setattr(ocr_package_recognize, "_prepare_image", prepare)
+    monkeypatch.setattr(recognize_module, "_prepare_image", prepare)
     monkeypatch.setattr(
-        ocr_package_recognize.pytesseract,
+        recognize_module.pytesseract,
         "image_to_string",
         recognize,
     )
 
-    text = ocr_package_recognize.recognize_pages(DummyImage(), "rus+eng")
+    text = recognize_module.recognize_pages(DummyImage(), "rus+eng")
 
-    assert text == "--- Страница 1 ---\npage 1\n\n--- Страница 2 ---\npage 2"
+    expected_text = "--- Страница 1 ---\npage 1\n\n--- Страница 2 ---\npage 2"
+    assert text == expected_text
     assert calls == [("rus+eng", "--psm 3", 60)] * 2
     assert all(item.closed for item in prepared_images)
 

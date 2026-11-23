@@ -59,7 +59,8 @@ def test_djvu_returns_text_layer_without_running_ocr(
     ) -> str:
         captured["file_path"] = file_path
         captured["executable"] = executable
-        assert file_path.read_bytes() == b"DJVU-data"
+        expected_read_bytes = b"DJVU-data"
+        assert file_path.read_bytes() == expected_read_bytes
         return "Text layer content"
 
     def unexpected_ocr(*_args: object, **_kwargs: object) -> Never:
@@ -67,8 +68,10 @@ def test_djvu_returns_text_layer_without_running_ocr(
 
     monkeypatch.setattr(djvu_module, "extract_text_layer", fake_extract_text_layer)
     monkeypatch.setattr(djvu_module, "extract_ocr_pages", unexpected_ocr)
-    assert djvu_module.extract_djvu(b"DJVU-data") == "Text layer content"
-    assert captured["executable"] == "/usr/bin/djvutxt"
+    expected_extract_djvu = "Text layer content"
+    assert djvu_module.extract_djvu(b"DJVU-data") == expected_extract_djvu
+    expected_executable = "/usr/bin/djvutxt"
+    assert captured["executable"] == expected_executable
     assert not captured["file_path"].parent.exists()
 
 
@@ -90,13 +93,17 @@ def test_djvu_uses_ocr_when_text_layer_is_empty(
         captured.update(
             file_path=file_path, temp_path=temp_path, djvused=djvused, ddjvu=ddjvu
         )
-        assert file_path.read_bytes() == b"DJVU-data"
+        expected_read_bytes = b"DJVU-data"
+        assert file_path.read_bytes() == expected_read_bytes
         return "OCR result"
 
     monkeypatch.setattr(djvu_module, "extract_ocr_pages", fake_extract_ocr_pages)
-    assert djvu_module.extract_djvu(b"DJVU-data") == "OCR result"
-    assert captured["djvused"] == "/usr/bin/djvused"
-    assert captured["ddjvu"] == "/usr/bin/ddjvu"
+    expected_extract_djvu = "OCR result"
+    assert djvu_module.extract_djvu(b"DJVU-data") == expected_extract_djvu
+    expected_djvused = "/usr/bin/djvused"
+    assert captured["djvused"] == expected_djvused
+    expected_ddjvu = "/usr/bin/ddjvu"
+    assert captured["ddjvu"] == expected_ddjvu
     assert not captured["temp_path"].exists()
 
 
@@ -163,9 +170,11 @@ def test_ocr_pages_renders_at_bounded_size_and_recognizes_each_page(
 
     def fake_run(args: object, *, timeout: object, max_output: object) -> object:
         calls.append((args, timeout, max_output))
-        if args[0] == "/usr/bin/djvused":
+        expected_args = "/usr/bin/djvused"
+        if args[0] == expected_args:
             return 0, b"2", b""
-        if args[0] == "/usr/bin/ddjvu":
+        expected_args = "/usr/bin/ddjvu"
+        if args[0] == expected_args:
             Path(args[-1]).write_bytes(b"TIFF-data")
             return 0, b"", b""
         raise _UnexpectedDjvuCommandError(args[0])
@@ -185,9 +194,11 @@ def test_ocr_pages_renders_at_bounded_size_and_recognizes_each_page(
         "/usr/bin/ddjvu",
     )
 
-    assert text == "--- Страница 1 ---\nPage one\n\n--- Страница 2 ---\nPage two"
+    expected_text = "--- Страница 1 ---\nPage one\n\n--- Страница 2 ---\nPage two"
+    assert text == expected_text
     assert [call[1] for call in calls] == [SUBPROCESS_TIMEOUT] * 3
-    assert all(call[2] <= 4096 for call in calls)
+    expected_call = 4096
+    assert all(call[2] <= expected_call for call in calls)
     render_args = calls[1][0]
     assert f"-size={DJVU_RENDER_MAX_SIZE}x{DJVU_RENDER_MAX_SIZE}" in render_args
     assert not (tmp_path / "page_1.tiff").exists()
@@ -221,7 +232,8 @@ def test_ocr_pages_rejects_too_large_rendered_file(
     monkeypatch.setattr(ocr_pages_module, "MAX_DJVU_PAGE_BYTES", 3)
 
     def fake_run(args: object, **_kwargs: object) -> object:
-        if args[0] == "/usr/bin/djvused":
+        expected_args = "/usr/bin/djvused"
+        if args[0] == expected_args:
             return 0, b"1", b""
         Path(args[-1]).write_bytes(b"four")
         return 0, b"", b""
@@ -250,7 +262,8 @@ def test_ocr_pages_marks_remaining_pages_as_truncated_after_exact_fit(
 
     def fake_run(args: object, **_kwargs: object) -> object:
         calls.append(args)
-        if args[0] == "/usr/bin/djvused":
+        expected_args = "/usr/bin/djvused"
+        if args[0] == expected_args:
             return 0, b"2", b""
         Path(args[-1]).write_bytes(b"TIFF-data")
         return 0, b"", b""
@@ -274,7 +287,10 @@ def test_ocr_pages_marks_remaining_pages_as_truncated_after_exact_fit(
         == page_text
     )
     assert budget.truncated is True
-    assert len(calls) == 2  # page count + first page; page two is not rendered
+    expected_count = 2
+    assert (
+        len(calls) == expected_count
+    )  # page count + first page; page two is not rendered
 
 
 def test_ocr_pages_exact_fit_on_last_page_is_not_truncated(
@@ -284,7 +300,8 @@ def test_ocr_pages_exact_fit_on_last_page_is_not_truncated(
     document_path.write_bytes(b"DJVU-data")
 
     def fake_run(args: object, **_kwargs: object) -> object:
-        if args[0] == "/usr/bin/djvused":
+        expected_args = "/usr/bin/djvused"
+        if args[0] == expected_args:
             return 0, b"1", b""
         Path(args[-1]).write_bytes(b"TIFF-data")
         return 0, b"", b""
@@ -353,7 +370,8 @@ def test_ocr_pages_rejects_failed_or_missing_render(
     return_code: int,
 ) -> None:
     def fake_run(args: object, **_kwargs: object) -> object:
-        if args[0] == "/usr/bin/djvused":
+        expected_args = "/usr/bin/djvused"
+        if args[0] == expected_args:
             return 0, b"1", b""
         return return_code, b"", b"private details"
 
@@ -394,55 +412,57 @@ def test_ocr_pages_maps_subprocess_failures(
         )
 
 
-@pytest.mark.parametrize(
-    ("error_type", "expected_message"),
-    [
+def _djvu_error_messages() -> list[tuple[type[Exception], str]]:
+    # pylint: disable=protected-access  # pins user texts of private error classes
+    return [
         (
-            ocr_pages_module._DjvuOutputTooLargeError,
+            ocr_pages_module._DjvuOutputTooLargeError,  # noqa: SLF001
             "Результат программы DjVuLibre слишком большой",
         ),
         (
-            ocr_pages_module._DjvuProcessingTimeoutError,
+            ocr_pages_module._DjvuProcessingTimeoutError,  # noqa: SLF001
             "Превышено время обработки DJVU",
         ),
         (
-            ocr_pages_module._DjvuPageCountUnavailableError,
+            ocr_pages_module._DjvuPageCountUnavailableError,  # noqa: SLF001
             "\u041d\u0435 удалось определить количество страниц DJVU",
         ),
         (
-            ocr_pages_module._InvalidDjvuPageCountError,
+            ocr_pages_module._InvalidDjvuPageCountError,  # noqa: SLF001
             "Некорректное количество страниц DJVU",
         ),
         (
-            ocr_pages_module._DjvuNoPagesError,
+            ocr_pages_module._DjvuNoPagesError,  # noqa: SLF001
             "\u0412 DJVU не найдено страниц",
         ),
         (
-            ocr_pages_module._DjvuTooManyPagesError,
+            ocr_pages_module._DjvuTooManyPagesError,  # noqa: SLF001
             "\u0412 DJVU слишком много страниц",
         ),
         (
-            ocr_pages_module._DjvuPageRenderError,
+            ocr_pages_module._DjvuPageRenderError,  # noqa: SLF001
             "\u041d\u0435 удалось отобразить страницу DJVU",
         ),
         (
-            ocr_pages_module._DjvuPageTooLargeError,
+            ocr_pages_module._DjvuPageTooLargeError,  # noqa: SLF001
             "Страница DJVU слишком велика для OCR",
         ),
         (
-            text_layer_module._DjvuTextTooLargeError,
+            text_layer_module._DjvuTextTooLargeError,  # noqa: SLF001
             "Текстовый слой DJVU слишком большой",
         ),
         (
-            text_layer_module._DjvuTextLayerTimeoutError,
+            text_layer_module._DjvuTextLayerTimeoutError,  # noqa: SLF001
             "Превышено время извлечения текста DJVU",
         ),
         (
-            text_layer_module._DjvuTextLayerReadError,
+            text_layer_module._DjvuTextLayerReadError,  # noqa: SLF001
             "\u041d\u0435 удалось прочитать DJVU",
         ),
-    ],
-)
+    ]
+
+
+@pytest.mark.parametrize(("error_type", "expected_message"), _djvu_error_messages())
 def test_djvu_public_error_messages_are_unchanged(
     error_type: type[Exception],
     expected_message: str,

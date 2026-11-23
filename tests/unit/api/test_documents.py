@@ -28,7 +28,8 @@ def test_document_endpoint_accepts_optional_character_budget() -> None:
         files={"file": ("note.txt", b"0123456789", "text/plain")},
         data={"max_characters": "5"},
     )
-    assert response.status_code == 200
+    expected_status_code = 200
+    assert response.status_code == expected_status_code
     assert response.json() == {
         "format": "txt",
         "text": "01234",
@@ -42,8 +43,10 @@ def test_document_endpoint_keeps_legacy_request_without_budget() -> None:
         "/process-document",
         files={"file": ("note.txt", b"hello", "text/plain")},
     )
-    assert response.status_code == 200
-    assert response.json()["text"] == "hello"
+    expected_status_code = 200
+    assert response.status_code == expected_status_code
+    expected_text = "hello"
+    assert response.json()["text"] == expected_text
     assert response.json()["truncated"] is False
 
 
@@ -53,7 +56,8 @@ def test_document_endpoint_validates_character_budget_range() -> None:
         files={"file": ("note.txt", b"hello", "text/plain")},
         data={"max_characters": "0"},
     )
-    assert response.status_code == 422
+    expected_status_code = 422
+    assert response.status_code == expected_status_code
 
 
 def test_document_queue_rejects_before_upload_is_copied(
@@ -71,5 +75,7 @@ def test_document_queue_rejects_before_upload_is_copied(
         "/process-document",
         files={"file": ("note.txt", b"document", "text/plain")},
     )
-    assert response.status_code == 503
-    assert response.headers["Retry-After"] == "30"
+    expected_status_code = 503
+    assert response.status_code == expected_status_code
+    expected_retry_after = "30"
+    assert response.headers["Retry-After"] == expected_retry_after

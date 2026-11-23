@@ -27,7 +27,8 @@ def test_pptx_extracts_table_rows_and_truncates_table_text() -> None:
     presentation.save(output)
     data = output.getvalue()
 
-    assert "Name | Value" in process_document_sync(data, "table.pptx")["text"]
+    expected_fragment = "Name | Value"
+    assert expected_fragment in process_document_sync(data, "table.pptx")["text"]
 
     budget = TextBudget(20)
     context = ExtractContext(budget=budget, deadline=Deadline(10))
@@ -39,6 +40,9 @@ def test_pptx_extracts_slide_heading_and_text() -> None:
     text = extract_pptx(create_pptx())
 
     assert isinstance(text, str)
-    assert "--- Слайд 1 ---" in text
-    assert "PPTX test" in text
-    assert "Document engine works!" in text
+    expected_fragment = "--- Слайд 1 ---"
+    assert expected_fragment in text
+    expected_fragment = "PPTX test"
+    assert expected_fragment in text
+    expected_fragment = "Document engine works!"
+    assert expected_fragment in text

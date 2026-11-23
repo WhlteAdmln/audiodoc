@@ -14,10 +14,11 @@ _SETTING_READERS = {"read_bool", "read_int", "read_str"}
 
 def _read_settings_environment_names() -> set[str]:
     tree = ast.parse(SETTINGS_PATH.read_text(encoding="utf-8"))
+    expected_name = "load_settings"
     load_settings = next(
         node
         for node in tree.body
-        if isinstance(node, ast.FunctionDef) and node.name == "load_settings"
+        if isinstance(node, ast.FunctionDef) and node.name == expected_name
     )
     names: set[str] = set()
 

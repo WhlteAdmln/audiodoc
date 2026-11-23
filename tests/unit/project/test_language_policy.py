@@ -1,4 +1,7 @@
 # Copyright (c) 2026 Nikolai Zelensky
+
+"""Tests for the project language policy."""
+
 import ast
 import io
 import tokenize
@@ -37,8 +40,9 @@ def _find_violations(path: Path) -> set[str]:
             if docstring is not None and _contains_cyrillic(docstring):
                 violations.add("docstring")
 
+        expected_parts = "audiodoc"
         if (
-            relative_path.parts[0] == "audiodoc"
+            relative_path.parts[0] == expected_parts
             and relative_path != RUSSIAN_MESSAGES_PATH
             and isinstance(node, ast.Constant)
             and isinstance(node.value, str)

@@ -12,5 +12,6 @@ def test_odt_extracts_headings_and_paragraphs() -> None:
     data = create_odt()
     text = extract_odf(data, "odt")
 
-    assert text == "ODT test\nDocument engine works!"
+    expected_text = "ODT test\nDocument engine works!"
+    assert text == expected_text
     assert extract_odt(load_document(data)) == text

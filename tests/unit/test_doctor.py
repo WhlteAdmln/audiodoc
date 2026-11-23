@@ -28,8 +28,10 @@ def test_whisper_model_check_accepts_configured_local_model(
 
     result = doctor.check_whisper_model(configured_settings)
 
-    assert result.status == "OK"
-    assert "present" in result.message
+    expected_status = "OK"
+    assert result.status == expected_status
+    expected_fragment = "present"
+    assert expected_fragment in result.message
 
 
 def test_whisper_model_check_rejects_missing_configured_path(
@@ -39,8 +41,10 @@ def test_whisper_model_check_rejects_missing_configured_path(
 
     result = doctor.check_whisper_model(configured_settings)
 
-    assert result.status == "FAIL"
-    assert "missing or incomplete" in result.message
+    expected_status = "FAIL"
+    assert result.status == expected_status
+    expected_fragment = "missing or incomplete"
+    assert expected_fragment in result.message
 
 
 def test_whisper_model_check_accepts_cached_model(
@@ -62,8 +66,10 @@ def test_whisper_model_check_accepts_cached_model(
 
     result = doctor.check_whisper_model(Settings(WHISPER_MODEL_SIZE="small"))
 
-    assert result.status == "OK"
-    assert "local cache" in result.message
+    expected_status = "OK"
+    assert result.status == expected_status
+    expected_fragment = "local cache"
+    assert expected_fragment in result.message
     assert calls == [("small", True)]
 
 
@@ -82,8 +88,10 @@ def test_whisper_model_check_accepts_downloadable_model(
 
     result = doctor.check_whisper_model(Settings(WHISPER_MODEL_SIZE="small"))
 
-    assert result.status == "OK"
-    assert "downloaded on first startup" in result.message
+    expected_status = "OK"
+    assert result.status == expected_status
+    expected_fragment = "downloaded on first startup"
+    assert expected_fragment in result.message
 
 
 def test_whisper_model_check_rejects_missing_offline_model(
@@ -102,8 +110,10 @@ def test_whisper_model_check_rejects_missing_offline_model(
         Settings(WHISPER_MODEL_SIZE="small", WHISPER_OFFLINE=True)
     )
 
-    assert result.status == "FAIL"
-    assert "WHISPER_OFFLINE" in result.message
+    expected_status = "FAIL"
+    assert result.status == expected_status
+    expected_fragment = "WHISPER_OFFLINE"
+    assert expected_fragment in result.message
 
 
 def test_whisper_model_check_requires_cached_model_when_forced_offline(
@@ -124,9 +134,12 @@ def test_whisper_model_check_requires_cached_model_when_forced_offline(
         offline=True,
     )
 
-    assert result.status == "FAIL"
-    assert "local cache" in result.message
-    assert "offline mode" in result.message
+    expected_status = "FAIL"
+    assert result.status == expected_status
+    expected_fragment = "local cache"
+    assert expected_fragment in result.message
+    expected_fragment = "offline mode"
+    assert expected_fragment in result.message
 
 
 def test_whisper_model_check_rejects_unsupported_model(
@@ -143,8 +156,10 @@ def test_whisper_model_check_rejects_unsupported_model(
 
     result = doctor.check_whisper_model(Settings(WHISPER_MODEL_SIZE="unknown"))
 
-    assert result.status == "FAIL"
-    assert "Unsupported Whisper model" in result.message
+    expected_status = "FAIL"
+    assert result.status == expected_status
+    expected_fragment = "Unsupported Whisper model"
+    assert expected_fragment in result.message
 
 
 def test_whisper_model_check_rejects_missing_dependency(
@@ -161,15 +176,19 @@ def test_whisper_model_check_rejects_missing_dependency(
 
     result = doctor.check_whisper_model(Settings())
 
-    assert result.status == "FAIL"
-    assert "not installed" in result.message
+    expected_status = "FAIL"
+    assert result.status == expected_status
+    expected_fragment = "not installed"
+    assert expected_fragment in result.message
 
 
 def test_cuda_check_is_not_required_for_cpu() -> None:
     result = doctor.check_cuda_device(Settings(WHISPER_DEVICE="cpu"))
 
-    assert result.status == "OK"
-    assert "not required" in result.message
+    expected_status = "OK"
+    assert result.status == expected_status
+    expected_fragment = "not required"
+    assert expected_fragment in result.message
 
 
 def test_cuda_check_accepts_visible_devices(
@@ -183,8 +202,10 @@ def test_cuda_check_accepts_visible_devices(
 
     result = doctor.check_cuda_device(Settings(WHISPER_DEVICE="cuda"))
 
-    assert result.status == "OK"
-    assert "2 CUDA device(s)" in result.message
+    expected_status = "OK"
+    assert result.status == expected_status
+    expected_fragment = "2 CUDA device(s)"
+    assert expected_fragment in result.message
 
 
 def test_cuda_check_rejects_no_visible_devices(
@@ -198,8 +219,10 @@ def test_cuda_check_rejects_no_visible_devices(
 
     result = doctor.check_cuda_device(Settings(WHISPER_DEVICE="cuda"))
 
-    assert result.status == "FAIL"
-    assert "no CUDA devices" in result.message
+    expected_status = "FAIL"
+    assert result.status == expected_status
+    expected_fragment = "no CUDA devices"
+    assert expected_fragment in result.message
 
 
 def test_cuda_check_rejects_unavailable_ctranslate2(
@@ -216,8 +239,10 @@ def test_cuda_check_rejects_unavailable_ctranslate2(
 
     result = doctor.check_cuda_device(Settings(WHISPER_DEVICE="cuda"))
 
-    assert result.status == "FAIL"
-    assert "ImportError" in result.message
+    expected_status = "FAIL"
+    assert result.status == expected_status
+    expected_fragment = "ImportError"
+    assert expected_fragment in result.message
 
 
 def test_collect_doctor_checks_reports_native_tool_success(
@@ -249,7 +274,8 @@ def test_collect_doctor_checks_reports_native_tool_success(
 
     native_checks = checks[:2]
     assert [check.name for check in native_checks] == ["Tesseract", "DjVuLibre"]
-    assert all(check.status == "OK" for check in native_checks)
+    expected_status = "OK"
+    assert all(check.status == expected_status for check in native_checks)
 
 
 def test_collect_doctor_checks_reports_missing_native_tools(
@@ -279,7 +305,11 @@ def test_collect_doctor_checks_reports_missing_native_tools(
 
     checks = doctor.collect_doctor_checks({})
 
-    assert checks[0].status == "FAIL"
-    assert "rus" in checks[0].message
-    assert checks[1].status == "FAIL"
-    assert "djvutxt" in checks[1].message
+    expected_status = "FAIL"
+    assert checks[0].status == expected_status
+    expected_fragment = "rus"
+    assert expected_fragment in checks[0].message
+    expected_status = "FAIL"
+    assert checks[1].status == expected_status
+    expected_fragment = "djvutxt"
+    assert expected_fragment in checks[1].message

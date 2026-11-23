@@ -14,7 +14,8 @@ def test_limit_text_and_build_result_preserve_response_shape(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(result_module, "MAX_EXTRACTED_TEXT_LENGTH", 5)
-    assert limit_text("123456") == "12345"
+    expected_limit_text = "12345"
+    assert limit_text("123456") == expected_limit_text
     assert build_result("txt", " hello ", truncated=True) == {
         "format": "txt",
         "text": "hello",

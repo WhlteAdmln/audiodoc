@@ -1,4 +1,7 @@
 # Copyright (c) 2026 Nikolai Zelensky
+
+"""Tests for API response schemas."""
+
 from audiodoc.api.schemas import DocumentResponse, TranscribeResponse
 
 

@@ -4,9 +4,9 @@
 import aiohttp
 import pytest
 
-from tests.support.server import LiveServer, live_server
+from tests.support.server import LiveServer, fixture_live_server
 
-__all__ = ["live_server"]
+__all__ = ["fixture_live_server"]
 
 
 @pytest.mark.asyncio
@@ -19,6 +19,7 @@ async def test_live_server_starts_real_app_with_fake_model(
     ):
         payload = await response.json()
 
-    assert response.status == 200
+    expected_status = 200
+    assert response.status == expected_status
     assert payload["loaded"] is True
     assert live_server.temp_dir.is_dir()

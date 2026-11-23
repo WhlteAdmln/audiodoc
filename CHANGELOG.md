@@ -28,6 +28,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The ruff ignores `FBT`, `TD002`, `TD003` and `FIX002` and the `ANN` and `ARG` ignores for tests are gone. Boolean parameters of `get_bool` and a few helpers are keyword-only, and the tests are annotated.
 - `typings/pymupdf` is a minimal stub, so the PDF extractor needs no `Any` casts.
 - The changelog sections of every version follow the same order in both repositories.
+- pylint now checks every test module in both repositories (audiodoc no longer passes `--ignore-paths='^tests/unit/'`), and the ruff `PLR2004` and `SLF001` ignores for `tests/*` are gone. Literals compared in tests are local variables, fixtures use `@pytest.fixture(name=...)`, fakes that use no instance state are static or plain namespaces, and comparisons with empty literals use truthiness. The few tests that still pin a private helper carry a narrow, reasoned `# noqa: SLF001` and `# pylint: disable=protected-access`.
+- Fake Whisper models and native-tool stubs moved to `tests/support/whisper.py`; the lifespan shutdown test drives the public `lifespan` context manager instead of calling `__aenter__`/`__aexit__`.
 
 ### Security
 

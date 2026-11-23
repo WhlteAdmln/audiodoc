@@ -1,4 +1,7 @@
 # Copyright (c) 2026 Nikolai Zelensky
+
+"""Tests for the transcription model holder."""
+
 from types import SimpleNamespace
 
 import pytest
@@ -81,7 +84,7 @@ def test_build_model_uses_supplied_application_settings(
         lambda _name: fake_module,
     )
 
-    model_module._build_model(configured_settings)
+    model_module.ModelHolder(configured_settings).load()
 
     assert captured == {
         "model_path": "/models/custom",

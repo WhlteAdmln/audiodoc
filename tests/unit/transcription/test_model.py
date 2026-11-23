@@ -31,7 +31,7 @@ def test_whisper_model_factory_uses_configurable_device_and_offline_options(
     monkeypatch.setattr(settings, "WHISPER_CPU_THREADS", 6)
     monkeypatch.setattr(settings, "WHISPER_OFFLINE", True)
 
-    model_module._build_model()
+    model_module.ModelHolder().load()
 
     assert captured == {
         "model_path": "/opt/models/whisper-small",

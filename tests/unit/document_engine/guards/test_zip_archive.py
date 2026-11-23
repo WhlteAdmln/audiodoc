@@ -15,12 +15,13 @@ from audiodoc.document_engine.guards.zip_archive import validate_zip_archive
 
 
 def test_zip_rejects_nonempty_member_with_zero_compressed_size() -> None:
+    # pylint: disable=protected-access  # pins the per-member guard directly
     item = zipfile.ZipInfo("member.bin")
     item.file_size = 1
     item.compress_size = 0
 
     with pytest.raises(ValueError, match="Suspicious compressed file size"):
-        zip_guard._validate_archive_entry(item, 0)
+        zip_guard._validate_archive_entry(item, 0)  # noqa: SLF001
 
 
 @pytest.mark.parametrize(
@@ -56,6 +57,7 @@ def test_zip_checks_actual_member_limits(
     case: tuple[str, int, int, int, int, str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # pylint: disable=protected-access  # pins the per-member guard directly
     (
         limit_name,
         limit,
@@ -69,7 +71,7 @@ def test_zip_checks_actual_member_limits(
     item.compress_size = compressed_size
 
     with pytest.raises(ValueError, match=expected_message):
-        zip_guard._validate_actual_member_size(item, actual_size, total_size)
+        zip_guard._validate_actual_member_size(item, actual_size, total_size)  # noqa: SLF001
 
 
 def test_mimetype_member_is_read_with_a_fixed_200_byte_limit(

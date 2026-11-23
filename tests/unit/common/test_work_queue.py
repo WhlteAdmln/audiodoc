@@ -29,15 +29,19 @@ def test_work_queue_limits_active_and_waiting_tasks() -> None:
         tasks = [asyncio.create_task(worker()) for _ in range(7)]
         await asyncio.sleep(0.03)
 
-        assert active == 2
-        assert max_active == 2
-        assert queue.waiting == 4
+        expected_active = 2
+        assert active == expected_active
+        expected_max_active = 2
+        assert max_active == expected_max_active
+        expected_waiting = 4
+        assert queue.waiting == expected_waiting
         assert queue.is_full() is True
 
         release.set()
         results = await asyncio.gather(*tasks, return_exceptions=True)
         assert sum(isinstance(item, QueueFullError) for item in results) == 1
-        assert max_active == 2
+        expected_max_active = 2
+        assert max_active == expected_max_active
         assert queue.waiting == 0
         assert queue.is_full() is False
 

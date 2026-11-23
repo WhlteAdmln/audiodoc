@@ -1,8 +1,12 @@
 # Copyright (c) 2026 Nikolai Zelensky
+
+"""Tests for transcription service."""
+
 import asyncio
 import threading
 import time
 import wave
+from contextlib import closing
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -19,21 +23,16 @@ from audiodoc.errors.transcription import (
 )
 from audiodoc.transcription.model import ModelHolder
 from tests.support.builders import create_ocr_image, create_ogg_opus, create_wav
+from tests.support.whisper import FakeWhisperModel, loaded_model_holder
 
 
 def _test_queue(max_waiting: int = 4) -> WorkQueue:
     return WorkQueue(workers=1, max_waiting=max_waiting)
 
 
-def _loaded_model_holder(model: object) -> ModelHolder:
-    holder = ModelHolder()
-    holder._model = model
-    return holder
-
-
 def _empty_wav() -> bytes:
     output = BytesIO()
-    with wave.open(output, "wb") as audio:
+    with closing(wave.Wave_write(output)) as audio:
         audio.setnchannels(1)
         audio.setsampwidth(2)
         audio.setframerate(16_000)
@@ -54,22 +53,11 @@ class _UnexpectedSegmentIterationError(AssertionError):
         super().__init__("segments must not be consumed")
 
 
-class FakeModel:
-    def __init__(self, duration: float = 1.5) -> None:
-        self.duration = duration
-        self.thread_id = None
-
-    def transcribe(self, _path: object, **_kwargs: object) -> object:
-        self.thread_id = threading.get_ident()
-        segments = [SimpleNamespace(text=" recognized text ")]
-        return iter(segments), SimpleNamespace(language="ru", duration=self.duration)
-
-
 def test_transcribe_file_runs_model_in_worker_thread(tmp_path: Path) -> None:
     path = tmp_path / "audio.ogg"
     path.write_bytes(create_wav())
-    model = FakeModel()
-    configured_model_holder = _loaded_model_holder(model)
+    model = FakeWhisperModel()
+    configured_model_holder = loaded_model_holder(model)
     main_thread_id = threading.get_ident()
 
     result = asyncio.run(
@@ -90,15 +78,16 @@ def test_transcribe_file_rejects_audio_over_duration_before_iterating_segments(
     path = tmp_path / "audio.ogg"
     path.write_bytes(create_wav())
 
-    class TooLongModel:
-        def transcribe(self, _path: object, **_kwargs: object) -> object:
-            def segments() -> object:
-                raise _UnexpectedSegmentIterationError
-                yield None
+    def transcribe(_path: object, **_kwargs: object) -> object:
+        def segments() -> object:
+            raise _UnexpectedSegmentIterationError
+            yield None
 
-            return segments(), SimpleNamespace(language="ru", duration=9999)
+        return segments(), SimpleNamespace(language="ru", duration=9999)
 
-    configured_model_holder = _loaded_model_holder(TooLongModel())
+    too_long_model = SimpleNamespace(transcribe=transcribe)
+
+    configured_model_holder = loaded_model_holder(too_long_model)
     monkeypatch.setattr(transcription_service.settings, "MAX_AUDIO_DURATION", 600)
 
     with pytest.raises(AudioTooLongError) as error:
@@ -110,9 +99,10 @@ def test_transcribe_file_rejects_audio_over_duration_before_iterating_segments(
             )
         )
 
-    assert error.value.public_message == (
+    expected_public_message = (
         "Аудио слишком длинное. Максимальная длительность: 600 \u0441."
     )
+    assert error.value.public_message == expected_public_message
 
 
 def test_transcribe_file_reports_model_not_ready(tmp_path: Path) -> None:
@@ -132,6 +122,7 @@ def test_transcribe_file_reports_model_not_ready(tmp_path: Path) -> None:
 
 def test_transcribe_file_requires_model_holder(tmp_path: Path) -> None:
     with pytest.raises(TypeError, match="configured_model_holder"):
+        # pylint: disable-next=missing-kwoa  # the call omits it on purpose
         transcription_service.transcribe_file(
             tmp_path / "audio.ogg",
             queue=_test_queue(),
@@ -156,16 +147,17 @@ def test_transcribe_file_decodes_real_audio_and_passes_whisper_settings(
     path.write_bytes(builder())
     captured = {}
 
-    class RecordingModel:
-        def transcribe(self, audio: object, **kwargs: object) -> object:
-            captured["audio"] = audio
-            captured["kwargs"] = kwargs
-            return iter([SimpleNamespace(text=" decoded audio ")]), SimpleNamespace(
-                language=language,
-                duration=0.25,
-            )
+    def transcribe(audio: object, **kwargs: object) -> object:
+        captured["audio"] = audio
+        captured["kwargs"] = kwargs
+        return iter([SimpleNamespace(text=" decoded audio ")]), SimpleNamespace(
+            language=language,
+            duration=0.25,
+        )
 
-    configured_model_holder = _loaded_model_holder(RecordingModel())
+    recording_model = SimpleNamespace(transcribe=transcribe)
+
+    configured_model_holder = loaded_model_holder(recording_model)
     monkeypatch.setattr(transcription_service.settings, "WHISPER_LANGUAGE", language)
     monkeypatch.setattr(
         transcription_service.settings,
@@ -183,13 +175,15 @@ def test_transcribe_file_decodes_real_audio_and_passes_whisper_settings(
 
     assert captured["audio"].size > 0
     assert captured["audio"].ndim == 1
-    assert str(captured["audio"].dtype) == "float32"
+    expected_text = "float32"
+    assert str(captured["audio"].dtype) == expected_text
     assert captured["kwargs"] == {
         "language": language,
         "beam_size": beam_size,
         "vad_filter": True,
     }
-    assert result["text"] == "decoded audio"
+    expected_text = "decoded audio"
+    assert result["text"] == expected_text
     assert result["language"] == language
 
 
@@ -208,7 +202,7 @@ def test_transcribe_file_rejects_invalid_audio(
 ) -> None:
     path = tmp_path / "invalid.audio"
     path.write_bytes(audio_data)
-    configured_model_holder = _loaded_model_holder(FakeModel())
+    configured_model_holder = loaded_model_holder(FakeWhisperModel())
 
     with pytest.raises(InvalidAudioError):
         asyncio.run(
@@ -225,7 +219,7 @@ def test_transcribe_file_rejects_audio_over_decoded_duration(
 ) -> None:
     path = tmp_path / "long.wav"
     path.write_bytes(create_wav())
-    configured_model_holder = _loaded_model_holder(FakeModel())
+    configured_model_holder = loaded_model_holder(FakeWhisperModel())
     monkeypatch.setattr(transcription_service.settings, "MAX_AUDIO_DURATION", 0.1)
 
     with pytest.raises(AudioTooLongError) as error:
@@ -237,9 +231,10 @@ def test_transcribe_file_rejects_audio_over_decoded_duration(
             )
         )
 
-    assert error.value.public_message == (
+    expected_public_message = (
         "Аудио слишком длинное. Максимальная длительность: 0.1 \u0441."
     )
+    assert error.value.public_message == expected_public_message
 
 
 def test_transcribe_file_reports_deadline_exceeded_for_slow_model(
@@ -249,13 +244,14 @@ def test_transcribe_file_reports_deadline_exceeded_for_slow_model(
     path.write_bytes(create_wav())
     called = threading.Event()
 
-    class SlowModel:
-        def transcribe(self, _audio: object, **_kwargs: object) -> object:
-            called.set()
-            time.sleep(0.2)
-            return iter([]), SimpleNamespace(language="ru", duration=0.25)
+    def transcribe(_audio: object, **_kwargs: object) -> object:
+        called.set()
+        time.sleep(0.2)
+        return iter([]), SimpleNamespace(language="ru", duration=0.25)
 
-    configured_model_holder = _loaded_model_holder(SlowModel())
+    slow_model = SimpleNamespace(transcribe=transcribe)
+
+    configured_model_holder = loaded_model_holder(slow_model)
     monkeypatch.setattr(transcription_service.settings, "WHISPER_TIMEOUT", 0.1)
 
     with pytest.raises(TranscriptionTimeoutError):
@@ -276,18 +272,19 @@ def test_transcriptions_respect_the_concurrency_semaphore(tmp_path: Path) -> Non
     active = 0
     maximum_active = 0
 
-    class CountingModel:
-        def transcribe(self, _path: object, **_kwargs: object) -> object:
-            nonlocal active, maximum_active
-            with lock:
-                active += 1
-                maximum_active = max(maximum_active, active)
-            time.sleep(0.04)
-            with lock:
-                active -= 1
-            return iter([]), SimpleNamespace(language="ru", duration=1)
+    def transcribe(_path: object, **_kwargs: object) -> object:
+        nonlocal active, maximum_active
+        with lock:
+            active += 1
+            maximum_active = max(maximum_active, active)
+        time.sleep(0.04)
+        with lock:
+            active -= 1
+        return iter([]), SimpleNamespace(language="ru", duration=1)
 
-    configured_model_holder = _loaded_model_holder(CountingModel())
+    counting_model = SimpleNamespace(transcribe=transcribe)
+
+    configured_model_holder = loaded_model_holder(counting_model)
     paths = [tmp_path / "one.ogg", tmp_path / "two.ogg"]
     for path in paths:
         path.write_bytes(create_wav())
@@ -318,13 +315,14 @@ def test_cancelled_transcription_waits_for_worker_even_when_cancelled_twice(
     started = threading.Event()
     release = threading.Event()
 
-    class SlowModel:
-        def transcribe(self, _audio: object, **_kwargs: object) -> object:
-            started.set()
-            release.wait(timeout=5)
-            return [], SimpleNamespace(language="ru", duration=0.25)
+    def transcribe(_audio: object, **_kwargs: object) -> object:
+        started.set()
+        release.wait(timeout=5)
+        return [], SimpleNamespace(language="ru", duration=0.25)
 
-    configured_model_holder = _loaded_model_holder(SlowModel())
+    slow_model = SimpleNamespace(transcribe=transcribe)
+
+    configured_model_holder = loaded_model_holder(slow_model)
 
     async def cancel_transcription() -> object:
         task = asyncio.create_task(

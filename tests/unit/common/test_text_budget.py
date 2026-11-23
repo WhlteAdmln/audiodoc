@@ -35,7 +35,8 @@ def test_text_budget_never_exceeds_limit_and_reports_exact_truncation(
 def test_text_budget_truncates_a_single_oversized_chunk() -> None:
     budget = TextBudget(10)
     assert budget.add("a" * 20) == "a" * 10
-    assert budget.used == 10
+    expected_used = 10
+    assert budget.used == expected_used
     assert budget.exhausted is True
     assert budget.truncated is True
 
@@ -43,8 +44,10 @@ def test_text_budget_truncates_a_single_oversized_chunk() -> None:
 def test_text_budget_accounts_for_newline_between_chunks() -> None:
     budget = TextBudget(5)
     parts = [budget.add("abc"), budget.add("def")]
-    assert "\n".join(part for part in parts if part) == "abc\nd"
-    assert budget.used == 5
+    expected_text = "abc\nd"
+    assert "\n".join(part for part in parts if part) == expected_text
+    expected_used = 5
+    assert budget.used == expected_used
     assert budget.exhausted is True
 
 
@@ -59,8 +62,10 @@ def test_text_budget_rejects_invalid_limits_and_chunks() -> None:
 def test_text_budget_is_not_truncated_when_text_exactly_fits() -> None:
     budget = TextBudget(5)
 
-    assert budget.add("12345") == "12345"
-    assert budget.used == 5
+    expected_add = "12345"
+    assert budget.add("12345") == expected_add
+    expected_used = 5
+    assert budget.used == expected_used
     assert budget.exhausted is True
     assert budget.truncated is False
 
@@ -68,8 +73,10 @@ def test_text_budget_is_not_truncated_when_text_exactly_fits() -> None:
 def test_text_budget_is_truncated_when_text_exceeds_limit_by_one() -> None:
     budget = TextBudget(5)
 
-    assert budget.add("123456") == "12345"
-    assert budget.used == 5
+    expected_add = "12345"
+    assert budget.add("123456") == expected_add
+    expected_used = 5
+    assert budget.used == expected_used
     assert budget.exhausted is True
     assert budget.truncated is True
 

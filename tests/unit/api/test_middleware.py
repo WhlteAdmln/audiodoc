@@ -28,7 +28,8 @@ def test_body_size_middleware_rejects_content_length_before_route() -> None:
     test_app.add_middleware(BodySizeLimitMiddleware, max_body_size=10)
     response = TestClient(test_app).post("/upload", content=b"x" * 11)
 
-    assert response.status_code == 413
+    expected_status_code = 413
+    assert response.status_code == expected_status_code
     assert route_called is False
 
 
@@ -37,7 +38,8 @@ def test_body_size_middleware_counts_streamed_body_without_content_length() -> N
         # Force the downstream app to consume the complete request body.
         while True:
             message = await receive()
-            if message["type"] == "http.request" and not message.get("more_body"):
+            expected_type = "http.request"
+            if message["type"] == expected_type and not message.get("more_body"):
                 break
         await send({"type": "http.response.start", "status": 200, "headers": []})
         await send({"type": "http.response.body", "body": b"ok"})
@@ -70,10 +72,10 @@ def test_body_size_middleware_counts_streamed_body_without_content_length() -> N
     }
     asyncio.run(middleware(scope, receive, send))
 
-    start = next(
-        message for message in sent if message["type"] == "http.response.start"
-    )
-    assert start["status"] == 413
+    expected_type = "http.response.start"
+    start = next(message for message in sent if message["type"] == expected_type)
+    expected_status = 413
+    assert start["status"] == expected_status
 
 
 @pytest.mark.parametrize("content_length", [None, b"invalid", b"5"])
@@ -84,7 +86,8 @@ def test_body_size_middleware_accepts_body_within_limit(
 
     async def app(_scope: Scope, receive: Receive, send: Send) -> None:
         message = await receive()
-        assert message["body"] == b"12345"
+        expected_body = b"12345"
+        assert message["body"] == expected_body
         await send(
             {
                 "type": "http.response.start",
@@ -114,7 +117,8 @@ def test_body_size_middleware_accepts_body_within_limit(
         )
     )
 
-    assert sent[0]["status"] == 200
+    expected_status = 200
+    assert sent[0]["status"] == expected_status
 
 
 def test_body_size_middleware_rejects_non_positive_limit() -> None:
@@ -149,7 +153,8 @@ def test_body_size_middleware_ignores_disconnect_messages() -> None:
 
     async def app(_scope: Scope, receive: Receive, send: Send) -> None:
         message = await receive()
-        assert message["type"] == "http.disconnect"
+        expected_type = "http.disconnect"
+        assert message["type"] == expected_type
         await send(
             {
                 "type": "http.response.start",
@@ -173,7 +178,8 @@ def test_body_size_middleware_ignores_disconnect_messages() -> None:
         )
     )
 
-    assert sent[0]["status"] == 200
+    expected_status = 200
+    assert sent[0]["status"] == expected_status
 
 
 def test_body_size_middleware_does_not_replace_started_response() -> None:
@@ -251,9 +257,11 @@ def test_body_size_middleware_replaces_downstream_error_after_oversized_body() -
         )
     )
 
-    start = next(
-        message for message in sent if message["type"] == "http.response.start"
-    )
-    body = next(message for message in sent if message["type"] == "http.response.body")
-    assert start["status"] == 413
-    assert body["body"] == b'{"detail":"Request body too large"}'
+    expected_type = "http.response.start"
+    start = next(message for message in sent if message["type"] == expected_type)
+    expected_type = "http.response.body"
+    body = next(message for message in sent if message["type"] == expected_type)
+    expected_status = 413
+    assert start["status"] == expected_status
+    expected_body = b'{"detail":"Request body too large"}'
+    assert body["body"] == expected_body

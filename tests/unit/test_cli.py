@@ -17,7 +17,8 @@ from audiodoc.system_diagnostics import DiagnosticCheck
 def _read_env_values(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
-        if line and not line.lstrip().startswith("#") and "=" in line:
+        expected_fragment = "="
+        if line and not line.lstrip().startswith("#") and expected_fragment in line:
             name, value = line.split("=", 1)
             values[name] = value
     return values
@@ -30,7 +31,8 @@ def test_version_prints_installed_package_version(
     monkeypatch.setattr(cli, "package_version", lambda _name: "0.1.0")
 
     assert cli.main(["version"]) == 0
-    assert capsys.readouterr().out == "audiodoc 0.1.0\n"
+    expected_out = "audiodoc 0.1.0\n"
+    assert capsys.readouterr().out == expected_out
 
 
 def test_run_loads_configuration_and_starts_uvicorn(
@@ -93,7 +95,8 @@ def test_run_loads_configuration_and_starts_uvicorn(
             ),
         ),
     ]
-    assert "SECURITY WARNING" in caplog.text
+    expected_fragment = "SECURITY WARNING"
+    assert expected_fragment in caplog.text
     assert all_interfaces_host in caplog.text
 
 
@@ -137,8 +140,10 @@ def test_run_uses_bind_defaults_from_environment(
     )
 
     assert cli.main(["run"]) == 0
-    assert calls[0]["host"] == "10.8.0.1"
-    assert calls[0]["port"] == 8123
+    expected_host = "10.8.0.1"
+    assert calls[0]["host"] == expected_host
+    expected_port = 8123
+    assert calls[0]["port"] == expected_port
 
 
 def test_init_writes_distinct_keys_and_secure_configuration(
@@ -170,16 +175,25 @@ def test_init_writes_distinct_keys_and_secure_configuration(
     audio_key = values["AUDIODOC_AUDIO_KEY"]
     document_key = values["AUDIODOC_DOCUMENT_KEY"]
 
-    assert len(audio_key) >= 43
-    assert len(document_key) >= 43
+    expected_count = 43
+    assert len(audio_key) >= expected_count
+    expected_count = 43
+    assert len(document_key) >= expected_count
     assert audio_key != document_key
-    assert env_path.stat().st_mode & 0o777 == 0o600
-    assert values["WHISPER_MODEL_SIZE"] == "medium"
-    assert values["WHISPER_DEVICE"] == "cuda"
-    assert values["WHISPER_COMPUTE_TYPE"] == "float16"
-    assert values["AUDIODOC_HOST"] == "10.8.0.1"
-    assert values["AUDIODOC_PORT"] == "8123"
-    assert values["ALLOW_UNAUTHENTICATED"] == "false"
+    expected_number = 0o600
+    assert env_path.stat().st_mode & 0o777 == expected_number
+    expected_whisper_model_size = "medium"
+    assert values["WHISPER_MODEL_SIZE"] == expected_whisper_model_size
+    expected_whisper_device = "cuda"
+    assert values["WHISPER_DEVICE"] == expected_whisper_device
+    expected_whisper_compute_type = "float16"
+    assert values["WHISPER_COMPUTE_TYPE"] == expected_whisper_compute_type
+    expected_audiodoc_host = "10.8.0.1"
+    assert values["AUDIODOC_HOST"] == expected_audiodoc_host
+    expected_audiodoc_port = "8123"
+    assert values["AUDIODOC_PORT"] == expected_audiodoc_port
+    expected_allow_unauthenticated = "false"
+    assert values["ALLOW_UNAUTHENTICATED"] == expected_allow_unauthenticated
 
 
 def test_init_refuses_to_overwrite_without_force_and_force_replaces(
@@ -197,7 +211,8 @@ def test_init_refuses_to_overwrite_without_force_and_force_replaces(
     with pytest.raises(SystemExit) as error:
         cli.main(["init"])
 
-    assert error.value.code == 2
+    expected_code = 2
+    assert error.value.code == expected_code
     assert env_path.read_bytes() == original
 
     assert cli.main(["init", "--force"]) == 0
@@ -245,8 +260,10 @@ def test_pair_uses_host_and_port_from_env_when_url_is_omitted(
 
     assert cli.main(["pair"]) == 0
     output = capsys.readouterr().out
-    assert output.splitlines()[0] == "AUDIODOC_URL=http://10.8.0.1:8123"
-    assert len(output.splitlines()) == 3
+    expected_splitlines = "AUDIODOC_URL=http://10.8.0.1:8123"
+    assert output.splitlines()[0] == expected_splitlines
+    expected_count = 3
+    assert len(output.splitlines()) == expected_count
 
 
 def test_model_download_uses_home_models_directory(
@@ -285,7 +302,8 @@ def test_config_check_reports_valid_configuration(
         monkeypatch.delenv(name, raising=False)
 
     assert cli.main(["config", "check"]) == 0
-    assert capsys.readouterr().out == "Configuration is valid.\n"
+    expected_out = "Configuration is valid.\n"
+    assert capsys.readouterr().out == expected_out
 
 
 def test_config_check_collects_problems_without_printing_secrets(
@@ -329,8 +347,10 @@ def test_run_rejects_out_of_range_port(
     with pytest.raises(SystemExit) as error:
         cli.main(["run", "--port", "70000"])
 
-    assert error.value.code == 2
-    assert "between 1 and 65535" in capsys.readouterr().err
+    expected_code = 2
+    assert error.value.code == expected_code
+    expected_fragment = "between 1 and 65535"
+    assert expected_fragment in capsys.readouterr().err
 
 
 def test_python_module_entry_point_invokes_main(
@@ -342,7 +362,8 @@ def test_python_module_entry_point_invokes_main(
     with pytest.raises(SystemExit) as error:
         runpy.run_path(str(entry_point), run_name="__main__")
 
-    assert error.value.code == 7
+    expected_code = 7
+    assert error.value.code == expected_code
 
 
 def test_doctor_prints_checks_and_warnings_do_not_fail(
@@ -385,16 +406,21 @@ def test_doctor_fails_and_prints_native_tool_install_commands(
     assert cli.main(["doctor"]) == 1
     output = capsys.readouterr().out
 
-    assert "FAIL Tesseract: Executable not found." in output
-    assert "FAIL DjVuLibre: Executables not found." in output
-    assert (
+    expected_fragment = "FAIL Tesseract: Executable not found."
+    assert expected_fragment in output
+    expected_fragment = "FAIL DjVuLibre: Executables not found."
+    assert expected_fragment in output
+    expected_fragment_2 = (
         "sudo apt install tesseract-ocr tesseract-ocr-rus "
         "tesseract-ocr-eng djvulibre-bin"
-    ) in output
-    assert (
+    )
+    assert expected_fragment_2 in output
+    expected_fragment_2 = (
         "sudo dnf install tesseract tesseract-langpack-rus "
         "tesseract-langpack-eng djvulibre"
-    ) in output
-    assert (
+    )
+    assert expected_fragment_2 in output
+    expected_fragment = (
         "sudo pacman -S tesseract tesseract-data-rus tesseract-data-eng djvulibre"
-    ) in output
+    )
+    assert expected_fragment in output

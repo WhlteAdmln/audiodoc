@@ -1,4 +1,7 @@
 # Copyright (c) 2026 Nikolai Zelensky
+
+"""Tests for API key authentication."""
+
 import asyncio
 from collections.abc import Awaitable, Callable
 from types import SimpleNamespace
@@ -12,7 +15,7 @@ from audiodoc.config import Settings, settings
 from audiodoc.main import create_app
 
 
-def run_dependency(
+def _run_dependency(
     dependency: Callable[..., Awaitable[None]],
     authorization: str | None = None,
 ) -> None:
@@ -25,18 +28,21 @@ def run_dependency(
 def test_require_key_rejects_missing_and_invalid_tokens() -> None:
     dependency = require_key(lambda configured: configured.AUDIODOC_AUDIO_KEY)
     with pytest.raises(HTTPException) as missing:
-        run_dependency(dependency)
-    assert missing.value.status_code == 401
-    assert missing.value.headers["WWW-Authenticate"] == "Bearer"
+        _run_dependency(dependency)
+    expected_status_code = 401
+    assert missing.value.status_code == expected_status_code
+    expected_www_authenticate = "Bearer"
+    assert missing.value.headers["WWW-Authenticate"] == expected_www_authenticate
 
     with pytest.raises(HTTPException) as invalid:
-        run_dependency(dependency, "Bearer wrong-secret")
-    assert invalid.value.status_code == 401
+        _run_dependency(dependency, "Bearer wrong-secret")
+    expected_status_code = 401
+    assert invalid.value.status_code == expected_status_code
 
 
 def test_require_key_accepts_valid_token_case_insensitive_scheme() -> None:
     dependency = require_key(lambda configured: configured.AUDIODOC_AUDIO_KEY)
-    assert run_dependency(dependency, "bearer expected-secret") is None
+    assert _run_dependency(dependency, "bearer expected-secret") is None
 
 
 def test_require_key_supports_two_comma_separated_rotation_keys() -> None:
@@ -129,28 +135,35 @@ def test_document_route_requires_its_own_key() -> None:
     client = TestClient(app)
     files = {"file": ("note.txt", b"short test", "text/plain")}
 
-    assert client.post("/process-document", files=files).status_code == 401
+    expected_status_code = 401
+    assert (
+        client.post("/process-document", files=files).status_code
+        == expected_status_code
+    )
+    expected_status_code = 401
     assert (
         client.post(
             "/transcribe",
             files={"file": ("voice.ogg", b"fake audio", "audio/ogg")},
         ).status_code
-        == 401
+        == expected_status_code
     )
+    expected_status_code = 401
     assert (
         client.post(
             "/process-document",
             files=files,
             headers={"Authorization": "Bearer wrong"},
         ).status_code
-        == 401
+        == expected_status_code
     )
     response = client.post(
         "/process-document",
         files=files,
         headers={"Authorization": "Bearer document-test-key"},
     )
-    assert response.status_code == 200
+    expected_status_code = 200
+    assert response.status_code == expected_status_code
 
 
 def test_api_keys_are_scoped_to_each_application_settings() -> None:
@@ -180,4 +193,5 @@ def test_api_keys_are_scoped_to_each_application_settings() -> None:
             files={"file": (filename, b"test upload", content_type)},
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 401
+        expected_status_code = 401
+        assert response.status_code == expected_status_code

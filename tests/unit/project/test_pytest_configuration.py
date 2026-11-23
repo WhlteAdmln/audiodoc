@@ -19,6 +19,7 @@ class _MarkerItem:
         self.markers: list[str] = []
 
     def add_marker(self, marker: str) -> None:
+        """Provide the ``add_marker`` behaviour the test relies on."""
         self.markers.append(marker)
 
 
@@ -29,7 +30,8 @@ def test_pytest_configuration_is_strict() -> None:
     )
     options = configuration["tool"]["pytest"]["ini_options"]
 
-    assert options["addopts"] == "--strict-markers --strict-config -ra"
+    expected_addopts = "--strict-markers --strict-config -ra"
+    assert options["addopts"] == expected_addopts
     assert options["filterwarnings"] == [
         "error",
         (
@@ -37,7 +39,8 @@ def test_pytest_configuration_is_strict() -> None:
             "has no __module__ attribute$:DeprecationWarning"
         ),
     ]
-    assert options["timeout"] == 30
+    expected_timeout = 30
+    assert options["timeout"] == expected_timeout
     assert {marker.split(":", maxsplit=1)[0] for marker in options["markers"]} == {
         "unit",
         "integration",
@@ -62,5 +65,7 @@ def test_pytest_plugins_are_pinned() -> None:
     )
     dependencies = configuration["project"]["optional-dependencies"]["dev"]
 
-    assert "pytest-randomly==5.0.0" in dependencies
-    assert "pytest-timeout==2.4.0" in dependencies
+    expected_fragment = "pytest-randomly==5.0.0"
+    assert expected_fragment in dependencies
+    expected_fragment = "pytest-timeout==2.4.0"
+    assert expected_fragment in dependencies

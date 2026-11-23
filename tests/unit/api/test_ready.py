@@ -1,4 +1,7 @@
 # Copyright (c) 2026 Nikolai Zelensky
+
+"""Tests for the readiness endpoint."""
+
 import sys
 from collections.abc import Callable
 from types import ModuleType
@@ -61,8 +64,9 @@ def test_check_native_tools_handles_tesseract_language_errors(
 
     status = diagnostics_module.check_native_tools()
 
-    assert status.tesseract == "/usr/bin/tesseract"
-    assert status.languages == ()
+    expected_tesseract = "/usr/bin/tesseract"
+    assert status.tesseract == expected_tesseract
+    assert not status.languages
     assert status.djvulibre
 
 
@@ -77,7 +81,8 @@ def test_check_native_tools_reports_available_tools(
 
     status = diagnostics_module.check_native_tools()
 
-    assert status.tesseract == "/usr/bin/tesseract"
+    expected_tesseract = "/usr/bin/tesseract"
+    assert status.tesseract == expected_tesseract
     assert status.languages == ("eng", "rus")
     assert status.djvu_tools == DjvuTools(
         "/usr/bin/djvutxt",
@@ -95,8 +100,9 @@ def test_check_native_tools_handles_missing_pytesseract(
 
     status = diagnostics_module.check_native_tools()
 
-    assert status.tesseract == "/usr/bin/tesseract"
-    assert status.languages == ()
+    expected_tesseract = "/usr/bin/tesseract"
+    assert status.tesseract == expected_tesseract
+    assert not status.languages
     assert status.djvulibre
 
 
@@ -122,7 +128,7 @@ def test_check_native_tools_reports_missing_tesseract(
     status = diagnostics_module.check_native_tools()
 
     assert status.tesseract is None
-    assert status.languages == ()
+    assert not status.languages
     assert status.djvulibre
 
 
@@ -136,12 +142,13 @@ def test_check_native_tools_reports_each_missing_djvu_tool(
 
     status = diagnostics_module.check_native_tools()
 
-    assert status.tesseract == "/usr/bin/tesseract"
+    expected_tesseract = "/usr/bin/tesseract"
+    assert status.tesseract == expected_tesseract
     assert status.djvulibre is False
     assert getattr(status.djvu_tools, missing_tool) is None
 
 
-def create_ready_app() -> object:
+def _create_ready_app() -> object:
     app = FastAPI()
     app.state.model_holder = ModelHolder()
     app.include_router(ready_module.router)
@@ -161,13 +168,14 @@ def test_ready_is_public_and_reports_native_dependencies(
             DjvuTools("/usr/bin/djvutxt", "/usr/bin/djvused", "/usr/bin/ddjvu"),
         ),
     )
-    application = create_ready_app()
+    application = _create_ready_app()
     monkeypatch.setattr(application.state.model_holder, "_model", object())
     client = TestClient(application)
 
     response = client.get("/ready")
 
-    assert response.status_code == 200
+    expected_status_code = 200
+    assert response.status_code == expected_status_code
     assert response.json() == {
         "tesseract": True,
         "languages": ["eng", "rus"],
@@ -189,7 +197,7 @@ def test_ready_reports_missing_programs_without_raising(
             DjvuTools(None, "/usr/bin/djvused", None),
         ),
     )
-    application = create_ready_app()
+    application = _create_ready_app()
     monkeypatch.setattr(application.state.model_holder, "_model", None)
 
     response = TestClient(application).get(
@@ -197,7 +205,8 @@ def test_ready_reports_missing_programs_without_raising(
         headers={"Authorization": "Bearer document-ready-test-key"},
     )
 
-    assert response.status_code == 200
+    expected_status_code = 200
+    assert response.status_code == expected_status_code
     assert response.json() == {
         "tesseract": False,
         "languages": [],

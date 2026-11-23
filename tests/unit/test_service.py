@@ -7,7 +7,7 @@ from typing import cast
 import pytest
 
 from audiodoc import cli, service
-from audiodoc.service import ServiceMode, install_service_unit, render_service_unit
+from audiodoc.service import install_service_unit, render_service_unit
 
 USER_GOLDEN = """[Unit]
 Description=audiodoc API service
@@ -94,8 +94,10 @@ def test_system_unit_limits_and_network_allowlist_are_parameters() -> None:
         memory_max="8G",
         ip_address_allow=("10.9.0.0/16", "127.0.0.1"),
     )
-    assert "MemoryHigh=6G\nMemoryMax=8G\n" in unit
-    assert "IPAddressAllow=10.9.0.0/16 127.0.0.1\n" in unit
+    expected_fragment = "MemoryHigh=6G\nMemoryMax=8G\n"
+    assert expected_fragment in unit
+    expected_fragment = "IPAddressAllow=10.9.0.0/16 127.0.0.1\n"
+    assert expected_fragment in unit
 
 
 @pytest.mark.parametrize(
@@ -116,7 +118,7 @@ def test_render_rejects_invalid_values(
     with pytest.raises(ValueError, match=message):
         render_service_unit(
             home,
-            mode=cast("ServiceMode", mode),
+            mode=cast("service.ServiceMode", mode),
             memory_high=memory,
             ip_address_allow=addresses,
         )
@@ -133,13 +135,15 @@ def test_install_refuses_overwrite_and_saves_backup_with_force(
 
     with pytest.raises(FileExistsError):
         install_service_unit(tmp_path / "app", mode="system", unit_directory=directory)
-    assert unit_path.read_text(encoding="utf-8") == "old unit\n"
+    expected_text = "old unit\n"
+    assert unit_path.read_text(encoding="utf-8") == expected_text
 
     install_service_unit(
         tmp_path / "app", mode="system", force=True, unit_directory=directory
     )
     backup_path = directory / "audiodoc.service.bak"
-    assert backup_path.read_text(encoding="utf-8") == "old unit\n"
+    expected_text = "old unit\n"
+    assert backup_path.read_text(encoding="utf-8") == expected_text
     assert unit_path.read_text(encoding="utf-8") == render_service_unit(
         tmp_path / "app", mode="system"
     )
@@ -179,8 +183,10 @@ def test_cli_prints_and_installs_user_unit_without_starting_it(
         "/srv/audiodoc", str(app_home)
     )
     output = capsys.readouterr().out
-    assert "The service was not enabled or started." in output
-    assert "systemctl --user enable --now audiodoc.service" in output
+    expected_fragment = "The service was not enabled or started."
+    assert expected_fragment in output
+    expected_fragment = "systemctl --user enable --now audiodoc.service"
+    assert expected_fragment in output
 
 
 def test_cli_prints_hardened_system_unit(
@@ -200,7 +206,11 @@ def test_deploy_example_and_installer_use_the_canonical_renderer() -> None:
     root = Path(__file__).resolve().parents[2]
     example = (root / "deploy/audiodoc.service.example").read_text(encoding="utf-8")
     installer = (root / "install.sh").read_text(encoding="utf-8")
-    assert "audiodoc service install --system --print" in example
-    assert "[Service]" not in example
-    assert "-m audiodoc service install --user" in installer
-    assert 'cat >"$SYSTEMD_UNIT_FILE" <<EOF' not in installer
+    expected_fragment = "audiodoc service install --system --print"
+    assert expected_fragment in example
+    expected_fragment = "[Service]"
+    assert expected_fragment not in example
+    expected_fragment = "-m audiodoc service install --user"
+    assert expected_fragment in installer
+    expected_fragment = 'cat >"$SYSTEMD_UNIT_FILE" <<EOF'
+    assert expected_fragment not in installer

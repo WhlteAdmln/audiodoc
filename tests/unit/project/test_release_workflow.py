@@ -31,9 +31,8 @@ def test_extract_release_notes_selects_only_the_requested_version() -> None:
         "Previous release.\n"
     )
 
-    assert extract_release_notes(changelog, "1.2.3") == (
-        "### Added\n\n- Release feature.\n"
-    )
+    expected_extract_release_notes = "### Added\n\n- Release feature.\n"
+    assert extract_release_notes(changelog, "1.2.3") == expected_extract_release_notes
 
 
 def test_extract_release_notes_rejects_a_missing_version() -> None:
@@ -56,17 +55,28 @@ def test_release_workflow_requires_e2e_and_defaults_to_dry_run() -> None:
         encoding="utf-8"
     )
 
-    assert "needs: e2e" in workflow
-    assert "dry_run:" in workflow
-    assert "default: true" in workflow
-    assert 'GITHUB_REF" != "refs/heads/main"' in workflow
-    assert "project_version" in workflow
-    assert "git ls-remote" in workflow
-    assert "python scripts/release_notes.py" in workflow
-    assert "actions/upload-artifact@" in workflow
-    assert "name: release-assets-${{ inputs.version }}" in workflow
-    assert "actions/attest@" in workflow
-    assert "dist/build-provenance.sigstore.json" in workflow
+    expected_fragment = "needs: e2e"
+    assert expected_fragment in workflow
+    expected_fragment = "dry_run:"
+    assert expected_fragment in workflow
+    expected_fragment = "default: true"
+    assert expected_fragment in workflow
+    expected_fragment = 'GITHUB_REF" != "refs/heads/main"'
+    assert expected_fragment in workflow
+    expected_fragment = "project_version"
+    assert expected_fragment in workflow
+    expected_fragment = "git ls-remote"
+    assert expected_fragment in workflow
+    expected_fragment = "python scripts/release_notes.py"
+    assert expected_fragment in workflow
+    expected_fragment = "actions/upload-artifact@"
+    assert expected_fragment in workflow
+    expected_fragment = "name: release-assets-${{ inputs.version }}"
+    assert expected_fragment in workflow
+    expected_fragment = "actions/attest@"
+    assert expected_fragment in workflow
+    expected_fragment = "dist/build-provenance.sigstore.json"
+    assert expected_fragment in workflow
 
 
 def test_non_dry_release_creates_a_draft_and_publishes_versioned_image() -> None:
@@ -75,29 +85,42 @@ def test_non_dry_release_creates_a_draft_and_publishes_versioned_image() -> None
         encoding="utf-8"
     )
 
-    assert "if: inputs.dry_run == false" in workflow
-    assert 'gh release create "$tag" dist/*' in workflow
-    assert '--notes-file "$RUNNER_TEMP/release-notes.md"' in workflow
-    assert "--draft" in workflow
-    assert 'docker push "${image}:${RELEASE_VERSION}"' in workflow
-    assert "--generate-notes" not in workflow
+    expected_fragment = "if: inputs.dry_run == false"
+    assert expected_fragment in workflow
+    expected_fragment = 'gh release create "$tag" dist/*'
+    assert expected_fragment in workflow
+    expected_fragment = '--notes-file "$RUNNER_TEMP/release-notes.md"'
+    assert expected_fragment in workflow
+    expected_fragment = "--draft"
+    assert expected_fragment in workflow
+    expected_fragment = 'docker push "${image}:${RELEASE_VERSION}"'
+    assert expected_fragment in workflow
+    expected_fragment = "--generate-notes"
+    assert expected_fragment not in workflow
 
 
 def test_release_build_produces_sdist_wheel_and_checksums() -> None:
     """Ensure release builds contain both Python distribution formats."""
     script = (ROOT_DIR / "scripts" / "build_release.sh").read_text(encoding="utf-8")
 
-    assert "python3 -m build --sdist --wheel --outdir dist ." in script
-    assert 'sdists=("dist/${DIST_NAME}"-*.tar.gz)' in script
-    assert 'wheels=("dist/${DIST_NAME}"-*.whl)' in script
-    assert 'tar -tzf "${sdists[0]}"' in script
-    assert '"${SDIST_ROOT}/.env.example"' in script
-    assert '"${SDIST_ROOT}/.env"' in script
-    assert (
+    expected_fragment = "python3 -m build --sdist --wheel --outdir dist ."
+    assert expected_fragment in script
+    expected_fragment = 'sdists=("dist/${DIST_NAME}"-*.tar.gz)'
+    assert expected_fragment in script
+    expected_fragment = 'wheels=("dist/${DIST_NAME}"-*.whl)'
+    assert expected_fragment in script
+    expected_fragment = 'tar -tzf "${sdists[0]}"'
+    assert expected_fragment in script
+    expected_fragment = '"${SDIST_ROOT}/.env.example"'
+    assert expected_fragment in script
+    expected_fragment = '"${SDIST_ROOT}/.env"'
+    assert expected_fragment in script
+    expected_fragment = (
         'sha256sum "${sdists[0]##*/}" "${wheels[0]##*/}" constraints.txt > SHA256SUMS'
-        in script
     )
-    assert "git archive" not in script
+    assert expected_fragment in script
+    expected_fragment = "git archive"
+    assert expected_fragment not in script
 
 
 def test_ci_build_job_verifies_both_release_distribution_formats() -> None:
@@ -106,10 +129,14 @@ def test_ci_build_job_verifies_both_release_distribution_formats() -> None:
         encoding="utf-8"
     )
 
-    assert "Build source distribution, wheel and checksums" in workflow
-    assert "sdists=(dist/audiodoc-*.tar.gz)" in workflow
-    assert "wheels=(dist/audiodoc-*.whl)" in workflow
-    assert "sha256sum --check --status SHA256SUMS" in workflow
+    expected_fragment = "Build source distribution, wheel and checksums"
+    assert expected_fragment in workflow
+    expected_fragment = "sdists=(dist/audiodoc-*.tar.gz)"
+    assert expected_fragment in workflow
+    expected_fragment = "wheels=(dist/audiodoc-*.whl)"
+    assert expected_fragment in workflow
+    expected_fragment = "sha256sum --check --status SHA256SUMS"
+    assert expected_fragment in workflow
 
 
 def test_ci_lint_job_runs_every_static_analysis_gate() -> None:
@@ -118,7 +145,8 @@ def test_ci_lint_job_runs_every_static_analysis_gate() -> None:
         encoding="utf-8"
     )
 
-    assert "run: make types pylint deptry vulture import-lint" in workflow
+    expected_fragment = "run: make types pylint deptry vulture import-lint"
+    assert expected_fragment in workflow
 
 
 def test_ci_jobs_use_the_required_make_targets() -> None:
@@ -156,18 +184,20 @@ def test_make_check_includes_documentation_and_fix_formats_code() -> None:
     """Keep local aggregate checks aligned with the CI Makefile entry point."""
     makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
 
-    assert (
+    expected_fragment = (
         "check: lint types pylint deptry vulture import-lint test docs-check"
-        in makefile
     )
+    assert expected_fragment in makefile
     docs_check = (
         "docs-check:\n"
         "\t$(PYTHON) -m scripts.check_docs\n"
         "\t$(PYTHON) -m pre_commit run --all-files"
     )
     assert docs_check in makefile
-    assert "$(PYTHON) -m ruff check . --fix" in makefile
-    assert "$(PYTHON) -m ruff format ." in makefile
+    expected_fragment = "$(PYTHON) -m ruff check . --fix"
+    assert expected_fragment in makefile
+    expected_fragment = "$(PYTHON) -m ruff format ."
+    assert expected_fragment in makefile
 
 
 def test_lint_runs_tools_from_project_environment() -> None:
@@ -194,30 +224,43 @@ def test_lint_runs_tools_from_project_environment() -> None:
     pre_commit_config = (ROOT_DIR / ".pre-commit-config.yaml").read_text(
         encoding="utf-8"
     )
-    assert "language: system" not in pre_commit_config
-    assert "entry: shfmt" not in pre_commit_config
-    assert "entry: ruff" not in pre_commit_config
-    assert "entry: shellcheck" not in pre_commit_config
-    assert "shellcheck-py" not in pre_commit_config
+    expected_fragment = "language: system"
+    assert expected_fragment not in pre_commit_config
+    expected_fragment = "entry: shfmt"
+    assert expected_fragment not in pre_commit_config
+    expected_fragment = "entry: ruff"
+    assert expected_fragment not in pre_commit_config
+    expected_fragment = "entry: shellcheck"
+    assert expected_fragment not in pre_commit_config
+    expected_fragment = "shellcheck-py"
+    assert expected_fragment not in pre_commit_config
     pyproject = (ROOT_DIR / "pyproject.toml").read_text(encoding="utf-8")
-    assert '"shellcheck-py==0.11.0.1"' in pyproject
+    expected_fragment = '"shellcheck-py==0.11.0.1"'
+    assert expected_fragment in pyproject
 
 
 def test_venv_requires_configured_python_version() -> None:
     """Ensure virtual environment creation uses the required Python version."""
     makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
 
-    assert "PYTHON_VERSION ?= 3.13" in makefile
-    assert "PYTHON_BOOTSTRAP ?= python$(PYTHON_VERSION)" in makefile
-    assert (
-        "PYTHON ?= $(if $(wildcard .venv/bin/python),"
-        ".venv/bin/python,python3)" in makefile
+    expected_fragment = "PYTHON_VERSION ?= 3.13"
+    assert expected_fragment in makefile
+    expected_fragment = "PYTHON_BOOTSTRAP ?= python$(PYTHON_VERSION)"
+    assert expected_fragment in makefile
+    expected_fragment_2 = (
+        "PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)"
     )
-    assert 'expected="$(PYTHON_VERSION)"' in makefile
-    assert 'command -v "$(PYTHON_BOOTSTRAP)"' in makefile
-    assert ".venv/bin/python -c" in makefile
-    assert "rm -rf .venv" in makefile
-    assert '"$(PYTHON_BOOTSTRAP)" -m venv .venv' in makefile
+    assert expected_fragment_2 in makefile
+    expected_fragment = 'expected="$(PYTHON_VERSION)"'
+    assert expected_fragment in makefile
+    expected_fragment = 'command -v "$(PYTHON_BOOTSTRAP)"'
+    assert expected_fragment in makefile
+    expected_fragment = ".venv/bin/python -c"
+    assert expected_fragment in makefile
+    expected_fragment = "rm -rf .venv"
+    assert expected_fragment in makefile
+    expected_fragment = '"$(PYTHON_BOOTSTRAP)" -m venv .venv'
+    assert expected_fragment in makefile
 
 
 def test_sdist_manifest_includes_only_the_safe_environment_template() -> None:
@@ -225,6 +268,27 @@ def test_sdist_manifest_includes_only_the_safe_environment_template() -> None:
     manifest = (ROOT_DIR / "MANIFEST.in").read_text(encoding="utf-8").splitlines()
 
     assert manifest == ["include .env.example", "exclude .env"]
+
+
+def _minimal_pyproject(
+    package_name: str,
+    ruff_line_length: int,
+    pytest_addopts: str,
+) -> str:
+    return (
+        f"{VENDORED_HEADER}\n\n"
+        "[tool.ruff]\n"
+        f"line-length = {ruff_line_length}\n\n"
+        "[tool.deptry]\n"
+        f"known_first_party = [{json.dumps(package_name)}]\n\n"
+        "[tool.importlinter]\n"
+        f"root_package = {json.dumps(package_name)}\n\n"
+        "[[tool.importlinter.contracts]]\n"
+        f"source_modules = [{json.dumps(f'{package_name}.api')}]\n"
+        f"forbidden_modules = [{json.dumps(f'{package_name}.main')}]\n\n"
+        "[tool.pytest.ini_options]\n"
+        f"addopts = {json.dumps(pytest_addopts)}\n"
+    )
 
 
 def _write_vendored_repository(
@@ -238,23 +302,12 @@ def _write_vendored_repository(
     for relative_path in VENDORED_FILES:
         path = root / relative_path
         path.parent.mkdir(parents=True, exist_ok=True)
-        if relative_path == "pyproject.toml":
-            content = (
-                f"{VENDORED_HEADER}\n\n"
-                "[tool.ruff]\n"
-                f"line-length = {ruff_line_length}\n\n"
-                "[tool.deptry]\n"
-                f"known_first_party = [{json.dumps(package_name)}]\n\n"
-                "[tool.importlinter]\n"
-                f"root_package = {json.dumps(package_name)}\n\n"
-                "[[tool.importlinter.contracts]]\n"
-                f"source_modules = [{json.dumps(f'{package_name}.api')}]\n"
-                f"forbidden_modules = [{json.dumps(f'{package_name}.main')}]\n\n"
-                "[tool.pytest.ini_options]\n"
-                f"addopts = {json.dumps(pytest_addopts)}\n"
-            )
-        else:
-            content = f"{VENDORED_HEADER}\nshared content\n"
+        pyproject_path = "pyproject.toml"
+        content = (
+            _minimal_pyproject(package_name, ruff_line_length, pytest_addopts)
+            if relative_path == pyproject_path
+            else f"{VENDORED_HEADER}\nshared content\n"
+        )
         path.write_text(content, encoding="utf-8")
 
     for relative_path in HEADERLESS_VENDORED_FILES:
@@ -280,7 +333,7 @@ def test_check_vendored_accepts_package_names_and_non_lint_settings(
     _write_vendored_repository(local, "audiodoc")
     _write_vendored_repository(other, "bot_obormot", pytest_addopts="-vv")
 
-    assert check_vendored(other, root=local) == []
+    assert not check_vendored(other, root=local)
 
 
 def test_check_vendored_reports_lint_configuration_differences(
@@ -312,7 +365,8 @@ def test_check_vendored_reports_file_and_header_errors(tmp_path: Path) -> None:
 
     errors = check_vendored(other, root=local)
 
-    assert ".pre-commit-config.yaml: content differs from other repository" in errors
+    expected_fragment = ".pre-commit-config.yaml: content differs from other repository"
+    assert expected_fragment in errors
     assert f"{local / '.editorconfig'}: missing VENDORED header" in errors
     assert f"{other / 'bot_obormot' / 'env_readers.py'}: file not found" in errors
 
@@ -356,13 +410,12 @@ def test_project_version_and_changelog_prepare_release_030() -> None:
         "\n## [", maxsplit=1
     )[0]
 
-    assert 'version = "0.3.0"' in pyproject
+    expected_fragment = 'version = "0.3.0"'
+    assert expected_fragment in pyproject
     for section in ("### Added", "### Changed", "### Removed"):
         assert section in release_entry
-    assert (
-        "Deprecated functionality is not supported starting with 0.3.0."
-        in release_entry
-    )
+    expected_fragment = "Deprecated functionality is not supported starting with 0.3.0."
+    assert expected_fragment in release_entry
 
 
 def test_changelog_keeps_the_release_020_entry() -> None:

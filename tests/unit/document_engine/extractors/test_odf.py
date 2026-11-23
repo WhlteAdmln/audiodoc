@@ -7,4 +7,4 @@ from tests.support.builders import create_odt
 
 
 def test_unknown_odf_type_returns_empty_text() -> None:
-    assert extract_odf(create_odt(), "unknown") == ""
+    assert not extract_odf(create_odt(), "unknown")
