@@ -37,6 +37,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `audiodoc.transcription.temp_files` resolves the temporary directory when it is used instead of at import, so importing the module no longer loads the settings.
 - Fake Whisper models and native-tool stubs moved to `tests/support/whisper.py`; the lifespan shutdown test drives the public `lifespan` context manager instead of calling `__aenter__`/`__aexit__`.
 - `transcribe_file` returns a `TranscriptionResult` typed dictionary instead of `dict[str, Any]`; the value is unchanged. The `S603` and `consider-using-with` suppressions in `audiodoc/common/subprocess_runner.py` carry a reason, `python-multipart` and the PyMuPDF SWIG warning filter in `pyproject.toml` are commented, the unneeded deptry `DEP002` ignores for `uvicorn` and `av` are gone, and the empty `tests/layout_pending.txt` is deleted.
+- `audiodoc/cli.py` is split into the `audiodoc.cli` package: `parser.py` builds the argument parser, `main.py` dispatches the command, and every command (`run`, `version`, `doctor`, `init`, `pair`, `model`, `config`, `service`) has its own module. `audiodoc.cli.main`, `audiodoc.cli.build_parser`, the `audiodoc` console script and the CLI output are unchanged; the command tests moved to `tests/unit/cli/`.
 
 ### Removed
 

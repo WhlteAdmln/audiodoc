@@ -9,7 +9,6 @@ from zipfile import ZipFile
 import pytest
 from setuptools.build_meta import build_wheel
 
-from audiodoc import cli
 from scripts.check_lock import check_lock
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -53,45 +52,6 @@ def test_check_lock_reports_out_of_range_version(tmp_path: Path) -> None:
 
     assert check_lock(project, lock) == [
         "Locked example-package==1.9 does not satisfy <3,>=2"
-    ]
-
-
-def test_cli_loads_environment_before_running_uvicorn(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[object] = []
-
-    def record_settings(_environ: object) -> object:
-        calls.append("settings")
-        return cli.Settings()
-
-    def record_uvicorn(application: object, **kwargs: object) -> None:
-        calls.append((application, kwargs))
-
-    monkeypatch.setattr(
-        cli, "load_env_file", lambda _env_file=None: calls.append("environment")
-    )
-    monkeypatch.setattr(cli, "load_settings", record_settings)
-    monkeypatch.setattr(
-        cli, "configure_logging", lambda _level, _secrets: calls.append("logging")
-    )
-    monkeypatch.setattr(cli.uvicorn, "run", record_uvicorn)
-
-    assert cli.main(["run"]) == 0
-
-    assert calls == [
-        "environment",
-        "settings",
-        "logging",
-        (
-            "audiodoc.main:create_app",
-            {
-                "factory": True,
-                "host": "127.0.0.1",
-                "port": 8000,
-                "server_header": False,
-            },
-        ),
     ]
 
 
