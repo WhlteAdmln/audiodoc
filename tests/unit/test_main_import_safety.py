@@ -33,7 +33,7 @@ def _track_open(
     original: Callable[..., Any],
     opened_paths: list[str],
 ) -> Callable[..., Any]:
-    def tracked(file: object, *args: Any, **kwargs: Any) -> Any:
+    def tracked(file: object, *args: object, **kwargs: object) -> object:
         opened_paths.append(str(file))
         return original(file, *args, **kwargs)
 

@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import threading
 from contextlib import suppress
-from typing import IO, cast  # pylint: disable=unused-import  # string cast
+from typing import IO, cast
 
 MAX_SUBPROCESS_OUTPUT = 20 * 1024 * 1024
 MAX_STDERR_PREVIEW = 4096
@@ -84,7 +84,7 @@ def _collect_process_output(
     max_output: int,
 ) -> tuple[bytes, bool]:
     """Read bounded stdout and terminate the isolated process group."""
-    stdout = cast("IO[bytes]", process.stdout)
+    stdout: IO[bytes] = cast("IO[bytes]", process.stdout)
     timed_out = threading.Event()
     finished = threading.Event()
     finish_lock = threading.Lock()

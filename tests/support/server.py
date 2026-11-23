@@ -164,7 +164,7 @@ def live_server(
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         listener.bind((host, 0))
         listener.listen()
-        listener.setblocking(False)
+        listener.settimeout(0)
         port = listener.getsockname()[1]
 
         config = uvicorn.Config(

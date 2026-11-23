@@ -64,12 +64,14 @@ def _extract_shape_text(
     result: list[str],
 ) -> None:
     if shape.has_text_frame:
-        text = cast("Shape", shape).text.strip()
+        text_shape: Shape = cast("Shape", shape)
+        text = text_shape.text.strip()
         if text:
             add_chunk(result, ctx, text)
 
     if shape.has_table and not ctx.budget.is_truncated():
-        for row in cast("GraphicFrame", shape).table.rows:
+        table_shape: GraphicFrame = cast("GraphicFrame", shape)
+        for row in table_shape.table.rows:
             ctx.check()
             line = " | ".join(cell.text.strip() for cell in row.cells)
             if line:

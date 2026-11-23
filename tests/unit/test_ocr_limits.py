@@ -1,6 +1,8 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Tests that OCR dimensions are checked before frame copies and setup is cached."""
 
+from typing import Never
+
 import pytest
 
 import audiodoc.document_engine.ocr as ocr_module
@@ -24,10 +26,10 @@ class _OversizedImage:
     width = 100
     height = 100
 
-    def seek(self, _index):
+    def seek(self, _index: object) -> None:
         return None
 
-    def copy(self):
+    def copy(self) -> Never:
         raise _UnexpectedImageCopyError
 
 
@@ -56,20 +58,22 @@ def test_ocr_public_messages_remain_unchanged() -> None:
     assert EXTRACTION_MESSAGES["ocr_page_label"] == "--- Страница {index} ---\n"
 
 
-def test_ocr_rejects_oversized_frame_before_copy(monkeypatch):
+def test_ocr_rejects_oversized_frame_before_copy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(recognize_module, "MAX_IMAGE_PIXELS", 99)
     with pytest.raises(DocumentRejectedError, match="лимит пикселей"):
         recognize_module.recognize_pages(_OversizedImage(), "eng")
 
 
-def test_tesseract_language_checks_are_cached(monkeypatch):
+def test_tesseract_language_checks_are_cached(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = {"binary": 0, "languages": 0}
     tesseract_module.ensure_ready.cache_clear()
 
-    def check_binary():
+    def check_binary() -> None:
         calls["binary"] += 1
 
-    def check_languages(_languages):
+    def check_languages(_languages: object) -> None:
         calls["languages"] += 1
 
     monkeypatch.setattr(tesseract_module, "_check_tesseract", check_binary)

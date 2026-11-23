@@ -23,25 +23,27 @@ from audiodoc.document_engine.result import build_result, limit_text
 from audiodoc.errors.documents import DependencyMissingError, DocumentRejectedError
 
 
-def test_detection_package_exports_expected_format_collections():
+def test_detection_package_exports_expected_format_collections() -> None:
     assert "pdf" in SUPPORTED_FORMATS
     assert ".png" in IMAGE_EXTENSIONS
     assert extension_map["markdown"] == "md"
 
 
-def test_image_extension_check_still_precedes_file_signature():
+def test_image_extension_check_still_precedes_file_signature() -> None:
     assert detect_format(b"%PDF-1.7 payload", "payload.png") is None
 
 
-def test_signature_check_still_precedes_other_extension():
+def test_signature_check_still_precedes_other_extension() -> None:
     assert detect_format(b"%PDF-1.7 payload", "payload.txt") == "pdf"
 
 
-def test_text_extension_mapping_is_preserved():
+def test_text_extension_mapping_is_preserved() -> None:
     assert detect_format(b"not really markdown", "payload.markdown") == "md"
 
 
-def test_limit_text_and_build_result_preserve_response_shape(monkeypatch):
+def test_limit_text_and_build_result_preserve_response_shape(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(result_module, "MAX_EXTRACTED_TEXT_LENGTH", 5)
     assert limit_text("123456") == "12345"
     assert build_result("txt", " hello ", truncated=True) == {
@@ -52,7 +54,7 @@ def test_limit_text_and_build_result_preserve_response_shape(monkeypatch):
     }
 
 
-def test_prepare_image_returns_autocontrasted_grayscale():
+def test_prepare_image_returns_autocontrasted_grayscale() -> None:
     source = Image.new("RGB", (4, 4), color=(100, 100, 100))
     prepared = ocr_preprocessing._prepare_image(source)
     try:
@@ -63,7 +65,9 @@ def test_prepare_image_returns_autocontrasted_grayscale():
         source.close()
 
 
-def test_prepare_image_rejects_excessive_pixel_count(monkeypatch):
+def test_prepare_image_rejects_excessive_pixel_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(ocr_preprocessing, "MAX_IMAGE_PIXELS", 3)
     source = Image.new("RGB", (2, 2))
     try:
@@ -73,28 +77,34 @@ def test_prepare_image_rejects_excessive_pixel_count(monkeypatch):
         source.close()
 
 
-def test_check_tesseract_requires_binary_when_not_installed(monkeypatch):
+def test_check_tesseract_requires_binary_when_not_installed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(ocr_tesseract.shutil, "which", lambda _: None)
     with pytest.raises(DependencyMissingError):
         ocr_tesseract._check_tesseract()
 
 
-def test_check_languages_reports_missing_language(monkeypatch):
+def test_check_languages_reports_missing_language(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(
         ocr_tesseract.pytesseract,
         "get_languages",
-        lambda config="": ["eng"],
+        lambda *_args, **_kwargs: ["eng"],
     )
     with pytest.raises(DependencyMissingError):
         ocr_tesseract._check_languages("rus+eng")
 
 
-def test_recognize_pages_preserves_page_headers_and_timeout(monkeypatch):
+def test_recognize_pages_preserves_page_headers_and_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class DummyPrepared:
-        def __init__(self):
+        def __init__(self) -> None:
             self.closed = False
 
-        def close(self):
+        def close(self) -> None:
             self.closed = True
 
     class DummyImage:
@@ -102,24 +112,26 @@ def test_recognize_pages_preserves_page_headers_and_timeout(monkeypatch):
         width = 10
         height = 10
 
-        def __init__(self):
+        def __init__(self) -> None:
             self.current_page = None
 
-        def seek(self, page):
+        def seek(self, page: object) -> None:
             self.current_page = page
 
-        def copy(self):
+        def copy(self) -> object:
             return object()
 
     prepared_images = []
     calls = []
 
-    def prepare(_image):
+    def prepare(_image: object) -> object:
         item = DummyPrepared()
         prepared_images.append(item)
         return item
 
-    def recognize(_image, *, lang, config, timeout):
+    def recognize(
+        _image: object, *, lang: object, config: object, timeout: object
+    ) -> str:
         calls.append((lang, config, timeout))
         return f" page {len(calls)} "
 
@@ -137,11 +149,13 @@ def test_recognize_pages_preserves_page_headers_and_timeout(monkeypatch):
     assert all(item.closed for item in prepared_images)
 
 
-def test_ocr_package_keeps_extract_image_text_entry_point(monkeypatch):
+def test_ocr_package_keeps_extract_image_text_entry_point(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr("audiodoc.document_engine.ocr.ensure_ready", lambda _: None)
     monkeypatch.setattr(
         "audiodoc.document_engine.ocr.recognize_pages",
-        lambda image, languages, **_kwargs: "Recognized text",
+        lambda *_args, **_kwargs: "Recognized text",
     )
 
     output = io.BytesIO()

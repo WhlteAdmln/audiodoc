@@ -42,6 +42,7 @@ lint: docs-check
 	$(PYTHON) -m ruff check .
 	$(PYTHON) -m ruff format --check .
 	$(PYTHON) scripts/check_lock.py
+	$(PYTHON) scripts/check_test_layout.py
 	$(PYTHON_SCRIPTS_DIR)/shfmt -i 0 -d install.sh
 	find scripts -type f -name '*.sh' -exec $(PYTHON_SCRIPTS_DIR)/shfmt -i 2 -sr -d {} +
 	find deploy -type f -name '*.sh' -exec $(PYTHON_SCRIPTS_DIR)/shfmt -i 2 -sr -d {} +
@@ -55,8 +56,11 @@ fix:
 types:
 	$(PYTHON) -m mypy audiodoc
 
+# Technical debt: tests/unit had no __init__.py, so pylint never checked it. It is
+# a package now and still fails on magic values and similar findings; the test
+# layout work removes them, and the ignore goes away with it.
 pylint:
-	$(PYTHON) -m pylint audiodoc scripts tests
+	$(PYTHON) -m pylint audiodoc scripts tests --ignore-paths='^tests/unit/'
 
 deptry:
 	$(PYTHON_SCRIPTS_DIR)/deptry .
@@ -102,7 +106,7 @@ docker:
 	docker compose -f compose.yaml build --pull audiodoc
 
 installer:
-	$(PYTHON) -m pytest -q tests/unit/test_installer.py
+	$(PYTHON) -m pytest -q tests/unit/project/test_installer.py
 
 cov:
 	$(PYTHON) -m coverage xml --fail-under=0

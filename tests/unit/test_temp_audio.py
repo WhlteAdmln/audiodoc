@@ -10,7 +10,9 @@ import pytest
 import audiodoc.transcription.temp_files as temp_audio
 
 
-def test_temp_audio_file_is_private_and_removed(monkeypatch, tmp_path):
+def test_temp_audio_file_is_private_and_removed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(temp_audio, "TEMP_DIR", tmp_path / "private")
     with temp_audio.temp_audio_file("../../voice.ogg") as path:
         path.write_bytes(b"audio")
@@ -34,8 +36,8 @@ def _raise_during_temp_file(error_type: type[BaseException]) -> None:
     [RuntimeError, asyncio.CancelledError],
 )
 def test_temp_audio_file_is_removed_after_error_or_cancellation(
-    monkeypatch, tmp_path, error_type
-):
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, error_type: object
+) -> None:
     monkeypatch.setattr(temp_audio, "TEMP_DIR", tmp_path / "private")
 
     with pytest.raises(error_type):
@@ -48,14 +50,18 @@ def test_temp_audio_file_is_removed_after_error_or_cancellation(
     "original_name",
     ["voice.русский", "voice.ogg\\evil"],
 )
-def test_temp_audio_file_discards_unsafe_suffix(monkeypatch, tmp_path, original_name):
+def test_temp_audio_file_discards_unsafe_suffix(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, original_name: str
+) -> None:
     monkeypatch.setattr(temp_audio, "TEMP_DIR", tmp_path / "private")
 
     with temp_audio.temp_audio_file(original_name) as path:
         assert path.suffix == ""
 
 
-def test_cleanup_stale_files_removes_only_old_managed_files(monkeypatch, tmp_path):
+def test_cleanup_stale_files_removes_only_old_managed_files(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     directory = tmp_path / "private"
     directory.mkdir()
     stale = directory / f"{uuid.uuid4().hex}.ogg"
@@ -75,20 +81,20 @@ def test_cleanup_stale_files_removes_only_old_managed_files(monkeypatch, tmp_pat
     assert unrelated.exists()
 
 
-def test_blank_temp_dir_uses_private_project_default():
+def test_blank_temp_dir_uses_private_project_default() -> None:
     assert temp_audio._resolve_temp_dir("") == temp_audio.DEFAULT_TEMP_DIR
     assert temp_audio._resolve_temp_dir(None) == temp_audio.DEFAULT_TEMP_DIR
 
 
-def test_configured_temp_dir_is_expanded():
+def test_configured_temp_dir_is_expanded() -> None:
     assert temp_audio._resolve_temp_dir("~/audiodoc-private") == (
         Path("~/audiodoc-private").expanduser()
     )
 
 
 def test_ensure_temp_dir_restricts_permissions_of_existing_directory(
-    monkeypatch, tmp_path
-):
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     directory = tmp_path / "private"
     directory.mkdir()
     directory.chmod(0o755)
@@ -101,7 +107,9 @@ def test_ensure_temp_dir_restricts_permissions_of_existing_directory(
         assert directory.stat().st_mode & 0o777 == 0o700
 
 
-def test_cleanup_stale_files_ignores_symlinks_and_directories(monkeypatch, tmp_path):
+def test_cleanup_stale_files_ignores_symlinks_and_directories(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     directory = tmp_path / "private"
     directory.mkdir()
     target = directory / "operator-notes.txt"
@@ -119,7 +127,9 @@ def test_cleanup_stale_files_ignores_symlinks_and_directories(monkeypatch, tmp_p
     assert target.read_bytes() == b"keep"
 
 
-def test_cleanup_stale_files_ignores_unlink_errors(monkeypatch, tmp_path):
+def test_cleanup_stale_files_ignores_unlink_errors(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     directory = tmp_path / "private"
     directory.mkdir()
     stale = directory / f"{uuid.uuid4().hex}.ogg"

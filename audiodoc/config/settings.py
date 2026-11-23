@@ -5,7 +5,7 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields, replace
 from functools import lru_cache
-from typing import Any, cast  # pylint: disable=unused-import  # string cast
+from typing import Any, cast
 
 from audiodoc.env_readers import (
     get_bool,
@@ -72,10 +72,10 @@ class _EnvironmentReader:
             value = value.strip()
         return value.lower() if lower else value
 
-    def read_bool(self, name: str, default: bool) -> bool:
+    def read_bool(self, name: str, *, default: bool) -> bool:
         """Return the boolean value, or the default after recording an error."""
         try:
-            return get_bool(name, default, environ=self.environ)
+            return get_bool(name, default=default, environ=self.environ)
         except ValueError as error:
             self.errors.append(str(error))
             return default
@@ -118,12 +118,12 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
             "WHISPER_COMPUTE_TYPE", defaults.WHISPER_COMPUTE_TYPE, strip=True
         ),
         WHISPER_MODEL_PATH=model_path,
-        WHISPER_OFFLINE=read_bool("WHISPER_OFFLINE", defaults.WHISPER_OFFLINE),
-        ENABLE_DOCS=read_bool("ENABLE_DOCS", defaults.ENABLE_DOCS),
+        WHISPER_OFFLINE=read_bool("WHISPER_OFFLINE", default=defaults.WHISPER_OFFLINE),
+        ENABLE_DOCS=read_bool("ENABLE_DOCS", default=defaults.ENABLE_DOCS),
         LOG_LEVEL=read_str("LOG_LEVEL", defaults.LOG_LEVEL),
         TEMP_DIR=temp_dir,
         ALLOW_UNAUTHENTICATED=read_bool(
-            "ALLOW_UNAUTHENTICATED", defaults.ALLOW_UNAUTHENTICATED
+            "ALLOW_UNAUTHENTICATED", default=defaults.ALLOW_UNAUTHENTICATED
         ),
         MAX_AUDIO_SIZE=read_int("MAX_AUDIO_SIZE", defaults.MAX_AUDIO_SIZE),
         MAX_AUDIO_DURATION=read_int("MAX_AUDIO_DURATION", defaults.MAX_AUDIO_DURATION),
@@ -184,7 +184,8 @@ def _set_setting(name: str, value: object) -> None:
     if name not in {item.name for item in fields(Settings)}:
         raise AttributeError(name)
 
-    updated = replace(get_settings(), **cast("Any", {name: value}))
+    changes: dict[str, Any] = {name: value}
+    updated = replace(get_settings(), **changes)
     baseline = _load_cached_settings()
     _settings_state.override = None if updated == baseline else updated
 

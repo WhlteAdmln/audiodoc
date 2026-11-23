@@ -17,7 +17,7 @@ class _PytesseractModule(Protocol):
     def get_languages(self, config: str = "") -> list[str]: ...
 
 
-def test_ocr_recognizes_text_from_image():
+def test_ocr_recognizes_text_from_image() -> None:
     if shutil.which("tesseract") is None:
         pytest.skip("Tesseract is not installed")
 

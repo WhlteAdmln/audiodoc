@@ -89,7 +89,7 @@ def test_whisper_model_check_accepts_downloadable_model(
 def test_whisper_model_check_rejects_missing_offline_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def cache_miss(_name: str, *, local_files_only: bool) -> str:
+    def cache_miss(_name: str, **_kwargs: object) -> str:
         raise OSError
 
     monkeypatch.setattr(
@@ -132,7 +132,7 @@ def test_whisper_model_check_requires_cached_model_when_forced_offline(
 def test_whisper_model_check_rejects_unsupported_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def invalid_model(_name: str, *, local_files_only: bool) -> str:
+    def invalid_model(_name: str, **_kwargs: object) -> str:
         raise ValueError
 
     monkeypatch.setattr(

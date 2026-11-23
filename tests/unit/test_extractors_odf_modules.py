@@ -12,11 +12,11 @@ from audiodoc.document_engine.extractors.odf.odt import extract_odt
 from tests.support.builders import create_odp, create_ods, create_odt
 
 
-def _load(data: bytes):
+def _load(data: bytes) -> object:
     return load_odf(io.BytesIO(data))
 
 
-def test_odt_extracts_headings_and_paragraphs():
+def test_odt_extracts_headings_and_paragraphs() -> None:
     data = create_odt()
     text = extract_odf(data, "odt")
 
@@ -24,7 +24,7 @@ def test_odt_extracts_headings_and_paragraphs():
     assert extract_odt(_load(data)) == text
 
 
-def test_ods_extracts_sheet_names_and_rows():
+def test_ods_extracts_sheet_names_and_rows() -> None:
     data = create_ods()
     text = extract_odf(data, "ods")
 
@@ -32,7 +32,7 @@ def test_ods_extracts_sheet_names_and_rows():
     assert extract_ods(_load(data)) == text
 
 
-def test_odp_extracts_slide_headings_and_paragraphs():
+def test_odp_extracts_slide_headings_and_paragraphs() -> None:
     data = create_odp()
     text = extract_odf(data, "odp")
 
@@ -40,5 +40,5 @@ def test_odp_extracts_slide_headings_and_paragraphs():
     assert extract_odp(_load(data)) == text
 
 
-def test_unknown_odf_type_returns_empty_text():
+def test_unknown_odf_type_returns_empty_text() -> None:
     assert extract_odf(create_odt(), "unknown") == ""

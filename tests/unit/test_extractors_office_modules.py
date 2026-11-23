@@ -14,7 +14,7 @@ from audiodoc.document_engine.extractors.xlsx import extract_xlsx
 from tests.support.builders import create_docx, create_pptx, create_xlsx
 
 
-def test_docx_extracts_paragraphs_and_table_cells():
+def test_docx_extracts_paragraphs_and_table_cells() -> None:
     text = extract_docx(create_docx())
 
     assert isinstance(text, str)
@@ -23,7 +23,7 @@ def test_docx_extracts_paragraphs_and_table_cells():
     assert "Name | Value" in text
 
 
-def test_xlsx_extracts_sheet_name_and_rows():
+def test_xlsx_extracts_sheet_name_and_rows() -> None:
     text = extract_xlsx(create_xlsx())
 
     assert isinstance(text, str)
@@ -32,7 +32,7 @@ def test_xlsx_extracts_sheet_name_and_rows():
     assert "Document engine | Works!" in text
 
 
-def test_pptx_extracts_slide_heading_and_text():
+def test_pptx_extracts_slide_heading_and_text() -> None:
     text = extract_pptx(create_pptx())
 
     assert isinstance(text, str)
@@ -41,7 +41,7 @@ def test_pptx_extracts_slide_heading_and_text():
     assert "Document engine works!" in text
 
 
-def test_docx_marks_truncation_when_another_paragraph_follows_an_exact_fit():
+def test_docx_marks_truncation_when_another_paragraph_follows_an_exact_fit() -> None:
     document = Document()
     document.add_paragraph("abc")
     document.add_paragraph("def")
@@ -55,7 +55,7 @@ def test_docx_marks_truncation_when_another_paragraph_follows_an_exact_fit():
     assert budget.truncated is True
 
 
-def test_docx_exact_fit_at_end_of_document_is_not_truncated():
+def test_docx_exact_fit_at_end_of_document_is_not_truncated() -> None:
     document = Document()
     document.add_paragraph("abc")
     output = BytesIO()
@@ -68,7 +68,7 @@ def test_docx_exact_fit_at_end_of_document_is_not_truncated():
     assert budget.truncated is False
 
 
-def test_docx_skips_empty_content_and_truncates_table_rows():
+def test_docx_skips_empty_content_and_truncates_table_rows() -> None:
     """Cover empty paragraphs, empty table rows, and table truncation."""
     document = Document()
     document.add_paragraph("")

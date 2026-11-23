@@ -40,7 +40,7 @@ def _check_configured_model(model_directory: Path) -> DiagnosticCheck:
     )
 
 
-def _check_model_cache(model_name: str, offline: bool) -> DiagnosticCheck:
+def _check_model_cache(model_name: str, *, offline: bool) -> DiagnosticCheck:
     """Check whether a named model is cached or can be downloaded."""
     try:
         download_model = importlib.import_module("faster_whisper.utils").download_model
@@ -97,7 +97,7 @@ def check_whisper_model(
 
     return _check_model_cache(
         configured_settings.WHISPER_MODEL_SIZE,
-        offline or configured_settings.WHISPER_OFFLINE,
+        offline=offline or configured_settings.WHISPER_OFFLINE,
     )
 
 

@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Nikolai Zelensky
 import asyncio
 import io
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI, Request
@@ -22,7 +23,7 @@ def test_body_size_middleware_rejects_content_length_before_route() -> None:
     test_app = FastAPI()
 
     @test_app.post("/upload")
-    async def upload(request: Request):
+    async def upload(request: Request) -> object:
         nonlocal route_called
         route_called = True
         return {"size": len(await request.body())}
@@ -35,7 +36,7 @@ def test_body_size_middleware_rejects_content_length_before_route() -> None:
 
 
 def test_body_size_middleware_counts_streamed_body_without_content_length() -> None:
-    async def app(scope, receive, send):
+    async def app(_scope: object, receive: object, send: object) -> None:
         # Force the downstream app to consume the complete request body.
         while True:
             message = await receive()
@@ -51,10 +52,10 @@ def test_body_size_middleware_counts_streamed_body_without_content_length() -> N
     ]
     sent = []
 
-    async def receive():
+    async def receive() -> object:
         return messages.pop(0)
 
-    async def send(message):
+    async def send(message: object) -> None:
         sent.append(message)
 
     scope = {
@@ -133,8 +134,8 @@ def test_read_upload_limited_rejects_file_over_limit() -> None:
 
 
 def test_save_upload_limited_rejects_file_over_limit(
-    tmp_path,
-    monkeypatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(upload_limits, "CHUNK_SIZE", 5)
     upload = UploadFile(file=io.BytesIO(b"123456"), filename="voice.ogg")

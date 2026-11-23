@@ -3,6 +3,7 @@ import logging
 import re
 import sys
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -15,18 +16,18 @@ from audiodoc.log_filters import SecretsFilter
 from audiodoc.logging_setup import configure_logging
 
 
-def create_app():
+def create_app() -> object:
     application = FastAPI()
 
     @application.get("/ping")
-    async def ping():
+    async def ping() -> object:
         return {"ok": True}
 
     application.add_middleware(RequestIdMiddleware)
     return application
 
 
-def test_request_id_is_echoed_and_preserved_when_valid():
+def test_request_id_is_echoed_and_preserved_when_valid() -> None:
     request_id = "trace-2026_11.05"
     response = TestClient(create_app()).get(
         "/ping", headers={"X-Request-ID": request_id}
@@ -36,7 +37,7 @@ def test_request_id_is_echoed_and_preserved_when_valid():
     assert response.headers["x-request-id"] == request_id
 
 
-def test_invalid_request_id_is_replaced_with_safe_uuid():
+def test_invalid_request_id_is_replaced_with_safe_uuid() -> None:
     response = TestClient(create_app()).get(
         "/ping", headers={"X-Request-ID": "not a valid id"}
     )
@@ -45,7 +46,7 @@ def test_invalid_request_id_is_replaced_with_safe_uuid():
     assert re.fullmatch(r"[0-9a-f]{32}", response.headers["x-request-id"])
 
 
-def test_request_id_filter_adds_context_to_log_records():
+def test_request_id_filter_adds_context_to_log_records() -> None:
     token = request_id_var.set("request-test-0001")
     try:
         record = logging.LogRecord("test", logging.INFO, __file__, 1, "hello", (), None)
@@ -60,7 +61,7 @@ def _raise_upstream_error(sensitive_value: str) -> None:
     raise RuntimeError(message)
 
 
-def test_secrets_filter_redacts_message_arguments_and_traceback():
+def test_secrets_filter_redacts_message_arguments_and_traceback() -> None:
     sensitive_value = "document-api-secret-0123456789"
     secrets_filter = SecretsFilter([sensitive_value])
     record = logging.LogRecord(
@@ -82,7 +83,7 @@ def test_secrets_filter_redacts_message_arguments_and_traceback():
     assert "[REDACTED]" in error_record.exc_text
 
 
-def test_secrets_filter_redacts_telegram_and_bearer_tokens():
+def test_secrets_filter_redacts_telegram_and_bearer_tokens() -> None:
     telegram_value = "123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     bearer_value = "upstream-secret-token-987654321"
     secrets_filter = SecretsFilter([])
@@ -102,7 +103,9 @@ def test_secrets_filter_redacts_telegram_and_bearer_tokens():
     )
 
 
-def test_logging_setup_attaches_request_and_secret_filters(monkeypatch):
+def test_logging_setup_attaches_request_and_secret_filters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     root = logging.getLogger()
     handler = logging.StreamHandler()
     monkeypatch.setattr(root, "handlers", [handler])
