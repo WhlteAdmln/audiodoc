@@ -4,7 +4,7 @@
 import asyncio
 from functools import partial
 from pathlib import Path
-from typing import Any, cast
+from typing import TypedDict, cast
 
 import av
 import numpy as np
@@ -24,6 +24,14 @@ from audiodoc.transcription.model import ModelHolder
 
 SAMPLE_RATE = 16_000
 AUDIO_STREAM_TYPE = "audio"
+
+
+class TranscriptionResult(TypedDict):
+    """Recognized text, detected language and audio duration in seconds."""
+
+    text: str
+    language: str | None
+    duration: float
 
 
 def _collect_audio_frames(
@@ -117,7 +125,7 @@ def _transcribe_sync(
     path: Path,
     deadline: Deadline,
     configured_model_holder: ModelHolder,
-) -> dict[str, Any]:
+) -> TranscriptionResult:
     try:
         model = configured_model_holder.get()
     except RuntimeError as error:
@@ -152,7 +160,7 @@ def _transcribe_sync(
 async def _run_transcription(
     path: Path,
     configured_model_holder: ModelHolder,
-) -> dict[str, Any]:
+) -> TranscriptionResult:
     """Run the non-cancellable model thread while retaining its worker slot."""
     deadline = Deadline(settings.WHISPER_TIMEOUT)
     worker = asyncio.create_task(
@@ -175,7 +183,7 @@ async def transcribe_file(
     configured_model_holder: ModelHolder,
     queue: WorkQueue,
     _slot_acquired: bool = False,
-) -> dict[str, Any]:
+) -> TranscriptionResult:
     """Recognize audio outside the event loop using the bounded work queue.
 
     ``_slot_acquired`` is reserved for the HTTP layer, which admits the request
