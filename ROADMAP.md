@@ -29,12 +29,12 @@ Goal: remove deprecated functionality, make the code base uniform with bot-oborm
   - ~~Delete the empty `tests/layout_pending.txt`.~~
 - Done when: no suppression without a reason; `make check` is green.
 
-#### AD-02 Split `audiodoc/cli.py`
+#### ~~AD-02 Split `audiodoc/cli.py`~~
 
 - Needs: none.
 - Scope:
-  - Split `audiodoc/cli.py` (555 lines) by responsibility into modules that mirror the command groups, keeping `build_parser` and the `audiodoc` entry point unchanged.
-  - Move the tests so that every module has one mirrored test file.
+  - ~~Split `audiodoc/cli.py` (555 lines) by responsibility into modules that mirror the command groups, keeping `build_parser` and the `audiodoc` entry point unchanged.~~
+  - ~~Move the tests so that every module has one mirrored test file.~~
 - Done when: the import-linter contracts stay valid, no production file is much longer than 350 lines (or the reason is listed), `make check` is green.
 
 #### AD-03 [shared] Split `scripts/check_docs.py` and document its differences
