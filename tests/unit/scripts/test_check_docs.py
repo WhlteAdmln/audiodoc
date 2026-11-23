@@ -28,7 +28,7 @@ def test_markdown_links_check_local_files_and_anchors(tmp_path: Path) -> None:
     readme.write_text("[Guide](guide.md#intro)\n", encoding="utf-8")
     guide.write_text("## Intro\n", encoding="utf-8")
 
-    assert check_markdown_links(tmp_path) == []
+    assert not check_markdown_links(tmp_path)
 
     readme.write_text(
         "[Missing](missing.md)\n[Wrong anchor](guide.md#missing)\n",
@@ -36,9 +36,12 @@ def test_markdown_links_check_local_files_and_anchors(tmp_path: Path) -> None:
     )
     errors = check_markdown_links(tmp_path)
 
-    assert len(errors) == 2
-    assert any("missing.md" in error for error in errors)
-    assert any("#missing" in error for error in errors)
+    expected_count = 2
+    assert len(errors) == expected_count
+    expected_fragment = "missing.md"
+    assert any(expected_fragment in error for error in errors)
+    expected_fragment = "#missing"
+    assert any(expected_fragment in error for error in errors)
 
 
 def test_russian_sections_keep_the_same_order(tmp_path: Path) -> None:
@@ -47,7 +50,7 @@ def test_russian_sections_keep_the_same_order(tmp_path: Path) -> None:
     english.write_text("## 1. First\n## 2. Second\n", encoding="utf-8")
     russian.write_text("## 1. Первый\n## 2. Второй\n", encoding="utf-8")
 
-    assert check_section_parity(tmp_path) == []
+    assert not check_section_parity(tmp_path)
 
     russian.write_text("## 2. Второй\n## 1. Первый\n", encoding="utf-8")
     assert check_section_parity(tmp_path)
@@ -98,7 +101,7 @@ def test_documented_commands_must_exist_in_cli_help(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    assert check_documented_commands(tmp_path) == []
+    assert not check_documented_commands(tmp_path)
 
     readme.write_text("Use `audiodoc unknown-command`.\n", encoding="utf-8")
     assert check_documented_commands(tmp_path)
@@ -116,7 +119,7 @@ def test_documented_commands_ignore_environment_paths_ending_in_audiodoc(
         encoding="utf-8",
     )
 
-    assert check_documented_commands(tmp_path) == []
+    assert not check_documented_commands(tmp_path)
 
 
 def test_openapi_paths_must_appear_in_api_documentation(tmp_path: Path) -> None:
@@ -133,7 +136,7 @@ def test_openapi_paths_must_appear_in_api_documentation(tmp_path: Path) -> None:
     api_path = docs_dir / "api.md"
     api_path.write_text("`/health`\n`/ready`\n", encoding="utf-8")
 
-    assert check_openapi_paths(tmp_path) == []
+    assert not check_openapi_paths(tmp_path)
 
     api_path.write_text("`/health`\n", encoding="utf-8")
     assert check_openapi_paths(tmp_path)

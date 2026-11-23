@@ -1,5 +1,7 @@
 # Copyright (c) 2026 Nikolai Zelensky
-import os
+
+"""Tests for the lock consistency script."""
+
 import shutil
 from pathlib import Path
 from zipfile import ZipFile
@@ -30,7 +32,7 @@ def test_check_lock_accepts_satisfied_constraints(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    assert check_lock(project, lock) == []
+    assert not check_lock(project, lock)
 
 
 def test_check_lock_reports_missing_direct_dependency(tmp_path: Path) -> None:
@@ -94,6 +96,7 @@ def test_cli_loads_environment_before_running_uvicorn(
 
 def test_wheel_excludes_tests_and_scripts(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     output_dir = tmp_path / "dist"
     output_dir.mkdir()
@@ -102,12 +105,8 @@ def test_wheel_excludes_tests_and_scripts(
     shutil.copytree(PROJECT_ROOT / "audiodoc", source_dir / "audiodoc")
     shutil.copy2(PROJECT_ROOT / "pyproject.toml", source_dir / "pyproject.toml")
 
-    previous_directory = Path.cwd()
-    try:
-        os.chdir(source_dir)
-        wheel_name = build_wheel(str(output_dir))
-    finally:
-        os.chdir(previous_directory)
+    monkeypatch.chdir(source_dir)
+    wheel_name = build_wheel(str(output_dir))
 
     assert (output_dir / wheel_name).is_file()
 
@@ -118,4 +117,5 @@ def test_wheel_excludes_tests_and_scripts(
         paths = archive.namelist()
 
     assert not any(path.startswith(("tests/", "scripts/")) for path in paths)
-    assert "audiodoc/main.py" in paths
+    expected_fragment = "audiodoc/main.py"
+    assert expected_fragment in paths

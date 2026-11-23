@@ -3,7 +3,8 @@
 """Tests for log filters."""
 
 import logging
-import sys
+
+import pytest
 
 from audiodoc.log_filters import SecretsFilter
 
@@ -21,18 +22,26 @@ def test_secrets_filter_redacts_message_arguments_and_traceback() -> None:
     )
     assert secrets_filter.filter(record)
     assert sensitive_value not in record.getMessage()
-    assert "[REDACTED]" in record.getMessage()
+    expected_fragment = "[REDACTED]"
+    assert expected_fragment in record.getMessage()
 
-    try:
+    with pytest.raises(RuntimeError) as caught:
         _raise_upstream_error(sensitive_value)
-    except RuntimeError:
-        error_record = logging.LogRecord(
-            "test", logging.ERROR, __file__, 1, "request failed", (), sys.exc_info()
-        )
+    error = caught.value
+    error_record = logging.LogRecord(
+        "test",
+        logging.ERROR,
+        __file__,
+        1,
+        "request failed",
+        (),
+        (type(error), error, error.__traceback__),
+    )
     secrets_filter.filter(error_record)
-    assert error_record.exc_text is not None
-    assert sensitive_value not in error_record.exc_text
-    assert "[REDACTED]" in error_record.exc_text
+    exc_text = str(error_record.exc_text)
+    assert sensitive_value not in exc_text
+    expected_fragment = "[REDACTED]"
+    assert expected_fragment in exc_text
 
 
 def test_secrets_filter_redacts_telegram_and_bearer_tokens() -> None:
@@ -50,6 +59,7 @@ def test_secrets_filter_redacts_telegram_and_bearer_tokens() -> None:
     )
 
     assert secrets_filter.filter(record)
-    assert record.getMessage() == (
+    expected_getmessage = (
         "telegram=[REDACTED] bearer=Bearer [REDACTED] authorization=Bearer [REDACTED]"
     )
+    assert record.getMessage() == expected_getmessage

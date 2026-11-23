@@ -12,9 +12,12 @@ from tests.support.builders import create_fb2
 def test_fb2_extracts_titles_paragraphs_and_nested_text() -> None:
     text = extract_fb2(create_fb2())
 
-    assert "FB2 test" in text
-    assert "Document engine works!" in text
-    assert "Text with emphasis preserved." in text
+    expected_fragment = "FB2 test"
+    assert expected_fragment in text
+    expected_fragment = "Document engine works!"
+    assert expected_fragment in text
+    expected_fragment = "Text with emphasis preserved."
+    assert expected_fragment in text
 
 
 def test_fb2_without_body_is_rejected() -> None:

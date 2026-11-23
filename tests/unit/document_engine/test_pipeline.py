@@ -1,6 +1,6 @@
 # Copyright (c) 2026 Nikolai Zelensky
 
-"""Tests for document engine pipeline."""
+"""Tests for document engine pipeline_module."""
 
 from __future__ import annotations
 
@@ -22,12 +22,11 @@ import starlette.formparsers
 import audiodoc.document_engine.extractors.djvu as djvu_module
 import audiodoc.document_engine.extractors.djvu.text_layer as text_layer_module
 from audiodoc.common.work_queue import WorkQueue
+from audiodoc.document_engine import pipeline as pipeline_module
 from audiodoc.document_engine import (
-    pipeline,
     process_document_sync,
     runner,
 )
-from audiodoc.document_engine import pipeline as pipeline_module
 from audiodoc.document_engine.extractors import REGISTRY, _odf
 from audiodoc.document_engine.extractors import pdf as pdf_module
 from audiodoc.document_engine.extractors.djvu.tools import DjvuTools
@@ -46,9 +45,9 @@ from tests.support.builders import (
     create_xlsx,
 )
 from tests.support.extractor_matrix import MATRIX, Builder
-from tests.support.server import live_server
+from tests.support.server import fixture_live_server
 
-__all__ = ["live_server"]
+__all__ = ["fixture_live_server"]
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -151,7 +150,8 @@ def _make_zip(attack: str, monkeypatch: pytest.MonkeyPatch) -> bytes:
     document, entries = builders[attack]()
     data = _write_zip(document, entries)
 
-    if attack == "declared_size_lie":
+    expected_attack = "declared_size_lie"
+    if attack == expected_attack:
         return _lie_about_declared_size(data)
     return data
 
@@ -167,6 +167,7 @@ def _track_upload_files(
     def tracked(*args: object, **kwargs: object) -> IO[bytes]:
         kwargs["max_size"] = 1
         kwargs["dir"] = directory
+        # pylint: disable-next=consider-using-with  # the caller owns the handle
         handle = original(*args, **kwargs)
         opened.append(handle)
         return handle
@@ -206,7 +207,7 @@ def _assert_upload_clean(
 ) -> None:
     assert opened
     assert all(handle.closed for handle in opened)
-    assert list(directory.iterdir()) == []
+    assert not list(directory.iterdir())
 
 
 def _billion_laughs_payload() -> bytes:
@@ -226,11 +227,16 @@ def _billion_laughs_payload() -> bytes:
 class _HugePdfPage:
     rect = SimpleNamespace(width=72_000.0, height=72_000.0)
 
-    def get_pixmap(self, **_kwargs: object) -> None:
+    @staticmethod
+    def get_pixmap(**_kwargs: object) -> None:
+        """Provide the ``get_pixmap`` behaviour the test relies on."""
         raise AssertionError
 
-    def get_text(self, kind: str) -> str:
-        assert kind == "text"
+    @staticmethod
+    def get_text(kind: str) -> str:
+        """Provide the ``get_text`` behaviour the test relies on."""
+        expected_kind = "text"
+        assert kind == expected_kind
         return ""
 
 
@@ -312,7 +318,8 @@ def _corrupt_archive_crc(data: bytes, member_name: str) -> bytes:
     assert end_record >= 0
     position = int.from_bytes(data[end_record + 16 : end_record + 20], "little")
 
-    while data[position : position + 4] == b"PK\x01\x02":
+    expected_data = b"PK\x01\x02"
+    while data[position : position + 4] == expected_data:
         name_length = int.from_bytes(data[position + 28 : position + 30], "little")
         extra_length = int.from_bytes(data[position + 30 : position + 32], "little")
         comment_length = int.from_bytes(data[position + 32 : position + 34], "little")
@@ -347,9 +354,11 @@ def _pdf_with_unicode_actual_text(data: bytes) -> bytes:
 def _unicode_document(filetype: str, builder: Builder) -> bytes:
     """Create a document containing Cyrillic text and an emoji."""
     data = builder()
-    if filetype == "pdf":
+    expected_filetype = "pdf"
+    if filetype == expected_filetype:
         return _pdf_with_unicode_actual_text(data)
-    if filetype == "djvu":
+    expected_filetype = "djvu"
+    if filetype == expected_filetype:
         return data
     if filetype in ARCHIVE_TEXT:
         return _rewrite_archive(
@@ -357,7 +366,8 @@ def _unicode_document(filetype: str, builder: Builder) -> bytes:
             old_text=ARCHIVE_TEXT[filetype].encode("utf-8"),
             new_text=UNICODE_TEXT.encode("utf-8"),
         )
-    if filetype == "rtf":
+    expected_filetype = "rtf"
+    if filetype == expected_filetype:
         return data.replace(b"RTF test", UNICODE_TEXT.encode("utf-8"))
 
     old_text = {
@@ -385,9 +395,11 @@ def _corrupt_document(filetype: str, builder: Builder) -> bytes:
             member_name=ARCHIVE_CORRUPT_MEMBERS[filetype],
             new_text=f"<broken>{PRIVATE_DETAIL}".encode(),
         )
-    if filetype == "pdf":
+    expected_filetype = "pdf"
+    if filetype == expected_filetype:
         return f"%PDF-1.7\n{PRIVATE_DETAIL}".encode()
-    if filetype == "djvu":
+    expected_filetype = "djvu"
+    if filetype == expected_filetype:
         return b"AT&TFORM\x00\x00\x00\x04BAD!"
     return {
         "fb2": f"<FictionBook><body><p>{PRIVATE_DETAIL}".encode(),
@@ -424,7 +436,8 @@ def _assert_clean_error(error: BackendError) -> None:
     """Ensure a public error does not expose parser details or a traceback."""
     message = str(error)
     assert PRIVATE_DETAIL not in message
-    assert "Traceback" not in message
+    expected_fragment = "Traceback"
+    assert expected_fragment not in message
     assert PRIVATE_DETAIL not in getattr(error, "public_message", "")
 
 
@@ -507,7 +520,8 @@ async def test_zip_abuse_returns_clean_error_and_removes_upload(
         "malicious.docx",
     )
 
-    assert status == 400, attack
+    expected_status = 400
+    assert status == expected_status, attack
     assert payload == {
         "detail": "Документ содержит повреждённый или недопустимый архив",
         "code": "document_rejected",
@@ -540,7 +554,8 @@ async def test_xml_entity_attacks_return_clean_error_and_remove_upload(
     opened = _track_upload_files(monkeypatch, live_server.temp_dir)
     status, result = await _post_document(live_server, payload, "attack.xml")
 
-    assert status == 400
+    expected_status = 400
+    assert status == expected_status
     assert result == {
         "detail": "XML содержит запрещённые конструкции",
         "code": "document_rejected",
@@ -566,7 +581,8 @@ async def test_huge_pdf_page_returns_clean_error_and_removes_upload(
     opened = _track_upload_files(monkeypatch, live_server.temp_dir)
     status, result = await _post_document(live_server, b"fake-pdf", "huge.pdf")
 
-    assert status == 400
+    expected_status = 400
+    assert status == expected_status
     assert result == {
         "detail": "Страница PDF слишком велика для безопасного OCR",
         "code": "document_rejected",
@@ -587,7 +603,8 @@ def test_registered_extractor_matrix(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Exercise normal, empty, malformed, Unicode, and limited input per format."""
-    if filetype == "djvu":
+    expected_filetype = "djvu"
+    if filetype == expected_filetype:
         _mock_djvu(monkeypatch)
 
     normal = process_document_sync(builder(), f"sample{extension}")
@@ -598,7 +615,8 @@ def test_registered_extractor_matrix(
         process_document_sync(b"", f"sample{extension}")
     _assert_clean_error(empty_error.value)
 
-    if filetype == "djvu":
+    expected_filetype = "djvu"
+    if filetype == expected_filetype:
         _mock_djvu(monkeypatch, return_code=1)
     corrupt = _corrupt_document(filetype, builder)
     if filetype in TOLERANT_FORMATS:
@@ -610,7 +628,8 @@ def test_registered_extractor_matrix(
             process_document_sync(corrupt, f"sample{extension}")
         _assert_clean_error(corrupt_error.value)
 
-    if filetype == "djvu":
+    expected_filetype = "djvu"
+    if filetype == expected_filetype:
         _mock_djvu(monkeypatch, UNICODE_TEXT.encode("utf-8"))
     unicode_result = process_document_sync(
         _unicode_document(filetype, builder),
@@ -618,14 +637,16 @@ def test_registered_extractor_matrix(
     )
     assert UNICODE_TEXT in unicode_result["text"]
 
-    if filetype == "djvu":
+    expected_filetype = "djvu"
+    if filetype == expected_filetype:
         _mock_djvu(monkeypatch, b"Document text longer than the limit")
     limited = process_document_sync(
         builder(),
         f"sample{extension}",
         max_characters=5,
     )
-    assert limited["characters"] <= 5
+    expected_characters = 5
+    assert limited["characters"] <= expected_characters
     assert limited["truncated"] is True
 
 
@@ -658,8 +679,10 @@ def test_office_and_pdf_formats(
 
     assert result["format"] == expected_format
     assert expected_text in result["text"]
-    if expected_format == "pptx":
-        assert "--- Слайд 1 ---" in result["text"]
+    expected_expected_format = "pptx"
+    if expected_format == expected_expected_format:
+        expected_fragment = "--- Слайд 1 ---"
+        assert expected_fragment in result["text"]
     assert result["characters"] == len(result["text"])
 
 
@@ -699,9 +722,12 @@ def test_fb2_extraction(tmp_path: Path) -> None:
 
     result = process_document_sync(path.read_bytes(), path.name)
 
-    assert result["format"] == "fb2"
-    assert "FB2 Test Chapter" in result["text"]
-    assert "Document engine works!" in result["text"]
+    expected_format = "fb2"
+    assert result["format"] == expected_format
+    expected_fragment = "FB2 Test Chapter"
+    assert expected_fragment in result["text"]
+    expected_fragment = "Document engine works!"
+    assert expected_fragment in result["text"]
 
 
 def test_standalone_image_is_rejected_by_document_engine() -> None:
@@ -743,14 +769,14 @@ def test_odf_registry_entries_dispatch_to_the_correct_type(
 def test_pipeline_dispatches_registered_extractor_and_builds_result(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(pipeline, "detect_format", lambda _data, _name: "txt")
+    monkeypatch.setattr(pipeline_module, "detect_format", lambda _data, _name: "txt")
     monkeypatch.setitem(
-        pipeline.REGISTRY,
+        pipeline_module.REGISTRY,
         "txt",
         lambda _data, **_kwargs: "  extracted text  ",
     )
 
-    assert pipeline.process_document_sync(b"payload", "note.txt") == {
+    assert pipeline_module.process_document_sync(b"payload", "note.txt") == {
         "format": "txt",
         "text": "extracted text",
         "characters": 14,
@@ -762,23 +788,25 @@ def test_pipeline_validates_zip_before_calling_extractor(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     events = []
-    monkeypatch.setattr(pipeline, "detect_format", lambda _data, _name: "docx")
+    monkeypatch.setattr(pipeline_module, "detect_format", lambda _data, _name: "docx")
     monkeypatch.setattr(
-        pipeline,
+        pipeline_module,
         "validate_zip_archive",
         lambda _data: events.append("validated"),
     )
     monkeypatch.setitem(
-        pipeline.REGISTRY,
+        pipeline_module.REGISTRY,
         "docx",
         lambda _data, **_kwargs: events.append("extracted") or "word",
     )
 
-    result = pipeline.process_document_sync(b"zip payload", "note.docx")
+    result = pipeline_module.process_document_sync(b"zip payload", "note.docx")
 
     assert events == ["validated", "extracted"]
-    assert result["format"] == "docx"
-    assert result["text"] == "word"
+    expected_format = "docx"
+    assert result["format"] == expected_format
+    expected_text = "word"
+    assert result["text"] == expected_text
     assert result["truncated"] is False
 
 
@@ -788,7 +816,7 @@ def test_pipeline_preserves_safe_empty_and_unsupported_document_errors(
     with pytest.raises(DocumentRejectedError, match="Документ пуст"):
         process_document_sync(b"", "empty.txt")
 
-    monkeypatch.setattr(pipeline, "detect_format", lambda _data, _name: None)
+    monkeypatch.setattr(pipeline_module, "detect_format", lambda _data, _name: None)
     with pytest.raises(UnsupportedFormatError):
         process_document_sync(b"image", "image.png")
 
@@ -871,19 +899,21 @@ def test_pipeline_rejects_invalid_character_hint() -> None:
 def test_pipeline_hides_unexpected_extractor_exception(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(pipeline, "detect_format", lambda _data, _name: "txt")
+    monkeypatch.setattr(pipeline_module, "detect_format", lambda _data, _name: "txt")
 
     def fail_extractor(_data: object, **_kwargs: object) -> Never:
         error_message = "/private/path/to/parser-internal-error"
         raise RuntimeError(error_message)
 
-    monkeypatch.setitem(pipeline.REGISTRY, "txt", fail_extractor)
+    monkeypatch.setitem(pipeline_module.REGISTRY, "txt", fail_extractor)
 
     with pytest.raises(DocumentRejectedError) as error:
         process_document_sync(b"payload", "note.txt")
 
-    assert error.value.public_message == (
+    expected_public_message = (
         "\u041d\u0435 удалось прочитать документ: файл повреждён или имеет "
         "неподдерживаемую структуру"
     )
-    assert "/private/path/to/parser-internal-error" not in error.value.public_message
+    assert error.value.public_message == expected_public_message
+    expected_fragment = "/private/path/to/parser-internal-error"
+    assert expected_fragment not in error.value.public_message

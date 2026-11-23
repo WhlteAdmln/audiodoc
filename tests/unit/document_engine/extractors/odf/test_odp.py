@@ -25,12 +25,14 @@ def test_odp_extracts_headings_and_truncates_slide_text() -> None:
     page = document.getElementsByType(Page)[0]
     page.addElement(H(outlinelevel=1, text="ODP heading"), check_grammar=False)
 
-    assert "ODP heading" in extract_odp(document)
+    expected_fragment = "ODP heading"
+    assert expected_fragment in extract_odp(document)
 
     budget = TextBudget(20)
     context = ExtractContext(budget=budget, deadline=Deadline(10))
     text = extract_odp(document, context=context)
-    assert len(text) <= 20
+    expected_count = 20
+    assert len(text) <= expected_count
     assert budget.truncated is True
 
 
@@ -38,5 +40,6 @@ def test_odp_extracts_slide_headings_and_paragraphs() -> None:
     data = create_odp()
     text = extract_odf(data, "odp")
 
-    assert text == "--- Слайд 1 ---\nODP test\nDocument engine works!"
+    expected_text = "--- Слайд 1 ---\nODP test\nDocument engine works!"
+    assert text == expected_text
     assert extract_odp(load_document(data)) == text

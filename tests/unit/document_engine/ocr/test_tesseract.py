@@ -5,28 +5,29 @@
 import pytest
 
 import audiodoc.document_engine.ocr.tesseract as tesseract_module
-from audiodoc.document_engine.ocr import tesseract as ocr_tesseract
 from audiodoc.errors.documents import DependencyMissingError
 
 
 def test_check_tesseract_requires_binary_when_not_installed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(ocr_tesseract.shutil, "which", lambda _: None)
+    # pylint: disable=protected-access  # pins the startup checks directly
+    monkeypatch.setattr(tesseract_module.shutil, "which", lambda _: None)
     with pytest.raises(DependencyMissingError):
-        ocr_tesseract._check_tesseract()
+        tesseract_module._check_tesseract()  # noqa: SLF001
 
 
 def test_check_languages_reports_missing_language(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # pylint: disable=protected-access  # pins the startup checks directly
     monkeypatch.setattr(
-        ocr_tesseract.pytesseract,
+        tesseract_module.pytesseract,
         "get_languages",
         lambda *_args, **_kwargs: ["eng"],
     )
     with pytest.raises(DependencyMissingError):
-        ocr_tesseract._check_languages("rus+eng")
+        tesseract_module._check_languages("rus+eng")  # noqa: SLF001
 
 
 def test_tesseract_language_checks_are_cached(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -20,7 +20,8 @@ def _snippets() -> list[str]:
 
 def test_installer_has_embedded_python_snippets() -> None:
     """The installer embeds the snippets this module protects."""
-    assert len(_snippets()) >= 3
+    expected_count = 3
+    assert len(_snippets()) >= expected_count
 
 
 @pytest.mark.parametrize("index", range(3))
@@ -41,7 +42,8 @@ def test_release_metadata_snippet_extracts_tag_and_wheel_count(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The latest-release lookup parses a GitHub API response."""
-    snippet = next(item for item in _snippets() if "release.get(" in item)
+    expected_fragment = "release.get("
+    snippet = next(item for item in _snippets() if expected_fragment in item)
     source = tmp_path / "release.json"
     destination = tmp_path / "info.txt"
     source.write_text(
@@ -70,4 +72,5 @@ def test_installer_messages_do_not_contain_broken_urls() -> None:
     """A URL inside an error message must stay on one line."""
     text = INSTALLER.read_text(encoding="utf-8")
 
-    assert "/insta\nll.sh" not in text
+    expected_fragment = "/insta\nll.sh"
+    assert expected_fragment not in text

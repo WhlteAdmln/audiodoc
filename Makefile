@@ -56,11 +56,8 @@ fix:
 types:
 	$(PYTHON) -m mypy audiodoc
 
-# Technical debt: tests/unit had no __init__.py, so pylint never checked it. It is
-# a package now and still fails on magic values and similar findings; the test
-# layout work removes them, and the ignore goes away with it.
 pylint:
-	$(PYTHON) -m pylint audiodoc scripts tests --ignore-paths='^tests/unit/'
+	$(PYTHON) -m pylint audiodoc scripts tests
 
 deptry:
 	$(PYTHON_SCRIPTS_DIR)/deptry .

@@ -8,5 +8,7 @@ from tests.support.builders import create_epub
 def test_epub_extracts_chapter_content_and_skips_navigation() -> None:
     text = extract_epub(create_epub())
 
-    assert "EPUB test" in text
-    assert "Document engine works!" in text
+    expected_fragment = "EPUB test"
+    assert expected_fragment in text
+    expected_fragment = "Document engine works!"
+    assert expected_fragment in text

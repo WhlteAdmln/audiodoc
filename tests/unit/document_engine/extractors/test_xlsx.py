@@ -20,20 +20,28 @@ def test_xlsx_passes_fixed_row_and_column_caps_to_openpyxl(
     captured = {}
 
     class FakeSheet:
+        """Stand in for the real FakeSheet object."""
+
         title = "Capped"
 
+        @staticmethod
         def iter_rows(
-            self, *, max_row: object, max_col: object, values_only: object
+            *, max_row: object, max_col: object, values_only: object
         ) -> object:
+            """Provide the ``iter_rows`` behaviour the test relies on."""
             captured.update(max_row=max_row, max_col=max_col, values_only=values_only)
             yield ("one", "two")
             yield ("three", "four")
             yield ("must not be read",)
 
     class FakeWorkbook:
+        """Stand in for the real FakeWorkbook object."""
+
         worksheets: ClassVar[list[FakeSheet]] = [FakeSheet()]
 
-        def close(self) -> None:
+        @staticmethod
+        def close() -> None:
+            """Provide the ``close`` behaviour the test relies on."""
             captured["closed"] = True
 
     monkeypatch.setattr(xlsx_module, "MAX_SHEET_ROWS", 2)
@@ -46,15 +54,21 @@ def test_xlsx_passes_fixed_row_and_column_caps_to_openpyxl(
         b"workbook", context=ExtractContext(TextBudget(100), Deadline(10))
     )
     assert captured == {"max_row": 2, "max_col": 2, "values_only": True, "closed": True}
-    assert "one | two" in text
-    assert "three | four" in text
-    assert "must not be read" not in text
+    expected_fragment = "one | two"
+    assert expected_fragment in text
+    expected_fragment = "three | four"
+    assert expected_fragment in text
+    expected_fragment = "must not be read"
+    assert expected_fragment not in text
 
 
 def test_xlsx_extracts_sheet_name_and_rows() -> None:
     text = extract_xlsx(create_xlsx())
 
     assert isinstance(text, str)
-    assert "--- Лист: Test sheet ---" in text
-    assert "Name | Value" in text
-    assert "Document engine | Works!" in text
+    expected_fragment = "--- Лист: Test sheet ---"
+    assert expected_fragment in text
+    expected_fragment = "Name | Value"
+    assert expected_fragment in text
+    expected_fragment = "Document engine | Works!"
+    assert expected_fragment in text

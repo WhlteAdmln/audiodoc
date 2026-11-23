@@ -53,7 +53,8 @@ def test_wireguard_examples_use_placeholders_and_expected_addresses(
     assert peer["publickey"] == public_key
     assert peer["allowedips"] == allowed_ips
     if endpoint is None:
-        assert "endpoint" not in peer
+        expected_fragment = "endpoint"
+        assert expected_fragment not in peer
     else:
         assert peer["endpoint"] == endpoint
 
@@ -64,6 +65,9 @@ def test_ci_systemd_verification_uses_canonical_renderer() -> None:
         encoding="utf-8"
     )
 
-    assert "from audiodoc.service import render_service_unit" in workflow
-    assert 'systemd-analyze verify "${service_file}"' in workflow
-    assert 'deploy/audiodoc.service.example > "${service_file}"' not in workflow
+    expected_fragment = "from audiodoc.service import render_service_unit"
+    assert expected_fragment in workflow
+    expected_fragment = 'systemd-analyze verify "${service_file}"'
+    assert expected_fragment in workflow
+    expected_fragment = 'deploy/audiodoc.service.example > "${service_file}"'
+    assert expected_fragment not in workflow

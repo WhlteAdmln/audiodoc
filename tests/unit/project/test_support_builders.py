@@ -17,13 +17,18 @@ from tests.support import builders
 
 
 def test_text_builders_create_valid_content() -> None:
-    assert b"TXT test" in builders.create_txt()
-    assert b"# Markdown test" in builders.create_md()
-    assert b"<html" in builders.create_html()
-    assert b"{\\rtf1" in builders.create_rtf()
+    expected_bytes = b"TXT test"
+    assert expected_bytes in builders.create_txt()
+    expected_bytes = b"# Markdown test"
+    assert expected_bytes in builders.create_md()
+    expected_bytes = b"<html"
+    assert expected_bytes in builders.create_html()
+    expected_bytes = b"{\\rtf1"
+    assert expected_bytes in builders.create_rtf()
 
     xml_root = ElementTree.fromstring(builders.create_xml())
-    assert xml_root.findtext("title") == "XML test"
+    expected_findtext = "XML test"
+    assert xml_root.findtext("title") == expected_findtext
 
     csv_rows = list(
         csv.reader(StringIO(builders.create_csv().decode("utf-8"))),
@@ -57,7 +62,8 @@ def test_archive_builders_create_valid_packages(
 
 def test_fb2_builder_creates_valid_xml() -> None:
     document = ElementTree.fromstring(builders.create_fb2())
-    assert "FB2 test" in "".join(document.itertext())
+    expected_fragment = "FB2 test"
+    assert expected_fragment in "".join(document.itertext())
 
 
 def test_pdf_builders_create_text_and_image_documents() -> None:
@@ -65,35 +71,40 @@ def test_pdf_builders_create_text_and_image_documents() -> None:
         stream=builders.create_pdf(),
         filetype="pdf",
     ) as document:
-        assert "PDF document test" in document[0].get_text()
+        expected_fragment = "PDF document test"
+        assert expected_fragment in document[0].get_text()
 
     with pymupdf.open(
         stream=builders.create_image_only_pdf(),
         filetype="pdf",
     ) as document:
         page = document[0]
-        assert page.get_text().strip() == ""
+        assert not page.get_text().strip()
         assert page.get_images(full=True)
 
     with pymupdf.open(
         stream=builders.create_scanned_pdf(),
         filetype="pdf",
     ) as document:
-        assert "normal PDF text page" in document[0].get_text()
+        expected_fragment = "normal PDF text page"
+        assert expected_fragment in document[0].get_text()
         assert document[1].get_images(full=True)
 
 
 def test_audio_builders_create_decodable_audio() -> None:
     with wave.open(BytesIO(builders.create_wav()), "rb") as audio:
         assert audio.getnchannels() == 1
-        assert audio.getframerate() == 16_000
+        expected_getframerate = 16_000
+        assert audio.getframerate() == expected_getframerate
         assert audio.getnframes() > 0
 
     with av.open(BytesIO(builders.create_ogg_opus()), mode="r") as container:
+        expected_type = "audio"
         audio_stream = next(
-            stream for stream in container.streams if stream.type == "audio"
+            stream for stream in container.streams if stream.type == expected_type
         )
-        assert audio_stream.codec_context.name == "opus"
+        expected_name = "opus"
+        assert audio_stream.codec_context.name == expected_name
         assert list(container.decode(audio=audio_stream.index))
 
 

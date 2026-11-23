@@ -147,13 +147,16 @@ def test_unexpected_exception_returns_generic_message_without_details(
     caplog.set_level(logging.ERROR)
     response = TestClient(app, raise_server_exceptions=False).get("/explode")
 
-    assert response.status_code == 500
+    expected_status_code = 500
+    assert response.status_code == expected_status_code
     assert response.json() == {
         "detail": "Internal server error",
         "code": "internal_error",
     }
-    assert "secret.txt" not in response.text
-    assert "private /srv/audiodoc/secret.txt" in caplog.text
+    expected_fragment = "secret.txt"
+    assert expected_fragment not in response.text
+    expected_fragment = "private /srv/audiodoc/secret.txt"
+    assert expected_fragment in caplog.text
 
 
 def test_document_filename_is_sanitized_before_logging(
@@ -177,8 +180,10 @@ def test_document_filename_is_sanitized_before_logging(
         files={"file": ("note\nINJECTED.log.txt", b"plain text", "text/plain")},
     )
 
-    assert response.status_code == 200
-    assert "filename=note%0AINJECTED.log.txt" in caplog.text
+    expected_status_code = 200
+    assert response.status_code == expected_status_code
+    expected_fragment = "filename=note%0AINJECTED.log.txt"
+    assert expected_fragment in caplog.text
     assert not any(
         line.startswith("INJECTED.log.txt") for line in caplog.text.splitlines()
     )
@@ -204,13 +209,16 @@ def test_typed_document_rejection_is_logged_without_raw_filename(
         files={"file": ("bad\nFORGED.log.txt", b"plain text", "text/plain")},
     )
 
-    assert response.status_code == 400
+    expected_status_code = 400
+    assert response.status_code == expected_status_code
     assert response.json() == {
         "detail": "Документ не может быть обработан",
         "code": "document_rejected",
     }
-    assert "Document rejected" in caplog.text
-    assert "filename=bad%0AFORGED.log.txt" in caplog.text
+    expected_fragment = "Document rejected"
+    assert expected_fragment in caplog.text
+    expected_fragment = "filename=bad%0AFORGED.log.txt"
+    assert expected_fragment in caplog.text
     assert not any(
         line.startswith("FORGED.log.txt") for line in caplog.text.splitlines()
     )

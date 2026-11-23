@@ -1,6 +1,8 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Tests for shared, monotonic processing deadlines."""
 
+import math
+from types import SimpleNamespace
 from typing import Never
 
 import pytest
@@ -23,7 +25,7 @@ def test_deadline_reports_remaining_time_and_expires(
 
 
 def test_deadline_requires_a_finite_positive_duration() -> None:
-    for value in (0, -1, float("inf"), float("nan")):
+    for value in (0, -1, math.inf, math.nan):
         with pytest.raises(
             ValueError, match="seconds must be a finite positive number"
         ):
@@ -35,9 +37,10 @@ def test_pipeline_maps_deadline_expiration_to_safe_backend_error(
 ) -> None:
     monkeypatch.setattr(pipeline, "detect_format", lambda *_args: "txt")
 
-    class ExpiredDeadline:
-        def check(self) -> Never:
-            raise DeadlineExceededError
+    def check() -> Never:
+        raise DeadlineExceededError
+
+    expired_deadline = SimpleNamespace(check=check)
 
     with pytest.raises(ProcessingTimeoutError):
-        pipeline.process_document_sync(b"hello", "note.txt", deadline=ExpiredDeadline())
+        pipeline.process_document_sync(b"hello", "note.txt", deadline=expired_deadline)

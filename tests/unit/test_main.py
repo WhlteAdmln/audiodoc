@@ -11,7 +11,6 @@ import re
 import tempfile
 import threading
 from pathlib import Path
-from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
@@ -30,7 +29,8 @@ from audiodoc.transcription.model import ModelHolder
 from tests.support.bot_client import upload_file
 from tests.support.builders import create_wav
 from tests.support.import_safety import check_import_safety
-from tests.support.server import LiveServer, LiveServerOptions, live_server
+from tests.support.server import LiveServer, LiveServerOptions, fixture_live_server
+from tests.support.whisper import no_native_tools, silent_model
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
     from audiodoc.common.work_queue import WorkQueue
 
-__all__ = ["live_server"]
+__all__ = ["fixture_live_server"]
 
 
 async def _upload_without_authorization(url: str, file_path: Path) -> int:
@@ -52,14 +52,6 @@ async def _upload_without_authorization(url: str, file_path: Path) -> int:
         ):
             await response.read()
             return response.status
-
-
-app = main_module.create_app()
-
-
-class FakeModel:
-    def transcribe(self, *_args: object, **_kwargs: object) -> object:
-        return iter([]), None
 
 
 class _TempDirectoryPermissionError(PermissionError):
@@ -86,55 +78,72 @@ async def _assert_queue_rejects_work(queue: WorkQueue) -> None:
             pytest.fail("Queue accepted a job during shutdown")
 
 
+async def _send_and_read(
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter,
+    request: bytes,
+) -> bytes:
+    writer.write(request)
+    await writer.drain()
+    return await asyncio.wait_for(reader.read(), timeout=5)
+
+
+async def _send_partial_upload(
+    writer: asyncio.StreamWriter,
+    request: bytes,
+    body: bytes,
+    rolled: threading.Event,
+) -> bool:
+    writer.write(request)
+    writer.write(f"{len(body):X}\r\n".encode("ascii"))
+    writer.write(body)
+    writer.write(b"\r\n")
+    await writer.drain()
+    return await asyncio.to_thread(rolled.wait, 5)
+
+
 async def _run_lifespan_shutdown(application: FastAPI) -> None:
     document_queue = application.state.document_queue
     transcription_queue = application.state.transcription_queue
-    document_job_started = asyncio.Event()
-    transcription_job_started = asyncio.Event()
+    started = [asyncio.Event(), asyncio.Event()]
     release_jobs = asyncio.Event()
-    context = main_module.lifespan(application)
-    await context.__aenter__()
+    entered = asyncio.Event()
+    stop = asyncio.Event()
 
-    document_job = asyncio.create_task(
-        _hold_queue_slot(document_queue, document_job_started, release_jobs)
-    )
-    transcription_job = asyncio.create_task(
-        _hold_queue_slot(
-            transcription_queue,
-            transcription_job_started,
-            release_jobs,
+    async def run_lifespan() -> None:
+        async with main_module.lifespan(application):
+            entered.set()
+            await stop.wait()
+
+    lifespan_task = asyncio.create_task(run_lifespan())
+    await entered.wait()
+    jobs = [
+        asyncio.create_task(_hold_queue_slot(queue, event, release_jobs))
+        for queue, event in zip(
+            (document_queue, transcription_queue), started, strict=True
         )
-    )
-    shutdown: asyncio.Task[None] | None = None
-
+    ]
     try:
-        await asyncio.gather(
-            document_job_started.wait(),
-            transcription_job_started.wait(),
+        await _check_shutdown_waits_for_jobs(
+            (document_queue, transcription_queue), started, stop, lifespan_task
         )
-
-        async def stop_lifespan() -> None:
-            await context.__aexit__(None, None, None)
-
-        shutdown = asyncio.create_task(stop_lifespan())
-        await asyncio.sleep(0)
-
-        assert not shutdown.done()
-        await asyncio.gather(
-            _assert_queue_rejects_work(document_queue),
-            _assert_queue_rejects_work(transcription_queue),
-        )
-
-        release_jobs.set()
-        await asyncio.gather(document_job, transcription_job)
-        await shutdown
     finally:
         release_jobs.set()
-        await asyncio.gather(document_job, transcription_job)
-        if shutdown is None:
-            await context.__aexit__(None, None, None)
-        else:
-            await shutdown
+        stop.set()
+        await asyncio.gather(*jobs, lifespan_task)
+
+
+async def _check_shutdown_waits_for_jobs(
+    queues: tuple[object, object],
+    started: list[asyncio.Event],
+    stop: asyncio.Event,
+    lifespan_task: asyncio.Task[None],
+) -> None:
+    await asyncio.gather(*(event.wait() for event in started))
+    stop.set()
+    await asyncio.sleep(0)
+    assert not lifespan_task.done()
+    await asyncio.gather(*(_assert_queue_rejects_work(queue) for queue in queues))
 
 
 def test_docs_and_openapi_routes_are_disabled_by_default(
@@ -144,8 +153,10 @@ def test_docs_and_openapi_routes_are_disabled_by_default(
     app = main_module.create_app()
     client = TestClient(app)
 
-    assert client.get("/docs").status_code == 404
-    assert client.get("/openapi.json").status_code == 404
+    expected_status_code = 404
+    assert client.get("/docs").status_code == expected_status_code
+    expected_status_code = 404
+    assert client.get("/openapi.json").status_code == expected_status_code
     assert app.docs_url is None
     assert app.openapi_url is None
 
@@ -157,9 +168,12 @@ def test_docs_route_can_be_enabled_for_development(
     app = main_module.create_app()
     client = TestClient(app)
 
-    assert app.docs_url == "/docs"
-    assert app.openapi_url == "/openapi.json"
-    assert client.get("/openapi.json").status_code == 200
+    expected_docs_url = "/docs"
+    assert app.docs_url == expected_docs_url
+    expected_openapi_url = "/openapi.json"
+    assert app.openapi_url == expected_openapi_url
+    expected_status_code = 200
+    assert client.get("/openapi.json").status_code == expected_status_code
 
 
 def test_create_app_uses_explicit_settings(
@@ -169,9 +183,12 @@ def test_create_app_uses_explicit_settings(
     app = main_module.create_app(Settings(ENABLE_DOCS=True))
     client = TestClient(app)
 
-    assert app.docs_url == "/docs"
-    assert app.openapi_url == "/openapi.json"
-    assert client.get("/openapi.json").status_code == 200
+    expected_docs_url = "/docs"
+    assert app.docs_url == expected_docs_url
+    expected_openapi_url = "/openapi.json"
+    assert app.openapi_url == expected_openapi_url
+    expected_status_code = 200
+    assert client.get("/openapi.json").status_code == expected_status_code
 
 
 @pytest.mark.asyncio
@@ -198,10 +215,20 @@ async def test_live_socket_auth_rejects_missing_and_wrong_keys(
         live_server.document_api_key,
     )
 
-    assert document_status == 401
-    assert transcribe_status == 401
-    assert await _upload_without_authorization(document_url, document_path) == 401
-    assert await _upload_without_authorization(transcribe_url, audio_path) == 401
+    expected_document_status = 401
+    assert document_status == expected_document_status
+    expected_transcribe_status = 401
+    assert transcribe_status == expected_transcribe_status
+    expected_number = 401
+    assert (
+        await _upload_without_authorization(document_url, document_path)
+        == expected_number
+    )
+    expected_number = 401
+    assert (
+        await _upload_without_authorization(transcribe_url, audio_path)
+        == expected_number
+    )
 
 
 @pytest.mark.parametrize(
@@ -230,7 +257,8 @@ async def test_live_socket_accepts_both_keys_during_rotation(
             audio_path,
             key,
         )
-        assert status == 200
+        expected_status = 200
+        assert status == expected_status
 
     for key in ("rotated-document-key", "test-document-key"):
         status, _ = await upload_file(
@@ -238,7 +266,8 @@ async def test_live_socket_accepts_both_keys_during_rotation(
             document_path,
             key,
         )
-        assert status == 200
+        expected_status = 200
+        assert status == expected_status
 
 
 @pytest.mark.parametrize(
@@ -262,19 +291,21 @@ async def test_allow_unauthenticated_accepts_uploads_without_keys(
     audio_path = tmp_path / "voice.wav"
     audio_path.write_bytes(create_wav())
 
+    expected_number = 200
     assert (
         await _upload_without_authorization(
             f"{live_server.base_url}/process-document",
             document_path,
         )
-        == 200
+        == expected_number
     )
+    expected_number = 200
     assert (
         await _upload_without_authorization(
             f"{live_server.base_url}/transcribe",
             audio_path,
         )
-        == 200
+        == expected_number
     )
 
 
@@ -283,15 +314,7 @@ async def test_live_socket_health_ready_docs_and_request_ids(
     live_server: LiveServer,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        ready_module,
-        "check_native_tools",
-        lambda: SimpleNamespace(
-            tesseract=None,
-            languages=(),
-            djvulibre=False,
-        ),
-    )
+    monkeypatch.setattr(ready_module, "check_native_tools", no_native_tools)
 
     async with aiohttp.ClientSession() as session:
         request_id = "socket-request-0001"
@@ -299,25 +322,30 @@ async def test_live_socket_health_ready_docs_and_request_ids(
             f"{live_server.base_url}/health",
             headers={"X-Request-ID": request_id},
         ) as response:
-            assert response.status == 200
+            expected_status = 200
+            assert response.status == expected_status
             assert response.headers["x-request-id"] == request_id
-            assert (await response.json())["status"] == "ok"
+            expected_status_2 = "ok"
+            assert (await response.json())["status"] == expected_status_2
 
         async with session.get(f"{live_server.base_url}/health") as response:
             generated_id = response.headers["x-request-id"]
             assert re.fullmatch(r"[0-9a-f]{32}", generated_id)
 
         async with session.get(f"{live_server.base_url}/ready") as response:
-            assert response.status == 200
+            expected_status = 200
+            assert response.status == expected_status
             payload = await response.json()
             assert payload["tesseract"] is False
             assert payload["djvulibre"] is False
 
         async with session.get(f"{live_server.base_url}/docs") as response:
-            assert response.status == 404
+            expected_status = 404
+            assert response.status == expected_status
 
         async with session.get(f"{live_server.base_url}/openapi.json") as response:
-            assert response.status == 404
+            expected_status = 404
+            assert response.status == expected_status
 
 
 @pytest.mark.parametrize(
@@ -331,9 +359,11 @@ async def test_live_socket_docs_are_available_when_enabled(
 ) -> None:
     async with aiohttp.ClientSession() as session:
         async with session.get(f"{live_server.base_url}/docs") as response:
-            assert response.status == 200
+            expected_status = 200
+            assert response.status == expected_status
         async with session.get(f"{live_server.base_url}/openapi.json") as response:
-            assert response.status == 200
+            expected_status = 200
+            assert response.status == expected_status
 
 
 @pytest.mark.parametrize(
@@ -364,16 +394,16 @@ async def test_live_socket_rejects_declared_body_over_limit(
         "\r\n"
     )
     try:
-        writer.write(request.encode("ascii"))
-        await writer.drain()
-        response = await asyncio.wait_for(reader.read(), timeout=5)
+        response = await _send_and_read(reader, writer, request.encode("ascii"))
     finally:
         writer.close()
         await writer.wait_closed()
 
-    assert b" 413 " in response.split(b"\r\n", maxsplit=1)[0]
+    expected_bytes = b" 413 "
+    assert expected_bytes in response.split(b"\r\n", maxsplit=1)[0]
     assert f"x-request-id: {request_id}".encode() in response.lower()
-    assert b"Request body too large" in response
+    expected_bytes = b"Request body too large"
+    assert expected_bytes in response
 
 
 @pytest.mark.parametrize(
@@ -404,7 +434,8 @@ async def test_live_socket_rejects_chunked_body_over_limit(
             headers=headers,
         ) as response,
     ):
-        assert response.status == 413
+        expected_status = 413
+        assert response.status == expected_status
         assert await response.json() == {"detail": "Request body too large"}
 
 
@@ -417,8 +448,10 @@ async def test_client_disconnect_during_upload_closes_temporary_file(
     closed = threading.Event()
 
     class TrackedSpooledTemporaryFile(tempfile.SpooledTemporaryFile):
-        def write(self, value: bytes) -> int:
-            written = super().write(value)
+        """Stand in for the real TrackedSpooledTemporaryFile object."""
+
+        def write(self, s: bytes) -> int:
+            written = super().write(s)
             if self._rolled:
                 rolled.set()
             return written
@@ -466,19 +499,16 @@ async def test_client_disconnect_during_upload_closes_temporary_file(
     )
 
     try:
-        writer.write(request.encode("ascii"))
-        writer.write(f"{len(multipart_body):X}\r\n".encode("ascii"))
-        writer.write(multipart_body)
-        writer.write(b"\r\n")
-        await writer.drain()
-
-        assert await asyncio.to_thread(rolled.wait, 5)
+        rolled_in_time = await _send_partial_upload(
+            writer, request.encode("ascii"), multipart_body, rolled
+        )
     finally:
         writer.close()
         await writer.wait_closed()
 
+    assert rolled_in_time
     assert await asyncio.to_thread(closed.wait, 5)
-    assert list(live_server.temp_dir.iterdir()) == []
+    assert not list(live_server.temp_dir.iterdir())
 
 
 def test_health_route_reports_model_state_without_starting_lifespan() -> None:
@@ -489,7 +519,8 @@ def test_health_route_reports_model_state_without_starting_lifespan() -> None:
 
     response = TestClient(application).get("/health")
 
-    assert response.status_code == 200
+    expected_status_code = 200
+    assert response.status_code == expected_status_code
     assert response.json() == {
         "status": "ok",
         "model": "small-test",
@@ -505,8 +536,10 @@ def test_health_route_reports_local_model_directory_name() -> None:
 
     response = TestClient(application).get("/health")
 
-    assert response.status_code == 200
-    assert response.json()["model"] == "custom-whisper"
+    expected_status_code = 200
+    assert response.status_code == expected_status_code
+    expected_model = "custom-whisper"
+    assert response.json()["model"] == expected_model
 
 
 def test_health_and_ready_use_application_model_holder(
@@ -518,24 +551,18 @@ def test_health_and_ready_use_application_model_holder(
     )
     monkeypatch.setattr(loaded_application.state.model_holder, "_model", object())
 
-    monkeypatch.setattr(
-        ready_module,
-        "check_native_tools",
-        lambda: SimpleNamespace(
-            tesseract=None,
-            languages=(),
-            djvulibre=False,
-        ),
-    )
+    monkeypatch.setattr(ready_module, "check_native_tools", no_native_tools)
 
     client = TestClient(loaded_application)
 
     health_response = client.get("/health")
     ready_response = client.get("/ready")
 
-    assert health_response.status_code == 200
+    expected_status_code = 200
+    assert health_response.status_code == expected_status_code
     assert health_response.json()["loaded"] is True
-    assert ready_response.status_code == 200
+    expected_status_code = 200
+    assert ready_response.status_code == expected_status_code
     assert ready_response.json()["model_loaded"] is True
 
     unloaded_application = main_module.create_app()
@@ -551,19 +578,26 @@ def test_health_and_ready_use_application_model_holder(
 
 
 def test_app_registers_all_expected_routes() -> None:
-    assert app.title == "audiodoc"
+    app = main_module.create_app()
+    expected_title = "audiodoc"
+    assert app.title == expected_title
     # FastAPI/Starlette may expose included routers as internal wrapper
     # objects in app.routes. OpenAPI is the public, version-stable view of
     # the routes registered on the application.
     paths = app.openapi()["paths"]
 
-    assert "get" in paths["/health"]
-    assert "get" in paths["/ready"]
-    assert "post" in paths["/transcribe"]
-    assert "post" in paths["/process-document"]
+    expected_fragment = "get"
+    assert expected_fragment in paths["/health"]
+    expected_fragment = "get"
+    assert expected_fragment in paths["/ready"]
+    expected_fragment = "post"
+    assert expected_fragment in paths["/transcribe"]
+    expected_fragment = "post"
+    assert expected_fragment in paths["/process-document"]
 
 
 def test_create_app_builds_independent_queues_from_settings() -> None:
+    # pylint: disable=protected-access  # the queue exposes no capacity getters
     configured_settings = Settings(
         MAX_CONCURRENT_TRANSCRIPTIONS=3,
         MAX_WAITING_TRANSCRIPTIONS=2,
@@ -576,10 +610,12 @@ def test_create_app_builds_independent_queues_from_settings() -> None:
         first_app.state.transcription_queue is not second_app.state.transcription_queue
     )
     assert first_app.state.document_queue is not second_app.state.document_queue
-    assert first_app.state.transcription_queue._workers == 3
-    assert first_app.state.transcription_queue._max_waiting == 2
-    assert first_app.state.document_queue._workers == MAX_CONCURRENT_DOCUMENTS
-    assert first_app.state.document_queue._max_waiting == 1
+    expected_workers = 3
+    assert first_app.state.transcription_queue._workers == expected_workers  # noqa: SLF001
+    expected_max_waiting = 2
+    assert first_app.state.transcription_queue._max_waiting == expected_max_waiting  # noqa: SLF001
+    assert first_app.state.document_queue._workers == MAX_CONCURRENT_DOCUMENTS  # noqa: SLF001
+    assert first_app.state.document_queue._max_waiting == 1  # noqa: SLF001
 
 
 def test_lifespan_creates_independent_model_holders(
@@ -590,9 +626,9 @@ def test_lifespan_creates_independent_model_holders(
     received_settings: list[Settings] = []
     holders: list[ModelHolder] = []
 
-    def build_model(configured_settings: Settings) -> FakeModel:
+    def build_model(configured_settings: Settings) -> object:
         received_settings.append(configured_settings)
-        return FakeModel()
+        return silent_model()
 
     monkeypatch.setattr(main_module.os, "umask", lambda _mask: 0o022)
     monkeypatch.setattr(
@@ -631,7 +667,7 @@ def test_lifespan_creates_independent_model_holders(
 
     asyncio.run(run_lifespans())
 
-    first_holder, second_holder = holders
+    first_holder, second_holder = holders[0], holders[1]
     assert first_holder is not second_holder
     assert first_app.state.model_holder is first_holder
     assert second_app.state.model_holder is second_holder
@@ -666,12 +702,13 @@ def test_lifespan_checks_configuration_prepares_storage_and_loads_model(
     monkeypatch.setattr(
         model_module,
         "_build_model",
-        lambda _configured_settings: FakeModel(),
+        lambda _configured_settings: silent_model(),
     )
 
     with TestClient(application) as client:
         response = client.get("/health")
-        assert response.status_code == 200
+        expected_status_code = 200
+        assert response.status_code == expected_status_code
         assert response.json()["loaded"] is True
 
     assert events == [
@@ -705,7 +742,7 @@ def test_lifespan_redacts_configured_api_keys(
     monkeypatch.setattr(
         model_module,
         "_build_model",
-        lambda _configured_settings: FakeModel(),
+        lambda _configured_settings: silent_model(),
     )
 
     with TestClient(application):
@@ -768,7 +805,7 @@ def test_lifespan_fails_when_temp_directory_is_not_writable(
     monkeypatch.setattr(
         model_module,
         "_build_model",
-        lambda _configured_settings: events.append("model") or FakeModel(),
+        lambda _configured_settings: events.append("model") or silent_model(),
     )
 
     with (
@@ -780,7 +817,7 @@ def test_lifespan_fails_when_temp_directory_is_not_writable(
     ):
         pass
 
-    assert events == []
+    assert not events
 
 
 def test_lifespan_waits_for_running_job_before_shutdown(
@@ -798,7 +835,7 @@ def test_lifespan_waits_for_running_job_before_shutdown(
     monkeypatch.setattr(
         model_module,
         "_build_model",
-        lambda _configured_settings: FakeModel(),
+        lambda _configured_settings: silent_model(),
     )
 
     application = main_module.create_app()

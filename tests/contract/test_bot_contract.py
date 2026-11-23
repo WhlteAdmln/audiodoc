@@ -2,6 +2,7 @@
 """HTTP response contract shared with the Telegram bot."""
 
 import json
+from http import HTTPStatus
 from pathlib import Path
 
 import pytest
@@ -63,7 +64,7 @@ def test_transcribe_response_matches_shared_bot_contract(
         files={"file": ("voice.ogg", b"fake audio", "audio/ogg")},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.OK
     _assert_transcribe_shape(response.json())
 
 
@@ -74,7 +75,7 @@ def test_process_document_response_matches_shared_bot_contract() -> None:
         files={"file": ("note.txt", sample.encode("utf-8"), "text/plain")},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.OK
     payload = response.json()
     _assert_document_shape(payload)
     assert payload == CONTRACT["process_document"]
@@ -86,7 +87,7 @@ def test_unsupported_file_is_not_a_success() -> None:
         files={"file": ("x.png", b"\x89PNG\r\n\x1a\n", "image/png")},
     )
 
-    assert response.status_code != 200
+    assert response.status_code != HTTPStatus.OK
 
 
 def test_openapi_snapshot_matches_application() -> None:

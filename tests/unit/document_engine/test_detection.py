@@ -40,13 +40,17 @@ def test_detect_docx_by_zip_contents() -> None:
     with zipfile.ZipFile(output, "w") as archive:
         archive.writestr("word/document.xml", "<document />")
 
-    assert detect_format(output.getvalue(), "renamed.bin") == "docx"
+    expected_detect_format = "docx"
+    assert detect_format(output.getvalue(), "renamed.bin") == expected_detect_format
 
 
 def test_detection_package_exports_expected_format_collections() -> None:
-    assert "pdf" in SUPPORTED_FORMATS
-    assert ".png" in IMAGE_EXTENSIONS
-    assert extension_map["markdown"] == "md"
+    expected_fragment = "pdf"
+    assert expected_fragment in SUPPORTED_FORMATS
+    expected_fragment = ".png"
+    assert expected_fragment in IMAGE_EXTENSIONS
+    expected_markdown = "md"
+    assert extension_map["markdown"] == expected_markdown
 
 
 def test_image_extension_check_still_precedes_file_signature() -> None:
@@ -54,11 +58,16 @@ def test_image_extension_check_still_precedes_file_signature() -> None:
 
 
 def test_signature_check_still_precedes_other_extension() -> None:
-    assert detect_format(b"%PDF-1.7 payload", "payload.txt") == "pdf"
+    expected_detect_format = "pdf"
+    assert detect_format(b"%PDF-1.7 payload", "payload.txt") == expected_detect_format
 
 
 def test_text_extension_mapping_is_preserved() -> None:
-    assert detect_format(b"not really markdown", "payload.markdown") == "md"
+    expected_detect_format = "md"
+    assert (
+        detect_format(b"not really markdown", "payload.markdown")
+        == expected_detect_format
+    )
 
 
 @given(

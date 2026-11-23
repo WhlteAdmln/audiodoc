@@ -143,8 +143,8 @@ def _stopping(server: uvicorn.Server, thread: threading.Thread) -> Iterator[None
             raise RuntimeError(_SERVER_SHUTDOWN_TIMEOUT)
 
 
-@pytest.fixture
-def live_server(
+@pytest.fixture(name="live_server")
+def fixture_live_server(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     request: pytest.FixtureRequest,

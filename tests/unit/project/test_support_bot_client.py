@@ -7,9 +7,9 @@ import pytest
 
 from tests.support.bot_client import upload_file
 from tests.support.builders import create_wav
-from tests.support.server import LiveServer, live_server
+from tests.support.server import LiveServer, fixture_live_server
 
-__all__ = ["live_server"]
+__all__ = ["fixture_live_server"]
 
 
 @pytest.mark.asyncio
@@ -27,9 +27,12 @@ async def test_bot_client_uploads_document_with_document_key(
         max_characters=11264,
     )
 
-    assert status == 200
-    assert payload["format"] == "txt"
-    assert payload["text"] == "Bot-compatible document."
+    expected_status = 200
+    assert status == expected_status
+    expected_format = "txt"
+    assert payload["format"] == expected_format
+    expected_text = "Bot-compatible document."
+    assert payload["text"] == expected_text
     assert payload["characters"] == len(payload["text"])
     assert payload["truncated"] is False
 
@@ -48,7 +51,8 @@ async def test_bot_client_uploads_audio_with_whisper_key(
         live_server.whisper_api_key,
     )
 
-    assert status == 200
+    expected_status = 200
+    assert status == expected_status
     assert payload == {
         "text": "Test transcription",
         "language": "ru",

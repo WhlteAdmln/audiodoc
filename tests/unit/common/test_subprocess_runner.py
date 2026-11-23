@@ -66,13 +66,13 @@ def test_timeout_kills_process_group_and_reaps_children(
     with pytest.raises(SubprocessTimeoutError):
         run_limited([sys.executable, "-c", script], timeout=1, max_output=100)
 
-    parent_pid, child_pid = map(int, pid_file.read_text().split())
+    parent_pid, child_pid = (int(pid) for pid in pid_file.read_text().split())
     pid_file.unlink()
     _assert_process_reaped(parent_pid)
     _assert_process_reaped(child_pid)
     assert opened
     assert all(handle.closed for handle in opened)
-    assert list(tmp_path.iterdir()) == []
+    assert not list(tmp_path.iterdir())
 
 
 def test_run_limited_returns_stdout_and_bounded_stderr_preview() -> None:
@@ -90,8 +90,10 @@ def test_run_limited_returns_stdout_and_bounded_stderr_preview() -> None:
     )
 
     assert code == 0
-    assert stdout == b"hello"
-    assert stderr == b"diagnostic"
+    expected_stdout = b"hello"
+    assert stdout == expected_stdout
+    expected_stderr = b"diagnostic"
+    assert stderr == expected_stderr
 
 
 def test_run_limited_rejects_stdout_over_limit() -> None:

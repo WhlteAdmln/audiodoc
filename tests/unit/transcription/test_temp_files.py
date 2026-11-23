@@ -26,11 +26,15 @@ def test_temp_audio_file_is_private_and_removed(
     with temp_audio.temp_audio_file("../../voice.ogg") as path:
         path.write_bytes(b"audio")
         assert path.parent == tmp_path / "private"
-        assert path.suffix == ".ogg"
+        expected_suffix = ".ogg"
+        assert path.suffix == expected_suffix
         assert path.exists()
-        assert path.parent.stat().st_mode & 0o777 == 0o700
-        if os.name == "posix":
-            assert path.stat().st_mode & 0o777 == 0o600
+        expected_number = 0o700
+        assert path.parent.stat().st_mode & 0o777 == expected_number
+        expected_name = "posix"
+        if os.name == expected_name:
+            expected_number = 0o600
+            assert path.stat().st_mode & 0o777 == expected_number
     assert not path.exists()
 
 
@@ -46,7 +50,7 @@ def test_temp_audio_file_is_removed_after_error_or_cancellation(
     with pytest.raises(error_type):
         _raise_during_temp_file(error_type)
 
-    assert list((tmp_path / "private").iterdir()) == []
+    assert not list((tmp_path / "private").iterdir())
 
 
 @pytest.mark.parametrize(
@@ -59,7 +63,7 @@ def test_temp_audio_file_discards_unsafe_suffix(
     monkeypatch.setattr(temp_audio, "TEMP_DIR", tmp_path / "private")
 
     with temp_audio.temp_audio_file(original_name) as path:
-        assert path.suffix == ""
+        assert not path.suffix
 
 
 def test_cleanup_stale_files_removes_only_old_managed_files(
@@ -85,12 +89,14 @@ def test_cleanup_stale_files_removes_only_old_managed_files(
 
 
 def test_blank_temp_dir_uses_private_project_default() -> None:
-    assert temp_audio._resolve_temp_dir("") == temp_audio.DEFAULT_TEMP_DIR
-    assert temp_audio._resolve_temp_dir(None) == temp_audio.DEFAULT_TEMP_DIR
+    # pylint: disable=protected-access  # the resolver runs once at import
+    assert temp_audio._resolve_temp_dir("") == temp_audio.DEFAULT_TEMP_DIR  # noqa: SLF001
+    assert temp_audio._resolve_temp_dir(None) == temp_audio.DEFAULT_TEMP_DIR  # noqa: SLF001
 
 
 def test_configured_temp_dir_is_expanded() -> None:
-    assert temp_audio._resolve_temp_dir("~/audiodoc-private") == (
+    # pylint: disable=protected-access  # the resolver runs once at import
+    assert temp_audio._resolve_temp_dir("~/audiodoc-private") == (  # noqa: SLF001
         Path("~/audiodoc-private").expanduser()
     )
 
@@ -106,8 +112,10 @@ def test_ensure_temp_dir_restricts_permissions_of_existing_directory(
     result = temp_audio.ensure_temp_dir()
 
     assert result == directory
-    if os.name == "posix":
-        assert directory.stat().st_mode & 0o777 == 0o700
+    expected_name = "posix"
+    if os.name == expected_name:
+        expected_number = 0o700
+        assert directory.stat().st_mode & 0o777 == expected_number
 
 
 def test_cleanup_stale_files_ignores_symlinks_and_directories(
@@ -127,7 +135,8 @@ def test_cleanup_stale_files_ignores_symlinks_and_directories(
 
     assert link.is_symlink()
     assert managed_directory.is_dir()
-    assert target.read_bytes() == b"keep"
+    expected_read_bytes = b"keep"
+    assert target.read_bytes() == expected_read_bytes
 
 
 def test_cleanup_stale_files_ignores_unlink_errors(

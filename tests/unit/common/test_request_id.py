@@ -15,7 +15,7 @@ from audiodoc.common.request_id import (
 )
 
 
-def create_app() -> object:
+def _create_app() -> object:
     application = FastAPI()
 
     @application.get("/ping")
@@ -28,28 +28,31 @@ def create_app() -> object:
 
 def test_request_id_is_echoed_and_preserved_when_valid() -> None:
     request_id = "trace-2026_11.05"
-    response = TestClient(create_app()).get(
+    response = TestClient(_create_app()).get(
         "/ping", headers={"X-Request-ID": request_id}
     )
 
-    assert response.status_code == 200
+    expected_status_code = 200
+    assert response.status_code == expected_status_code
     assert response.headers["x-request-id"] == request_id
 
 
 def test_invalid_request_id_is_replaced_with_safe_uuid() -> None:
-    response = TestClient(create_app()).get(
+    response = TestClient(_create_app()).get(
         "/ping", headers={"X-Request-ID": "not a valid id"}
     )
 
-    assert response.status_code == 200
+    expected_status_code = 200
+    assert response.status_code == expected_status_code
     assert re.fullmatch(r"[0-9a-f]{32}", response.headers["x-request-id"])
 
 
 def test_request_id_filter_adds_context_to_log_records() -> None:
+    record = logging.LogRecord("test", logging.INFO, __file__, 1, "hello", (), None)
     token = request_id_var.set("request-test-0001")
     try:
-        record = logging.LogRecord("test", logging.INFO, __file__, 1, "hello", (), None)
-        assert RequestIdFilter().filter(record)
-        assert record.request_id == "request-test-0001"
+        RequestIdFilter().filter(record)
     finally:
         request_id_var.reset(token)
+    expected_request_id = "request-test-0001"
+    assert getattr(record, "request_id", None) == expected_request_id

@@ -143,6 +143,7 @@ def run_installer(
     if extra_env is not None:
         environment.update(extra_env)
 
+    expected_fragment = "--upgrade"
     return subprocess.run(  # noqa: S603 - resolved shell runs the local installer.
         invocation,
         cwd=working_directory,
@@ -150,7 +151,7 @@ def run_installer(
         capture_output=True,
         text=True,
         env=environment,
-        timeout=600 if "--upgrade" in arguments else 60,
+        timeout=600 if expected_fragment in arguments else 60,
     )
 
 
@@ -269,8 +270,8 @@ def write_checksums(
     (release_dir / "SHA256SUMS").write_text(manifest, encoding="utf-8")
 
 
-@pytest.fixture
-def local_release(tmp_path: Path) -> Iterator[tuple[str, Path]]:
+@pytest.fixture(name="local_release")
+def fixture_local_release(tmp_path: Path) -> Iterator[tuple[str, Path]]:
     """Provide release assets through a local HTTP server."""
     release_dir = tmp_path / "release"
     release_dir.mkdir()
@@ -300,40 +301,50 @@ def test_installer_help_succeeds() -> None:
     result = run_installer("--help")
 
     assert result.returncode == 0
-    assert "--model" in result.stdout
-    assert "--device" in result.stdout
-    assert "--compute-type" in result.stdout
-    assert "--systemd" in result.stdout
-    assert "--no-model" in result.stdout
-    assert "--os-packages" in result.stdout
+    expected_fragment = "--model"
+    assert expected_fragment in result.stdout
+    expected_fragment = "--device"
+    assert expected_fragment in result.stdout
+    expected_fragment = "--compute-type"
+    assert expected_fragment in result.stdout
+    expected_fragment = "--systemd"
+    assert expected_fragment in result.stdout
+    expected_fragment = "--no-model"
+    assert expected_fragment in result.stdout
+    expected_fragment = "--os-packages"
+    assert expected_fragment in result.stdout
 
 
 def test_installer_rejects_invalid_port_before_installation() -> None:
     result = run_installer("--port", "65536")
 
     assert result.returncode != 0
-    assert "Port must be an integer" in result.stderr
+    expected_fragment = "Port must be an integer"
+    assert expected_fragment in result.stderr
 
 
 def test_installer_rejects_unsupported_device_before_installation() -> None:
     result = run_installer("--device", "gpu")
 
     assert result.returncode != 0
-    assert "--device must be cpu or cuda" in result.stderr
+    expected_fragment = "--device must be cpu or cuda"
+    assert expected_fragment in result.stderr
 
 
 def test_installer_rejects_unknown_model_before_installation() -> None:
     result = run_installer("--model", "made-up-model")
 
     assert result.returncode != 0
-    assert "Unsupported Whisper model name" in result.stderr
+    expected_fragment = "Unsupported Whisper model name"
+    assert expected_fragment in result.stderr
 
 
 def test_installer_rejects_invalid_host_before_installation() -> None:
     result = run_installer("--host", "0.0.0.0;touch /tmp/unsafe")
 
     assert result.returncode != 0
-    assert "Invalid host address" in result.stderr
+    expected_fragment = "Invalid host address"
+    assert expected_fragment in result.stderr
 
 
 def test_installer_installs_wheel_and_initializes_application(
@@ -413,7 +424,8 @@ def test_installer_downloads_model_and_configures_offline_path(
 
     env_content = (app_home / ".env").read_text(encoding="utf-8")
     assert f'WHISPER_MODEL_PATH="{model_path}"' in env_content
-    assert "WHISPER_OFFLINE=true" in env_content
+    expected_fragment = "WHISPER_OFFLINE=true"
+    assert expected_fragment in env_content
 
     calls = [
         json.loads(line)
@@ -485,9 +497,8 @@ def test_os_packages_are_installed_only_when_opted_in(
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert marker.is_file()
-    assert sudo_log.read_text(encoding="utf-8").strip() == (
-        "apt install test-native-package"
-    )
+    expected_text = "apt install test-native-package"
+    assert sudo_log.read_text(encoding="utf-8").strip() == expected_text
 
 
 def test_installer_does_not_install_os_packages_without_opt_in(
@@ -528,7 +539,8 @@ def test_installer_does_not_install_os_packages_without_opt_in(
     )
 
     assert result.returncode != 0
-    assert "audiodoc doctor failed" in result.stderr
+    expected_fragment = "audiodoc doctor failed"
+    assert expected_fragment in result.stderr
     assert not marker.exists()
     assert not sudo_log.exists()
     assert not app_home.exists()
@@ -554,7 +566,8 @@ def test_installer_rejects_checksum_mismatch(
     )
 
     assert result.returncode != 0
-    assert "SHA-256 verification failed" in result.stderr
+    expected_fragment = "SHA-256 verification failed"
+    assert expected_fragment in result.stderr
     assert not app_home.exists()
 
 
@@ -579,8 +592,27 @@ def test_installer_refuses_existing_home(
     )
 
     assert result.returncode != 0
-    assert "Installation directory already exists" in result.stderr
-    assert marker.read_text(encoding="utf-8") == "existing data"
+    expected_fragment = "Installation directory already exists"
+    assert expected_fragment in result.stderr
+    expected_text = "existing data"
+    assert marker.read_text(encoding="utf-8") == expected_text
+
+
+def _seed_application_data(app_home: Path) -> dict[Path, bytes]:
+    files = {
+        app_home / ".env": b"CUSTOM_SETTING=keep-me\n",
+        app_home / "models" / "keep.bin": b"model-data",
+        app_home / "tmp" / "keep.tmp": b"temporary-data",
+    }
+    for path, content in files.items():
+        path.parent.mkdir(exist_ok=True)
+        path.write_bytes(content)
+    return files
+
+
+def _recorded_calls(app_home: Path) -> list[object]:
+    lines = (app_home / "calls.jsonl").read_text(encoding="utf-8").splitlines()
+    return [json.loads(line) for line in lines]
 
 
 def test_installer_upgrades_existing_environment_and_preserves_application_data(
@@ -599,21 +631,14 @@ def test_installer_upgrades_existing_environment_and_preserves_application_data(
         home=user_home,
     )
     assert initial.returncode == 0, initial.stdout + initial.stderr
-    assert installed_version(app_home) == "1.2.3"
+    expected_installed_version = "1.2.3"
+    assert installed_version(app_home) == expected_installed_version
 
-    env_path = app_home / ".env"
-    env_path.write_text("CUSTOM_SETTING=keep-me\n", encoding="utf-8")
-    models_dir = app_home / "models"
-    models_dir.mkdir()
-    (models_dir / "keep.bin").write_bytes(b"model-data")
-    tmp_dir = app_home / "tmp"
-    tmp_dir.mkdir()
-    (tmp_dir / "keep.tmp").write_text("temporary-data", encoding="utf-8")
+    preserved = _seed_application_data(app_home)
     old_marker = app_home / ".venv" / "old-environment-marker"
     old_marker.write_text("old", encoding="utf-8")
 
-    new_wheel = create_test_wheel(release_dir, version="2.0.0")
-    write_checksums(release_dir, new_wheel)
+    write_checksums(release_dir, create_test_wheel(release_dir, version="2.0.0"))
 
     result = run_installer(
         "--upgrade",
@@ -622,21 +647,20 @@ def test_installer_upgrades_existing_environment_and_preserves_application_data(
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert env_path.read_text(encoding="utf-8") == "CUSTOM_SETTING=keep-me\n"
-    assert (models_dir / "keep.bin").read_bytes() == b"model-data"
-    assert (tmp_dir / "keep.tmp").read_text(encoding="utf-8") == "temporary-data"
-    assert (app_home / "service-installed").read_text(encoding="utf-8") == "ok"
+    kept = {path: path.read_bytes() for path in preserved}
+    assert kept == preserved, "the upgrade must keep the application data"
+    expected_text = "ok"
+    assert (app_home / "service-installed").read_text(encoding="utf-8") == expected_text
     assert not old_marker.exists()
     assert (app_home / ".venv" / "bin" / "audiodoc").is_file()
-    assert installed_version(app_home) == "2.0.0"
+    expected_installed_version = "2.0.0"
+    assert installed_version(app_home) == expected_installed_version
     assert not (app_home / ".venv.new").exists()
     assert not (app_home / ".venv.prev").exists()
-    assert "systemctl --user restart audiodoc.service" in result.stdout
+    expected_fragment = "systemctl --user restart audiodoc.service"
+    assert expected_fragment in result.stdout
 
-    calls = [
-        json.loads(line)
-        for line in (app_home / "calls.jsonl").read_text(encoding="utf-8").splitlines()
-    ]
+    calls = _recorded_calls(app_home)
     assert calls[-1] == ["doctor", "--offline"]
     assert calls.count(["service", "install", "--user"]) == 1
 
@@ -656,7 +680,8 @@ def test_installer_upgrade_rolls_back_when_offline_doctor_fails(
         home=user_home,
     )
     assert initial.returncode == 0, initial.stdout + initial.stderr
-    assert installed_version(app_home) == "1.2.3"
+    expected_installed_version = "1.2.3"
+    assert installed_version(app_home) == expected_installed_version
 
     old_marker = app_home / ".venv" / "old-environment-marker"
     old_marker.write_text("old", encoding="utf-8")
@@ -672,9 +697,12 @@ def test_installer_upgrade_rolls_back_when_offline_doctor_fails(
     )
 
     assert result.returncode != 0
-    assert "doctor --offline failed" in result.stderr
-    assert old_marker.read_text(encoding="utf-8") == "old"
-    assert installed_version(app_home) == "1.2.3"
+    expected_fragment = "doctor --offline failed"
+    assert expected_fragment in result.stderr
+    expected_text = "old"
+    assert old_marker.read_text(encoding="utf-8") == expected_text
+    expected_installed_version = "1.2.3"
+    assert installed_version(app_home) == expected_installed_version
     assert not (app_home / ".venv.new").exists()
     assert not (app_home / ".venv.prev").exists()
 
@@ -711,6 +739,8 @@ def test_installer_upgrade_refuses_active_user_service(
     )
 
     assert result.returncode != 0
-    assert "user service is active" in result.stderr
-    assert old_marker.read_text(encoding="utf-8") == "old"
+    expected_fragment = "user service is active"
+    assert expected_fragment in result.stderr
+    expected_text = "old"
+    assert old_marker.read_text(encoding="utf-8") == expected_text
     assert not (app_home / ".venv.new").exists()

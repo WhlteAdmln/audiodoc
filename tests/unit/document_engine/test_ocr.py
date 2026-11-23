@@ -28,29 +28,35 @@ def test_ocr_package_keeps_extract_image_text_entry_point(
     output = io.BytesIO()
     Image.new("RGB", (2, 2), color="white").save(output, format="PNG")
 
-    assert extract_image_text(output.getvalue()) == "Recognized text"
+    expected_extract_image_text = "Recognized text"
+    assert extract_image_text(output.getvalue()) == expected_extract_image_text
 
 
 def test_ocr_public_messages_remain_unchanged() -> None:
-    assert ocr_module._EmptyImageError.public_message == "Изображение пустое"
+    # pylint: disable=protected-access  # pins user texts of private error classes
+    expected_public_message = "Изображение пустое"
+    assert ocr_module._EmptyImageError.public_message == expected_public_message  # noqa: SLF001
+    expected_public_message = "\u041d\u0435 удалось определить формат изображения"
+    assert ocr_module._UnknownImageFormatError.public_message == expected_public_message  # noqa: SLF001
+    expected_public_message = "Формат изображения не поддерживается для OCR"
     assert (
-        ocr_module._UnknownImageFormatError.public_message
-        == "\u041d\u0435 удалось определить формат изображения"
+        ocr_module._UnsupportedOcrImageFormatError.public_message  # noqa: SLF001
+        == expected_public_message
     )
+    expected_public_message = "Изображение слишком большое: превышен лимит пикселей"
     assert (
-        ocr_module._UnsupportedOcrImageFormatError.public_message
-        == "Формат изображения не поддерживается для OCR"
+        preprocessing_module._ImageTooLargeError.public_message  # noqa: SLF001
+        == expected_public_message
     )
+    expected_public_message = "\u0412 изображении слишком много страниц"
     assert (
-        preprocessing_module._ImageTooLargeError.public_message
-        == "Изображение слишком большое: превышен лимит пикселей"
+        recognize_module._TooManyImageFramesError.public_message  # noqa: SLF001
+        == expected_public_message
     )
+    expected_public_message = "\u041d\u0435 удалось распознать страницу изображения"
     assert (
-        recognize_module._TooManyImageFramesError.public_message
-        == "\u0412 изображении слишком много страниц"
+        recognize_module._ImageRecognitionFailedError.public_message  # noqa: SLF001
+        == expected_public_message
     )
-    assert (
-        recognize_module._ImageRecognitionFailedError.public_message
-        == "\u041d\u0435 удалось распознать страницу изображения"
-    )
-    assert EXTRACTION_MESSAGES["ocr_page_label"] == "--- Страница {index} ---\n"
+    expected_ocr_page_label = "--- Страница {index} ---\n"
+    assert EXTRACTION_MESSAGES["ocr_page_label"] == expected_ocr_page_label
