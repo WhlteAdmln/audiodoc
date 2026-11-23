@@ -1,13 +1,12 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Unit test for the Whisper HTTP response with a fake model.
 
-The real model is not loaded: TestClient is used without starting lifespan,
-and the model object is replaced directly in the test.
-"""
+"""Tests for api transcribe."""
 
 import time
+from importlib import import_module
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Never
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,10 +18,24 @@ from audiodoc.transcription import model as model_module
 from audiodoc.transcription import service as service_module
 from audiodoc.transcription import temp_files
 from audiodoc.transcription.model import ModelHolder
+from tests.support.api_app import app_with_router, closed_queue
 from tests.support.builders import create_wav
 
+
+class _UnexpectedAudioWriteError(AssertionError):
+    """Raised when a test unexpectedly writes an audio file."""
+
+    def __init__(self) -> None:
+        """Initialize the test assertion error."""
+        super().__init__("audio must not be copied when the queue is full")
+
+
 app = create_app(settings)
+
+
 app.state.model_holder = ModelHolder(settings)
+
+
 client = TestClient(app)
 
 
@@ -46,6 +59,43 @@ class FakeWhisperModel:
         return iter(segments), info
 
 
+class TooLongWhisperModel:
+    def transcribe(self, _audio: object, **_kwargs: object) -> object:
+        def segments() -> object:
+            raise _UnexpectedSegmentIterationError
+            yield None
+
+        info = SimpleNamespace(language="ru", duration=9999)
+        return segments(), info
+
+
+def test_transcription_queue_rejects_before_temp_file_write(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    transcribe = import_module("audiodoc.api.transcribe")
+    queue = closed_queue()
+
+    def unexpected_write(*_args: object, **_kwargs: object) -> Never:
+        raise _UnexpectedAudioWriteError
+
+    configured_model_holder = ModelHolder()
+    monkeypatch.setattr(configured_model_holder, "_model", object())
+    monkeypatch.setattr(transcribe, "save_upload_limited", unexpected_write)
+
+    response = TestClient(
+        app_with_router(
+            transcribe.router,
+            model_holder=configured_model_holder,
+            transcription_queue=queue,
+        )
+    ).post(
+        "/transcribe",
+        files={"file": ("voice.ogg", b"audio", "audio/ogg")},
+    )
+    assert response.status_code == 503
+    assert response.headers["Retry-After"] == "30"
+
+
 def test_transcribe_response_shape_with_fake_model(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -64,16 +114,6 @@ def test_transcribe_response_shape_with_fake_model(
     assert isinstance(body["duration"], (int, float))
     assert body["text"] == "recognized speech"
     assert list(tmp_path.iterdir()) == []
-
-
-class TooLongWhisperModel:
-    def transcribe(self, _audio: object, **_kwargs: object) -> object:
-        def segments() -> object:
-            raise _UnexpectedSegmentIterationError
-            yield None
-
-        info = SimpleNamespace(language="ru", duration=9999)
-        return segments(), info
 
 
 def test_transcribe_rejects_audio_over_configured_duration(

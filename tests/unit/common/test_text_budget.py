@@ -1,9 +1,35 @@
 # Copyright (c) 2026 Nikolai Zelensky
-"""Tests for the O(1)-per-chunk output budget."""
+
+"""Tests for common text budget."""
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from audiodoc.common.text_budget import TextBudget
+
+
+@given(
+    limit=st.integers(min_value=1, max_value=1024),
+    chunks=st.lists(st.text(max_size=256), max_size=16),
+    separator_length=st.integers(min_value=0, max_value=8),
+)
+@settings(max_examples=200)
+def test_text_budget_never_exceeds_limit_and_reports_exact_truncation(
+    limit: int,
+    chunks: list[str],
+    separator_length: int,
+) -> None:
+    budget = TextBudget(limit)
+    expected_truncated = False
+
+    for chunk in chunks:
+        piece = budget.add(chunk, separator_length=separator_length)
+        if len(piece) < len(chunk):
+            expected_truncated = True
+
+        assert budget.truncated is expected_truncated
+        assert budget.used <= limit
 
 
 def test_text_budget_truncates_a_single_oversized_chunk() -> None:

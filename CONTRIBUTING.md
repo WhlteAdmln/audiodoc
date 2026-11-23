@@ -14,8 +14,9 @@
 
 ## Files shared with bot-obormot
 
-`.editorconfig`, `.pre-commit-config.yaml`, `.github/renovate.json5`, `scripts/check_lock.py`,
-`scripts/check_vendored.py`, `scripts/build_release.sh`, `.markdownlint-cli2.yaml`, `AGENTS.md`, the `ruff` and `mypy` tables of `pyproject.toml`,
+`.editorconfig`, `.pre-commit-config.yaml`, `.github/renovate.json5`, `.markdownlint-cli2.yaml`, `AGENTS.md`,
+`scripts/build_release.sh`, `scripts/check_changelog.py`, `scripts/check_lock.py`, `scripts/check_test_layout.py`,
+`scripts/check_vendored.py`, `scripts/coverage_gaps.py`, `tests/unit/scripts/test_check_changelog.py`, the `ruff`, `mypy` and `pylint` tables of `pyproject.toml`,
 `audiodoc/log_filters.py` and `audiodoc/env_readers.py` are copied into bot-obormot.
 audiodoc is the source of truth. After changing one of them, copy it to the bot repository
 and run `python scripts/check_vendored.py --other ../bot-obormot` in both repositories.
