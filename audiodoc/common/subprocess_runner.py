@@ -140,8 +140,8 @@ def run_limited(
     timeout_value = _validate_run_limited_args(args, timeout, max_output)
 
     with tempfile.TemporaryFile(mode="w+b") as stderr_file:
-        # _collect_process_output owns the child: it kills and reaps it itself.
-        process = subprocess.Popen(  # noqa: S603  # pylint: disable=consider-using-with
+        # pylint: disable-next=consider-using-with  # _collect_process_output reaps it
+        process = subprocess.Popen(  # noqa: S603  # argv validated, shell=False
             args,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,

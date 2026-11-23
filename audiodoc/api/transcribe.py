@@ -14,7 +14,7 @@ from audiodoc.common.work_queue import WorkQueue
 from audiodoc.config import settings
 from audiodoc.errors.base import BackendError
 from audiodoc.transcription.model import ModelHolder
-from audiodoc.transcription.service import transcribe_file
+from audiodoc.transcription.service import TranscriptionResult, transcribe_file
 from audiodoc.transcription.temp_files import temp_audio_file
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ async def _transcribe_upload(
     file: UploadFile,
     queue: WorkQueue,
     configured_model_holder: ModelHolder,
-) -> dict[str, object]:
+) -> TranscriptionResult:
     """Copy the upload to private storage inside a queue slot and transcribe it."""
     # Admission happens before the upload is copied to private storage.
     async with queue.slot():
@@ -90,7 +90,7 @@ async def transcribe(
     file: Annotated[UploadFile, File()],
     configured_model_holder: Annotated[ModelHolder, Depends(get_model_holder)],
     queue: Annotated[WorkQueue, Depends(get_transcription_queue)],
-) -> dict[str, object]:
+) -> TranscriptionResult:
     """Save an audio upload and return its Whisper transcription.
 
     Args:

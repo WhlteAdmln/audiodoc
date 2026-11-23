@@ -203,6 +203,7 @@ asyncio_default_fixture_loop_scope = "function"
 addopts = "--strict-markers --strict-config -ra"
 filterwarnings = [
     "error",
+    # Third-party: the SWIG bindings of PyMuPDF raise these on import.
     "ignore:^builtin type (SwigPyPacked|SwigPyObject|swigvarlink) has no __module__ attribute$:DeprecationWarning",
 ]
 timeout = 30
@@ -235,9 +236,7 @@ extend_exclude = ["scripts"]
 [tool.deptry.per_rule_ignores]
 # Runtime dependencies consumed outside ordinary static imports.
 DEP002 = [
-    "uvicorn",
-    "python-multipart",
-    "av",
+    "python-multipart",  # Used by FastAPI to parse form and file uploads.
     "faster-whisper",  # Loaded dynamically by the transcription model holder.
     "pytesseract",  # Loaded dynamically by the OCR adapter.
 ]

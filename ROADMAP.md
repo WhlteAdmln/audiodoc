@@ -18,15 +18,15 @@ Goal: remove deprecated functionality, make the code base uniform with bot-oborm
 
 ### Tasks
 
-#### AD-01 Suppressions, types and small cleanups
+#### ~~AD-01 Suppressions, types and small cleanups~~
 
 - Needs: none.
 - Scope:
-  - Replace `Any` where the precise type is obvious (4 left: `audiodoc/config/settings.py` and three in `audiodoc/transcription/service.py`).
-  - Give the `S603` and `consider-using-with` suppressions in `audiodoc/common/subprocess_runner.py` a one-line reason on the same line, or remove them (one wrapper with a validated argv).
-  - Add a comment to every `DEP002` entry in `pyproject.toml` (`uvicorn`, `python-multipart` and `av` have none).
-  - Confirm that the SWIG `DeprecationWarning` in `filterwarnings` comes from a third-party package and comment it.
-  - Delete the empty `tests/layout_pending.txt`.
+  - ~~Replace `Any` where the precise type is obvious (4 left: `audiodoc/config/settings.py` and three in `audiodoc/transcription/service.py`).~~
+  - ~~Give the `S603` and `consider-using-with` suppressions in `audiodoc/common/subprocess_runner.py` a one-line reason on the same line, or remove them (one wrapper with a validated argv).~~
+  - ~~Add a comment to every `DEP002` entry in `pyproject.toml` (`uvicorn`, `python-multipart` and `av` have none).~~
+  - ~~Confirm that the SWIG `DeprecationWarning` in `filterwarnings` comes from a third-party package and comment it.~~
+  - ~~Delete the empty `tests/layout_pending.txt`.~~
 - Done when: no suppression without a reason; `make check` is green.
 
 #### AD-02 Split `audiodoc/cli.py`
