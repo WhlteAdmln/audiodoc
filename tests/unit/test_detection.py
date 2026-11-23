@@ -21,11 +21,11 @@ from audiodoc.document_engine.detection import detect_format
         (b"\xff\xd8\xff", "image.jpg", None),
     ],
 )
-def test_detect_format(data, filename, expected):
+def test_detect_format(data: object, filename: object, expected: object) -> None:
     assert detect_format(data, filename) == expected
 
 
-def test_detect_docx_by_zip_contents():
+def test_detect_docx_by_zip_contents() -> None:
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w") as archive:
         archive.writestr("word/document.xml", "<document />")

@@ -1,5 +1,6 @@
-# Copyright (c) 2026 Nikolai Zelensky
+from pathlib import Path
 
+# Copyright (c) 2026 Nikolai Zelensky
 import pytest
 
 from audiodoc.document_engine import process_document_sync
@@ -31,12 +32,12 @@ from tests.support.builders import (
     ],
 )
 def test_office_and_pdf_formats(
-    builder,
-    filename,
-    expected_format,
-    expected_text,
-    tmp_path,
-):
+    builder: object,
+    filename: object,
+    expected_format: object,
+    expected_text: object,
+    tmp_path: Path,
+) -> None:
     data = builder()
     path = tmp_path / filename
     path.write_bytes(data)

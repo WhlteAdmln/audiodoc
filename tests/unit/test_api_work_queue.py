@@ -3,7 +3,9 @@
 
 import asyncio
 from importlib import import_module
+from typing import Never
 
+import pytest
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
@@ -54,11 +56,11 @@ def _closed_queue() -> WorkQueue:
     return queue
 
 
-def test_server_busy_error_returns_retry_after_header():
+def test_server_busy_error_returns_retry_after_header() -> None:
     router = APIRouter()
 
     @router.get("/busy")
-    async def busy():
+    async def busy() -> None:
         raise ServerBusyError
 
     response = TestClient(_app_with_router(router)).get("/busy")
@@ -70,11 +72,13 @@ def test_server_busy_error_returns_retry_after_header():
     assert response.headers["Retry-After"] == "30"
 
 
-def test_document_queue_rejects_before_upload_is_copied(monkeypatch):
+def test_document_queue_rejects_before_upload_is_copied(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     documents = import_module("audiodoc.api.documents")
     queue = _closed_queue()
 
-    def unexpected_read(*_args, **_kwargs):
+    def unexpected_read(*_args: object, **_kwargs: object) -> Never:
         raise _UnexpectedUploadReadError
 
     monkeypatch.setattr(documents, "read_upload_limited", unexpected_read)
@@ -89,11 +93,13 @@ def test_document_queue_rejects_before_upload_is_copied(monkeypatch):
     assert response.headers["Retry-After"] == "30"
 
 
-def test_transcription_queue_rejects_before_temp_file_write(monkeypatch):
+def test_transcription_queue_rejects_before_temp_file_write(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     transcribe = import_module("audiodoc.api.transcribe")
     queue = _closed_queue()
 
-    def unexpected_write(*_args, **_kwargs):
+    def unexpected_write(*_args: object, **_kwargs: object) -> Never:
         raise _UnexpectedAudioWriteError
 
     configured_model_holder = ModelHolder()

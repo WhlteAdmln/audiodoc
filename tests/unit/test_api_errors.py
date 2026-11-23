@@ -3,6 +3,7 @@
 
 import logging
 from importlib import import_module
+from typing import Never
 
 import pytest
 from fastapi import APIRouter, FastAPI
@@ -125,13 +126,15 @@ def test_backend_error_remains_an_alias_for_app_error() -> None:
     assert BackendError is AppError
 
 
-def test_unexpected_exception_returns_generic_message_without_details(caplog):
+def test_unexpected_exception_returns_generic_message_without_details(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     app = FastAPI()
     register_error_handlers(app)
     router = APIRouter()
 
     @router.get("/explode")
-    async def explode():
+    async def explode() -> None:
         raise _UnexpectedServerError
 
     app.include_router(router)
@@ -147,10 +150,12 @@ def test_unexpected_exception_returns_generic_message_without_details(caplog):
     assert "private /srv/audiodoc/secret.txt" in caplog.text
 
 
-def test_document_filename_is_sanitized_before_logging(caplog, monkeypatch):
+def test_document_filename_is_sanitized_before_logging(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
     documents = import_module("audiodoc.api.documents")
 
-    async def fake_process_document(*_args, **_kwargs):
+    async def fake_process_document(*_args: object, **_kwargs: object) -> object:
         return _document_result()
 
     monkeypatch.setattr(documents, "process_document", fake_process_document)
@@ -173,7 +178,7 @@ def test_document_filename_is_sanitized_before_logging(caplog, monkeypatch):
     )
 
 
-def _document_result():
+def _document_result() -> object:
     return {
         "format": "txt",
         "text": "plain text",
@@ -182,10 +187,12 @@ def _document_result():
     }
 
 
-def test_typed_document_rejection_is_logged_without_raw_filename(caplog, monkeypatch):
+def test_typed_document_rejection_is_logged_without_raw_filename(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
     documents = import_module("audiodoc.api.documents")
 
-    async def reject_document(*_args, **_kwargs):
+    async def reject_document(*_args: object, **_kwargs: object) -> Never:
         raise DocumentRejectedError
 
     monkeypatch.setattr(documents, "process_document", reject_document)

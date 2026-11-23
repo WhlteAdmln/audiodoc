@@ -11,7 +11,7 @@ import time
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
-from typing import IO, TYPE_CHECKING, Any, Self
+from typing import IO, TYPE_CHECKING, Self
 
 import aiohttp
 import pytest
@@ -145,7 +145,7 @@ def _track_upload_files(
     original = starlette.formparsers.SpooledTemporaryFile
     opened: list[IO[bytes]] = []
 
-    def tracked(*args: Any, **kwargs: Any) -> IO[bytes]:
+    def tracked(*args: object, **kwargs: object) -> IO[bytes]:
         kwargs["max_size"] = 1
         kwargs["dir"] = directory
         handle = original(*args, **kwargs)
@@ -411,7 +411,7 @@ def test_timeout_kills_process_group_and_reaps_children(
     original = subprocess_runner.tempfile.TemporaryFile
     opened: list[IO[bytes]] = []
 
-    def tracked(*args: Any, **kwargs: Any) -> IO[bytes]:
+    def tracked(*args: object, **kwargs: object) -> IO[bytes]:
         kwargs["dir"] = tmp_path
         handle = original(*args, **kwargs)
         opened.append(handle)

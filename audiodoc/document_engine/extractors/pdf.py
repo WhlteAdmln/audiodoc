@@ -3,7 +3,6 @@
 
 import logging
 import math
-from typing import Any, Protocol, cast  # pylint: disable=unused-import  # string cast
 
 import pymupdf
 
@@ -44,18 +43,9 @@ class _PdfTooManyPagesError(DocumentRejectedError):
     public_message = ERROR_MESSAGES["pdf_too_many_pages"]
 
 
-class _PageRect(Protocol):
-    width: float
-    height: float
-
-
-class _PageWithRect(Protocol):
-    rect: _PageRect
-
-
-def _render_dpi(page: object) -> int:
+def _render_dpi(page: pymupdf.Page) -> int:
     """Choose the highest OCR DPI whose rendered page stays under the pixel cap."""
-    page_rect = cast("_PageWithRect", page).rect
+    page_rect = page.rect
     width_inches = float(page_rect.width) / 72.0
     height_inches = float(page_rect.height) / 72.0
     if (
@@ -77,10 +67,10 @@ def _render_dpi(page: object) -> int:
     raise _PdfPageTooLargeError
 
 
-def _render_page_png(page: object) -> bytes:
+def _render_page_png(page: pymupdf.Page) -> bytes:
     """Render a page without alpha at the capped OCR DPI as PNG bytes."""
-    pixmap = cast("Any", page).get_pixmap(dpi=_render_dpi(page), alpha=False)
-    return cast("bytes", pixmap.tobytes("png"))
+    pixmap = page.get_pixmap(dpi=_render_dpi(page), alpha=False)
+    return pixmap.tobytes("png")
 
 
 def extract_pdf(
@@ -92,9 +82,8 @@ def extract_pdf(
     """Extract PDF text while bounding OCR resolution, pages, time, and output."""
     ctx = make_context(context, deadline=deadline)
     result: list[str] = []
-    open_document = cast("Any", pymupdf.open)
 
-    with open_document(stream=data, filetype="pdf") as document:
+    with pymupdf.open(stream=data, filetype="pdf") as document:
         if document.page_count > MAX_DOCUMENT_PAGES:
             raise _PdfTooManyPagesError
 

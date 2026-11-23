@@ -4,16 +4,18 @@
 import sys
 from types import ModuleType
 
+import pytest
+
 import audiodoc.transcription.model as model_module
 from audiodoc.config import settings
 
 
 def test_whisper_model_factory_uses_configurable_device_and_offline_options(
-    monkeypatch,
-):
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     captured = {}
 
-    def fake_whisper_model(model_path, **kwargs):
+    def fake_whisper_model(model_path: object, **kwargs: object) -> object:
         captured["model_path"] = model_path
         captured.update(kwargs)
         return object()

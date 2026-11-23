@@ -7,7 +7,7 @@ import pytest
 from audiodoc.document_engine.guards.zip_archive import validate_zip_archive
 
 
-def test_validate_zip_archive_accepts_small_valid_archive():
+def test_validate_zip_archive_accepts_small_valid_archive() -> None:
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
         archive.writestr("word/document.xml", "<document>safe</document>")
@@ -15,6 +15,6 @@ def test_validate_zip_archive_accepts_small_valid_archive():
     validate_zip_archive(output.getvalue())
 
 
-def test_validate_zip_archive_rejects_non_zip_data():
+def test_validate_zip_archive_rejects_non_zip_data() -> None:
     with pytest.raises(ValueError, match="Invalid ZIP container"):
         validate_zip_archive(b"not a zip archive")

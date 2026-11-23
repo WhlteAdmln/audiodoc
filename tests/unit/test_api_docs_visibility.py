@@ -8,7 +8,9 @@ import audiodoc.main as main_module
 from audiodoc.config import Settings, settings
 
 
-def test_docs_and_openapi_routes_are_disabled_by_default(monkeypatch):
+def test_docs_and_openapi_routes_are_disabled_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(settings, "ENABLE_DOCS", False)
     app = main_module.create_app()
     client = TestClient(app)
@@ -19,7 +21,9 @@ def test_docs_and_openapi_routes_are_disabled_by_default(monkeypatch):
     assert app.openapi_url is None
 
 
-def test_docs_route_can_be_enabled_for_development(monkeypatch):
+def test_docs_route_can_be_enabled_for_development(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(settings, "ENABLE_DOCS", True)
     app = main_module.create_app()
     client = TestClient(app)

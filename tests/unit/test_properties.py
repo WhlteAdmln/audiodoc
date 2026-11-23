@@ -96,6 +96,7 @@ def test_save_upload_limited_never_writes_more_than_limit(
 @settings(max_examples=200)
 def test_document_text_normalization_is_idempotent(
     text: str,
+    *,
     truncated: bool,
 ) -> None:
     first = build_result("txt", text, truncated=truncated)

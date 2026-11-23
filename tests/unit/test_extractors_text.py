@@ -1,3 +1,5 @@
+from pathlib import Path
+
 # Copyright (c) 2026 Nikolai Zelensky
 import pytest
 
@@ -33,7 +35,13 @@ CASES = [
     ("data", "name", "expected_format", "expected_text"),
     CASES,
 )
-def test_text_formats(data, name, expected_format, expected_text, tmp_path):
+def test_text_formats(
+    data: object,
+    name: object,
+    expected_format: object,
+    expected_text: object,
+    tmp_path: Path,
+) -> None:
     path = tmp_path / name
     path.write_bytes(data)
 
@@ -44,7 +52,7 @@ def test_text_formats(data, name, expected_format, expected_text, tmp_path):
     assert result["characters"] == len(result["text"])
 
 
-def test_fb2_extraction(tmp_path):
+def test_fb2_extraction(tmp_path: Path) -> None:
     data = (
         b'<?xml version="1.0" encoding="UTF-8"?>\n'
         b'    <FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">\n'
@@ -64,6 +72,6 @@ def test_fb2_extraction(tmp_path):
     assert "Document engine works!" in result["text"]
 
 
-def test_standalone_image_is_rejected_by_document_engine():
+def test_standalone_image_is_rejected_by_document_engine() -> None:
     with pytest.raises(UnsupportedFormatError):
         process_document_sync(b"\x89PNG\r\n\x1a\n", "image.png")

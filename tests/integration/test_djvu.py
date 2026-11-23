@@ -3,6 +3,7 @@ import importlib
 import shutil
 import subprocess
 from io import BytesIO
+from pathlib import Path
 from typing import Protocol, cast
 
 import pytest
@@ -20,7 +21,7 @@ class _PytesseractModule(Protocol):
     def get_languages(self, config: str = "") -> list[str]: ...
 
 
-def test_scanned_djvu_is_processed_with_ocr(tmp_path):
+def test_scanned_djvu_is_processed_with_ocr(tmp_path: Path) -> None:
     required = ("c44", "djvutxt", "djvused", "ddjvu", "tesseract")
     tool_paths: dict[str, str] = {}
     for name in required:

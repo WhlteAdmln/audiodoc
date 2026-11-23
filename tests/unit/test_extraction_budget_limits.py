@@ -3,6 +3,8 @@
 
 from typing import ClassVar
 
+import pytest
+
 import audiodoc.document_engine.extractors.odf.ods as ods_module
 import audiodoc.document_engine.extractors.xlsx as xlsx_module
 from audiodoc.common.deadline import Deadline
@@ -13,13 +15,17 @@ from audiodoc.document_engine.extractors.xlsx import extract_xlsx
 from tests.support.builders import create_ods
 
 
-def test_xlsx_passes_fixed_row_and_column_caps_to_openpyxl(monkeypatch):
+def test_xlsx_passes_fixed_row_and_column_caps_to_openpyxl(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     captured = {}
 
     class FakeSheet:
         title = "Capped"
 
-        def iter_rows(self, *, max_row, max_col, values_only):
+        def iter_rows(
+            self, *, max_row: object, max_col: object, values_only: object
+        ) -> object:
             captured.update(max_row=max_row, max_col=max_col, values_only=values_only)
             yield ("one", "two")
             yield ("three", "four")
@@ -28,7 +34,7 @@ def test_xlsx_passes_fixed_row_and_column_caps_to_openpyxl(monkeypatch):
     class FakeWorkbook:
         worksheets: ClassVar[list[FakeSheet]] = [FakeSheet()]
 
-        def close(self):
+        def close(self) -> None:
             captured["closed"] = True
 
     monkeypatch.setattr(xlsx_module, "MAX_SHEET_ROWS", 2)
@@ -46,7 +52,9 @@ def test_xlsx_passes_fixed_row_and_column_caps_to_openpyxl(monkeypatch):
     assert "must not be read" not in text
 
 
-def test_ods_stops_at_configured_row_and_column_caps(monkeypatch):
+def test_ods_stops_at_configured_row_and_column_caps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(ods_module, "MAX_SHEET_ROWS", 1)
     monkeypatch.setattr(ods_module, "MAX_SHEET_COLUMNS", 1)
     text = extract_odf(create_ods(), "ods")

@@ -23,7 +23,7 @@ app = main_module.create_app()
 
 
 class FakeModel:
-    def transcribe(self, *_args, **_kwargs):
+    def transcribe(self, *_args: object, **_kwargs: object) -> object:
         return iter([]), None
 
 
@@ -35,7 +35,7 @@ class _TempDirectoryPermissionError(PermissionError):
         super().__init__("Temporary directory is not writable")
 
 
-def test_health_route_reports_model_state_without_starting_lifespan():
+def test_health_route_reports_model_state_without_starting_lifespan() -> None:
     application = main_module.create_app(
         Settings(WHISPER_MODEL_SIZE="small-test", WHISPER_MODEL_PATH="")
     )
@@ -51,7 +51,7 @@ def test_health_route_reports_model_state_without_starting_lifespan():
     }
 
 
-def test_health_route_reports_local_model_directory_name():
+def test_health_route_reports_local_model_directory_name() -> None:
     application = main_module.create_app(
         Settings(WHISPER_MODEL_PATH="/srv/audiodoc/models/custom-whisper")
     )
@@ -104,7 +104,7 @@ def test_health_and_ready_use_application_model_holder(
     assert other_client.get("/ready").json()["model_loaded"] is False
 
 
-def test_app_registers_all_expected_routes():
+def test_app_registers_all_expected_routes() -> None:
     assert app.title == "audiodoc"
     # FastAPI/Starlette may expose included routers as internal wrapper
     # objects in app.routes. OpenAPI is the public, version-stable view of
@@ -193,8 +193,8 @@ def test_lifespan_creates_independent_model_holders(
 
 
 def test_lifespan_checks_configuration_prepares_storage_and_loads_model(
-    monkeypatch, tmp_path
-):
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     events = []
 
     monkeypatch.setattr(

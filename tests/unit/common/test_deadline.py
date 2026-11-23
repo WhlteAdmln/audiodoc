@@ -1,0 +1,43 @@
+# Copyright (c) 2026 Nikolai Zelensky
+"""Tests for shared, monotonic processing deadlines."""
+
+from typing import Never
+
+import pytest
+
+from audiodoc.common.deadline import Deadline, DeadlineExceededError
+from audiodoc.document_engine import pipeline
+from audiodoc.errors.documents import ProcessingTimeoutError
+
+
+def test_deadline_reports_remaining_time_and_expires(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Never:
+    ticks = iter((100.0, 100.25, 101.1))
+    monkeypatch.setattr("audiodoc.common.deadline.time.monotonic", lambda: next(ticks))
+    deadline = Deadline(1.0)
+
+    assert deadline.remaining() == pytest.approx(0.75)
+    with pytest.raises(DeadlineExceededError):
+        raise DeadlineExceededError
+
+
+def test_deadline_requires_a_finite_positive_duration() -> None:
+    for value in (0, -1, float("inf"), float("nan")):
+        with pytest.raises(
+            ValueError, match="seconds must be a finite positive number"
+        ):
+            Deadline(value)
+
+
+def test_pipeline_maps_deadline_expiration_to_safe_backend_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(pipeline, "detect_format", lambda *_args: "txt")
+
+    class ExpiredDeadline:
+        def check(self) -> Never:
+            raise DeadlineExceededError
+
+    with pytest.raises(ProcessingTimeoutError):
+        pipeline.process_document_sync(b"hello", "note.txt", deadline=ExpiredDeadline())

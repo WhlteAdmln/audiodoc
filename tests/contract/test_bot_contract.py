@@ -4,6 +4,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from jsonschema import validate
 
@@ -38,7 +39,9 @@ def _assert_document_shape(payload: dict) -> None:
     assert payload["characters"] == len(payload["text"])
 
 
-def test_transcribe_response_matches_shared_bot_contract(monkeypatch):
+def test_transcribe_response_matches_shared_bot_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(app.state.model_holder, "_model", object())
 
     async def fake_transcribe_file(
@@ -64,7 +67,7 @@ def test_transcribe_response_matches_shared_bot_contract(monkeypatch):
     _assert_transcribe_shape(response.json())
 
 
-def test_process_document_response_matches_shared_bot_contract():
+def test_process_document_response_matches_shared_bot_contract() -> None:
     sample = CONTRACT["process_document"]["text"]
     response = client.post(
         "/process-document",
@@ -77,7 +80,7 @@ def test_process_document_response_matches_shared_bot_contract():
     assert payload == CONTRACT["process_document"]
 
 
-def test_unsupported_file_is_not_a_success():
+def test_unsupported_file_is_not_a_success() -> None:
     response = client.post(
         "/process-document",
         files={"file": ("x.png", b"\x89PNG\r\n\x1a\n", "image/png")},

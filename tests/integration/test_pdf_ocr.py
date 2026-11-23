@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Nikolai Zelensky
 import importlib
 import shutil
+from pathlib import Path
 from typing import Protocol, cast
 
 import pytest
@@ -17,7 +18,7 @@ class _PytesseractModule(Protocol):
     def get_languages(self, config: str = "") -> list[str]: ...
 
 
-def test_pdf_text_layer_and_scanned_page_ocr(tmp_path):
+def test_pdf_text_layer_and_scanned_page_ocr(tmp_path: Path) -> None:
     if shutil.which("tesseract") is None:
         pytest.skip("Tesseract is not installed")
 

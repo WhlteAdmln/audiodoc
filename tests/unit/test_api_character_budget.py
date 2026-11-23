@@ -8,7 +8,7 @@ from audiodoc.main import create_app
 client = TestClient(create_app())
 
 
-def test_document_endpoint_accepts_optional_character_budget():
+def test_document_endpoint_accepts_optional_character_budget() -> None:
     response = client.post(
         "/process-document",
         files={"file": ("note.txt", b"0123456789", "text/plain")},
@@ -23,7 +23,7 @@ def test_document_endpoint_accepts_optional_character_budget():
     }
 
 
-def test_document_endpoint_keeps_legacy_request_without_budget():
+def test_document_endpoint_keeps_legacy_request_without_budget() -> None:
     response = client.post(
         "/process-document",
         files={"file": ("note.txt", b"hello", "text/plain")},
@@ -33,7 +33,7 @@ def test_document_endpoint_keeps_legacy_request_without_budget():
     assert response.json()["truncated"] is False
 
 
-def test_document_endpoint_validates_character_budget_range():
+def test_document_endpoint_validates_character_budget_range() -> None:
     response = client.post(
         "/process-document",
         files={"file": ("note.txt", b"hello", "text/plain")},
