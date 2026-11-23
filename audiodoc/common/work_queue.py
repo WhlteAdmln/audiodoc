@@ -42,7 +42,8 @@ class QueueFullError(RuntimeError):
     """Neutral common-layer signal that no active or waiting slot is available."""
 
 
-class WorkQueue:
+# The eight attributes are the state of one bounded queue and change together.
+class WorkQueue:  # pylint: disable=too-many-instance-attributes
     """Limit active workers and the number of tasks allowed to wait.
 
     Admission is reserved before the first await in ``slot``. A caller that

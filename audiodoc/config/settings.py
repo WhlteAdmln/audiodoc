@@ -56,33 +56,42 @@ class Settings:  # pylint: disable=too-many-instance-attributes
     AUDIODOC_DOCUMENT_KEY: str = ""
 
 
-def load_settings(environ: Mapping[str, str]) -> Settings:
-    """Build settings from an environment mapping and collect validation errors."""
-    errors: list[str] = []
-    home = get_home_dir(environ)
-    defaults = Settings(TEMP_DIR=str(home / "tmp"))
+class _EnvironmentReader:
+    """Read typed values from an environment mapping and collect invalid ones."""
+
+    def __init__(self, environ: Mapping[str, str]) -> None:
+        self.environ = environ
+        self.errors: list[str] = []
 
     def read_str(
-        name: str, default: str, *, strip: bool = False, lower: bool = False
+        self, name: str, default: str, *, strip: bool = False, lower: bool = False
     ) -> str:
-        value = environ.get(name, default)
+        value = self.environ.get(name, default)
         if strip:
             value = value.strip()
         return value.lower() if lower else value
 
-    def read_bool(name: str, default: bool) -> bool:
+    def read_bool(self, name: str, default: bool) -> bool:
         try:
-            return get_bool(name, default, environ=environ)
+            return get_bool(name, default, environ=self.environ)
         except ValueError as error:
-            errors.append(str(error))
+            self.errors.append(str(error))
             return default
 
-    def read_int(name: str, default: int) -> int:
+    def read_int(self, name: str, default: int) -> int:
         try:
-            return get_int(name, str(default), environ=environ)
+            return get_int(name, str(default), environ=self.environ)
         except ValueError as error:
-            errors.append(str(error))
+            self.errors.append(str(error))
             return default
+
+
+def load_settings(environ: Mapping[str, str]) -> Settings:
+    """Build settings from an environment mapping and collect validation errors."""
+    reader = _EnvironmentReader(environ)
+    read_str, read_bool, read_int = reader.read_str, reader.read_bool, reader.read_int
+    home = get_home_dir(environ)
+    defaults = Settings(TEMP_DIR=str(home / "tmp"))
 
     model_path = read_str("WHISPER_MODEL_PATH", defaults.WHISPER_MODEL_PATH, strip=True)
     if model_path:
@@ -133,8 +142,8 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
         ),
     )
 
-    if errors:
-        raise ConfigError(errors)
+    if reader.errors:
+        raise ConfigError(reader.errors)
 
     return result
 
