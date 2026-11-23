@@ -72,7 +72,8 @@ def test_timeout_kills_process_group_and_reaps_children(
     _assert_process_reaped(child_pid)
     assert opened
     assert all(handle.closed for handle in opened)
-    assert not list(tmp_path.iterdir())
+    expected_empty = []
+    assert list(tmp_path.iterdir()) == expected_empty, "expected an empty list"
 
 
 def test_run_limited_returns_stdout_and_bounded_stderr_preview() -> None:

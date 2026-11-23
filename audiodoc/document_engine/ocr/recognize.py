@@ -10,25 +10,14 @@ from audiodoc.document_engine.limits import (
     MAX_IMAGE_PIXELS,
     OCR_PAGE_TIMEOUT,
 )
-from audiodoc.document_engine.ocr.preprocessing import (
-    _ImageTooLargeError,
-    _prepare_image,
-)
+from audiodoc.document_engine.ocr.preprocessing import _prepare_image
 from audiodoc.document_engine.ocr.tesseract import pytesseract
-from audiodoc.errors.documents import DocumentRejectedError
-from audiodoc.errors.messages import ERROR_MESSAGES, EXTRACTION_MESSAGES
-
-
-class _TooManyImageFramesError(DocumentRejectedError):
-    """Raised when an image contains more frames than allowed."""
-
-    public_message = ERROR_MESSAGES["too_many_image_frames"]
-
-
-class _ImageRecognitionFailedError(DocumentRejectedError):
-    """Raised when Tesseract cannot recognize an image page."""
-
-    public_message = ERROR_MESSAGES["image_recognition_failed"]
+from audiodoc.errors.images import (
+    ImageRecognitionFailedError,
+    ImageTooLargeError,
+    TooManyImageFramesError,
+)
+from audiodoc.errors.messages import EXTRACTION_MESSAGES
 
 
 def recognize_pages(
@@ -40,7 +29,7 @@ def recognize_pages(
     """Recognize image frames, rejecting oversized frames before copying them."""
     page_count = getattr(image, "n_frames", 1)
     if page_count > MAX_DOCUMENT_PAGES:
-        raise _TooManyImageFramesError
+        raise TooManyImageFramesError
 
     result: list[str] = []
     total_characters = 0
@@ -81,7 +70,7 @@ def _run_tesseract(
     except RuntimeError as error:
         if deadline is not None:
             deadline.check()
-        raise _ImageRecognitionFailedError from error
+        raise ImageRecognitionFailedError from error
 
 
 def _recognize_page(
@@ -98,7 +87,7 @@ def _recognize_page(
 
     # Accessing dimensions does not create a decoded copy; copy() below does.
     if image.width * image.height > MAX_IMAGE_PIXELS:
-        raise _ImageTooLargeError
+        raise ImageTooLargeError
 
     prepared = _prepare_image(image.copy())
     try:

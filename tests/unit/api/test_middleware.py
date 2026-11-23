@@ -3,16 +3,14 @@
 """Tests for api middleware."""
 
 import asyncio
+import contextlib
 
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from starlette.types import Message, Receive, Scope, Send
 
-from audiodoc.api.middleware import (
-    BodySizeLimitMiddleware,
-    _RequestBodyTooLargeError,
-)
+from audiodoc.api.middleware import BodySizeLimitMiddleware
 
 
 def test_body_size_middleware_rejects_content_length_before_route() -> None:
@@ -221,22 +219,21 @@ def test_body_size_middleware_replaces_downstream_error_after_oversized_body() -
     sent: list[Message] = []
 
     async def app(_scope: Scope, receive: Receive, send: Send) -> None:
-        try:
+        with contextlib.suppress(Exception):
             await receive()
-        except _RequestBodyTooLargeError:
-            await send(
-                {
-                    "type": "http.response.start",
-                    "status": 400,
-                    "headers": [],
-                }
-            )
-            await send(
-                {
-                    "type": "http.response.body",
-                    "body": b"Invalid multipart body",
-                }
-            )
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 400,
+                "headers": [],
+            }
+        )
+        await send(
+            {
+                "type": "http.response.body",
+                "body": b"Invalid multipart body",
+            }
+        )
 
     async def receive() -> Message:
         return {

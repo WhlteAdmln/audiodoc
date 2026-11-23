@@ -32,7 +32,8 @@ def test_check_lock_accepts_satisfied_constraints(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    assert not check_lock(project, lock)
+    expected_empty = []
+    assert check_lock(project, lock) == expected_empty, "expected an empty list"
 
 
 def test_check_lock_reports_missing_direct_dependency(tmp_path: Path) -> None:

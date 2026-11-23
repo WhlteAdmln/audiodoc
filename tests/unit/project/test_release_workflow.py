@@ -333,7 +333,8 @@ def test_check_vendored_accepts_package_names_and_non_lint_settings(
     _write_vendored_repository(local, "audiodoc")
     _write_vendored_repository(other, "bot_obormot", pytest_addopts="-vv")
 
-    assert not check_vendored(other, root=local)
+    expected_empty = []
+    assert check_vendored(other, root=local) == expected_empty, "expected an empty list"
 
 
 def test_check_vendored_reports_lint_configuration_differences(

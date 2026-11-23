@@ -22,58 +22,19 @@ from audiodoc.document_engine.limits import (
     SUBPROCESS_TIMEOUT,
 )
 from audiodoc.document_engine.ocr import extract_image_text
-from audiodoc.errors.documents import DocumentRejectedError, ProcessingTimeoutError
-from audiodoc.errors.messages import ERROR_MESSAGES, EXTRACTION_MESSAGES
+from audiodoc.errors.djvu import (
+    DjvuNoPagesError,
+    DjvuOutputTooLargeError,
+    DjvuPageCountUnavailableError,
+    DjvuPageRenderError,
+    DjvuPageTooLargeError,
+    DjvuProcessingTimeoutError,
+    DjvuTooManyPagesError,
+    InvalidDjvuPageCountError,
+)
+from audiodoc.errors.messages import EXTRACTION_MESSAGES
 
 logger = logging.getLogger(__name__)
-
-
-class _DjvuOutputTooLargeError(DocumentRejectedError):
-    """Raised when a DjVuLibre command produces excessive output."""
-
-    public_message = ERROR_MESSAGES["djvu_output_too_large"]
-
-
-class _DjvuProcessingTimeoutError(ProcessingTimeoutError):
-    """Raised when a DjVuLibre command exceeds its processing deadline."""
-
-    public_message = ERROR_MESSAGES["djvu_processing_timeout"]
-
-
-class _DjvuPageCountUnavailableError(DocumentRejectedError):
-    """Raised when the DjVu page count cannot be determined."""
-
-    public_message = ERROR_MESSAGES["djvu_page_count_unavailable"]
-
-
-class _InvalidDjvuPageCountError(DocumentRejectedError):
-    """Raised when the DjVu page count is malformed."""
-
-    public_message = ERROR_MESSAGES["invalid_djvu_page_count"]
-
-
-class _DjvuNoPagesError(DocumentRejectedError):
-    """Raised when a DjVu document contains no pages."""
-
-    public_message = ERROR_MESSAGES["djvu_no_pages"]
-
-
-class _DjvuTooManyPagesError(DocumentRejectedError):
-    """Raised when a DjVu document exceeds the page limit."""
-
-    public_message = ERROR_MESSAGES["djvu_too_many_pages"]
-
-
-class _DjvuPageRenderError(DocumentRejectedError):
-    """Raised when a DjVu page cannot be rendered."""
-
-    public_message = ERROR_MESSAGES["djvu_page_render_failed"]
-
-
-class _DjvuPageTooLargeError(DocumentRejectedError):
-    """Raised when a rendered DjVu page exceeds the OCR size limit."""
-
-    public_message = ERROR_MESSAGES["djvu_page_too_large"]
 
 
 def _run_djvu_command(
@@ -94,10 +55,10 @@ def _run_djvu_command(
             max_output=max_output,
         )
     except SubprocessOutputLimitError as error:
-        raise _DjvuOutputTooLargeError from error
+        raise DjvuOutputTooLargeError from error
     except SubprocessTimeoutError as error:
         context.check()
-        raise _DjvuProcessingTimeoutError from error
+        raise DjvuProcessingTimeoutError from error
 
 
 def _get_page_count(
@@ -119,15 +80,15 @@ def _get_page_count(
             "djvused page count failed: stderr=%r",
             stderr.decode("utf-8", errors="replace"),
         )
-        raise _DjvuPageCountUnavailableError
+        raise DjvuPageCountUnavailableError
     try:
         page_count = int(output.decode("utf-8", errors="replace").strip())
     except ValueError as error:
-        raise _InvalidDjvuPageCountError from error
+        raise InvalidDjvuPageCountError from error
     if page_count <= 0:
-        raise _DjvuNoPagesError
+        raise DjvuNoPagesError
     if page_count > MAX_DOCUMENT_PAGES:
-        raise _DjvuTooManyPagesError
+        raise DjvuTooManyPagesError
     return page_count
 
 
@@ -157,11 +118,11 @@ def _render_page_image(
             page_number,
             stderr.decode("utf-8", errors="replace"),
         )
-        raise _DjvuPageRenderError
+        raise DjvuPageRenderError
     if not image_path.is_file():
-        raise _DjvuPageRenderError
+        raise DjvuPageRenderError
     if image_path.stat().st_size > MAX_DJVU_PAGE_BYTES:
-        raise _DjvuPageTooLargeError
+        raise DjvuPageTooLargeError
     return image_path.read_bytes()
 
 

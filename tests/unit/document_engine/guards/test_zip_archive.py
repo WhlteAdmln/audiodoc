@@ -12,66 +12,59 @@ import pytest
 from audiodoc.document_engine.detection import detect_format
 from audiodoc.document_engine.guards import zip_archive as zip_guard
 from audiodoc.document_engine.guards.zip_archive import validate_zip_archive
+from tests.support.zip_archives import ZipMember, lying_zip
 
 
 def test_zip_rejects_nonempty_member_with_zero_compressed_size() -> None:
-    # pylint: disable=protected-access  # pins the per-member guard directly
-    item = zipfile.ZipInfo("member.bin")
-    item.file_size = 1
-    item.compress_size = 0
-
+    archive = lying_zip(
+        [ZipMember("Отчёт.txt", b"z", declared_compress_size=0)],
+    )
     with pytest.raises(ValueError, match="Suspicious compressed file size"):
-        zip_guard._validate_archive_entry(item, 0)  # noqa: SLF001
+        validate_zip_archive(archive)
 
 
-@pytest.mark.parametrize(
-    "case",
-    [
-        (
-            "MAX_ARCHIVE_FILE_SIZE",
-            2,
-            3,
-            0,
-            10,
-            "Actual ZIP member size exceeds the limit",
-        ),
-        (
-            "MAX_ARCHIVE_UNPACKED_SIZE",
-            4,
-            2,
-            3,
-            10,
-            "Total unpacked archive size exceeds the limit",
-        ),
-        (
-            "MAX_ARCHIVE_COMPRESSION_RATIO",
-            2,
-            3,
-            0,
-            1,
-            "Actual ZIP compression ratio is too high",
-        ),
-    ],
-)
-def test_zip_checks_actual_member_limits(
-    case: tuple[str, int, int, int, int, str],
+def test_zip_rejects_member_larger_than_declared_size_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # pylint: disable=protected-access  # pins the per-member guard directly
-    (
-        limit_name,
-        limit,
-        actual_size,
-        total_size,
-        compressed_size,
-        expected_message,
-    ) = case
-    monkeypatch.setattr(zip_guard, limit_name, limit)
-    item = zipfile.ZipInfo("member.bin")
-    item.compress_size = compressed_size
+    monkeypatch.setattr(zip_guard, "MAX_ARCHIVE_FILE_SIZE", 2)
+    archive = lying_zip([ZipMember("ä/b.bin", b"\x00\xff\x10", declared_file_size=2)])
+    with pytest.raises(ValueError, match="Actual ZIP member size exceeds the limit"):
+        validate_zip_archive(archive)
 
-    with pytest.raises(ValueError, match=expected_message):
-        zip_guard._validate_actual_member_size(item, actual_size, total_size)  # noqa: SLF001
+
+def test_zip_rejects_members_whose_actual_total_exceeds_the_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(zip_guard, "MAX_ARCHIVE_UNPACKED_SIZE", 4)
+    archive = lying_zip(
+        [
+            ZipMember("first.xml", b"<a/"),
+            ZipMember("second.xml", b"\t\n", declared_file_size=1),
+        ],
+    )
+    with pytest.raises(
+        ValueError,
+        match="Total unpacked archive size exceeds the limit",
+    ):
+        validate_zip_archive(archive)
+
+
+def test_zip_rejects_member_that_inflates_beyond_the_ratio(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(zip_guard, "MAX_ARCHIVE_COMPRESSION_RATIO", 1)
+    archive = lying_zip(
+        [
+            ZipMember(
+                "bomb.txt",
+                b"Q" * 4096,
+                compression=zipfile.ZIP_DEFLATED,
+                declared_file_size=3,
+            ),
+        ],
+    )
+    with pytest.raises(ValueError, match="Actual ZIP compression ratio is too high"):
+        validate_zip_archive(archive)
 
 
 def test_mimetype_member_is_read_with_a_fixed_200_byte_limit(

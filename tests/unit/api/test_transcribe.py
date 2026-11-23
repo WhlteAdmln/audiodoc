@@ -16,7 +16,6 @@ from audiodoc.config import Settings, settings
 from audiodoc.main import create_app
 from audiodoc.transcription import model as model_module
 from audiodoc.transcription import service as service_module
-from audiodoc.transcription import temp_files
 from audiodoc.transcription.model import ModelHolder
 from tests.support.api_app import app_with_router, closed_queue
 from tests.support.builders import create_wav
@@ -77,7 +76,7 @@ def test_transcribe_response_shape_with_fake_model(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(app.state.model_holder, "_model", speech_model())
-    monkeypatch.setattr(temp_files, "TEMP_DIR", tmp_path)
+    monkeypatch.setattr(settings, "TEMP_DIR", str(tmp_path))
 
     response = client.post(
         "/transcribe",
@@ -92,14 +91,15 @@ def test_transcribe_response_shape_with_fake_model(
     assert isinstance(body["duration"], (int, float))
     expected_text = "recognized speech"
     assert body["text"] == expected_text
-    assert not list(tmp_path.iterdir())
+    expected_empty = []
+    assert list(tmp_path.iterdir()) == expected_empty, "expected an empty list"
 
 
 def test_transcribe_rejects_audio_over_configured_duration(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(app.state.model_holder, "_model", overlong_model())
-    monkeypatch.setattr(temp_files, "TEMP_DIR", tmp_path)
+    monkeypatch.setattr(settings, "TEMP_DIR", str(tmp_path))
 
     response = client.post(
         "/transcribe",
@@ -110,14 +110,15 @@ def test_transcribe_rejects_audio_over_configured_duration(
     assert response.status_code == expected_status_code
     expected_fragment = "слишком длинное"
     assert expected_fragment in response.json()["detail"].lower()
-    assert not list(tmp_path.iterdir())
+    expected_empty = []
+    assert list(tmp_path.iterdir()) == expected_empty, "expected an empty list"
 
 
 def test_transcribe_rejects_corrupt_audio_and_removes_temp_file(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(app.state.model_holder, "_model", speech_model())
-    monkeypatch.setattr(temp_files, "TEMP_DIR", tmp_path)
+    monkeypatch.setattr(settings, "TEMP_DIR", str(tmp_path))
 
     response = client.post(
         "/transcribe",
@@ -132,7 +133,8 @@ def test_transcribe_rejects_corrupt_audio_and_removes_temp_file(
         "\u0430\u0443\u0434\u0438\u043e\u0444\u0430\u0439\u043b"
     )
     assert response.json()["detail"] == expected_detail
-    assert not list(tmp_path.iterdir())
+    expected_empty = []
+    assert list(tmp_path.iterdir()) == expected_empty, "expected an empty list"
 
 
 def test_transcribe_returns_gateway_timeout_for_slow_model(
@@ -146,7 +148,7 @@ def test_transcribe_returns_gateway_timeout_for_slow_model(
 
     monkeypatch.setattr(app.state.model_holder, "_model", slow_whisper_model)
     monkeypatch.setattr(service_module.settings, "WHISPER_TIMEOUT", 0.1)
-    monkeypatch.setattr(temp_files, "TEMP_DIR", tmp_path)
+    monkeypatch.setattr(settings, "TEMP_DIR", str(tmp_path))
 
     response = client.post(
         "/transcribe",
@@ -157,7 +159,8 @@ def test_transcribe_returns_gateway_timeout_for_slow_model(
     assert response.status_code == expected_status_code
     expected_detail = "Превышено время обработки аудио"
     assert response.json()["detail"] == expected_detail
-    assert not list(tmp_path.iterdir())
+    expected_empty = []
+    assert list(tmp_path.iterdir()) == expected_empty, "expected an empty list"
 
 
 def test_ready_reports_unloaded_model_after_model_load_failure(

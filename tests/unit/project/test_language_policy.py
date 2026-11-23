@@ -73,4 +73,7 @@ def test_python_language_policy_is_clean() -> None:
         for path, reasons in sorted(violations.items())
     )
 
-    assert not violations, f"Python files violate the language policy: {details}"
+    expected_empty = {}
+    assert violations == expected_empty, (
+        f"Python files violate the language policy: {details}"
+    )

@@ -96,20 +96,34 @@ def test_pdf_rejects_too_many_pages(monkeypatch: pytest.MonkeyPatch) -> None:
         extract_pdf(b"fake-pdf")
 
 
-def test_pdf_render_dpi_is_reduced_for_oversized_page() -> None:
-    # pylint: disable=protected-access  # the DPI fallback has no public seam
+def test_pdf_reduces_render_dpi_for_oversized_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     page = _FakePage()
     page.rect = SimpleNamespace(width=200 * 72, height=200 * 72)
-    expected_render_dpi = 31
-    assert pdf_module._render_dpi(page) == expected_render_dpi  # noqa: SLF001
+    document = _FakeDocument([page])
+    monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
+    monkeypatch.setattr(
+        pdf_module,
+        "extract_image_text",
+        lambda _image_data, **_kwargs: "Скан 7",
+    )
+    extract_pdf(b"%PDF-oversized")
+    expected_render_arguments = {"dpi": 31, "alpha": False}
+    assert page.render_arguments == expected_render_arguments, (
+        "an oversized page must be rendered at the reduced DPI"
+    )
 
 
-def test_pdf_rejects_page_that_cannot_fit_even_at_minimum_dpi() -> None:
-    # pylint: disable=protected-access  # the DPI fallback has no public seam
+def test_pdf_rejects_page_that_cannot_fit_even_at_minimum_dpi(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     page = _FakePage()
     page.rect = SimpleNamespace(width=1000 * 72, height=1000 * 72)
+    document = _FakeDocument([page])
+    monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
     with pytest.raises(DocumentRejectedError, match="слишком велика"):
-        pdf_module._render_dpi(page)  # noqa: SLF001
+        extract_pdf(b"%PDF-giant")
 
 
 def test_pdf_marks_output_incomplete_when_pages_remain_after_exact_fit(
