@@ -4,9 +4,9 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import Depends, File, HTTPException, UploadFile
 
-from audiodoc.api.auth import require_key
+from audiodoc.api.auth import key_protected_router
 from audiodoc.api.dependencies import get_model_holder, get_transcription_queue
 from audiodoc.api.schemas import ErrorResponse, TranscribeResponse
 from audiodoc.common.limited_upload import save_upload_limited
@@ -19,15 +19,27 @@ from audiodoc.transcription.temp_files import temp_audio_file
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(
-    dependencies=[
-        Depends(
-            require_key(
-                lambda configured_settings: configured_settings.AUDIODOC_AUDIO_KEY
-            )
-        )
-    ]
+router = key_protected_router(
+    lambda configured_settings: configured_settings.AUDIODOC_AUDIO_KEY
 )
+
+
+async def _transcribe_upload(
+    file: UploadFile,
+    queue: WorkQueue,
+    configured_model_holder: ModelHolder,
+) -> dict[str, object]:
+    """Copy the upload to private storage inside a queue slot and transcribe it."""
+    # Admission happens before the upload is copied to private storage.
+    async with queue.slot():
+        with temp_audio_file(file.filename or "audio") as file_path:
+            await save_upload_limited(file, file_path, settings.MAX_AUDIO_SIZE)
+            return await transcribe_file(
+                file_path,
+                queue=queue,
+                _slot_acquired=True,
+                configured_model_holder=configured_model_holder,
+            )
 
 
 @router.post(
@@ -100,16 +112,7 @@ async def transcribe(
         raise HTTPException(status_code=503, detail="Whisper model is not loaded")
 
     try:
-        # Admission happens before the upload is copied to private storage.
-        async with queue.slot():
-            with temp_audio_file(file.filename or "audio") as file_path:
-                await save_upload_limited(file, file_path, settings.MAX_AUDIO_SIZE)
-                return await transcribe_file(
-                    file_path,
-                    queue=queue,
-                    _slot_acquired=True,
-                    configured_model_holder=configured_model_holder,
-                )
+        return await _transcribe_upload(file, queue, configured_model_holder)
 
     except BackendError:
         raise

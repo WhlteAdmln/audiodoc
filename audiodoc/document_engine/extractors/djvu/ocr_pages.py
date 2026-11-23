@@ -165,6 +165,19 @@ def _render_page_image(
     return image_path.read_bytes()
 
 
+def _recognize_rendered_page(
+    file_path: Path,
+    image_path: Path,
+    ddjvu: str,
+    page_number: int,
+    context: ExtractContext,
+) -> str:
+    """Render one DJVU page to an image and recognize its text."""
+    image_data = _render_page_image(file_path, image_path, ddjvu, page_number, context)
+    context.check()
+    return extract_image_text(image_data, deadline=context.deadline).strip()
+
+
 def _ocr_page(
     file_path: Path,
     temp_path: Path,
@@ -175,11 +188,9 @@ def _ocr_page(
     """Render and recognize one DJVU page, always removing the temporary image."""
     image_path = temp_path / f"page_{page_number}.tiff"
     try:
-        image_data = _render_page_image(
+        return _recognize_rendered_page(
             file_path, image_path, ddjvu, page_number, context
         )
-        context.check()
-        return extract_image_text(image_data, deadline=context.deadline).strip()
     finally:
         image_path.unlink(missing_ok=True)
 

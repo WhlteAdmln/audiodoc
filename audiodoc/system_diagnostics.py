@@ -9,6 +9,7 @@ import sys
 import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
 from audiodoc.env_readers import get_bool, get_home_dir, resolve_home_path
@@ -19,6 +20,8 @@ ALL_INTERFACES_HOSTS = frozenset(
 )
 
 CheckStatus = Literal["OK", "WARN", "FAIL"]
+FAIL_STATUS: CheckStatus = "FAIL"
+IPV6_HOST_MARKER = ":"
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,6 +153,13 @@ def check_bind_address(environ: Mapping[str, str]) -> DiagnosticCheck:
     return DiagnosticCheck("Bind address", "OK", f"Server binds to {host}.")
 
 
+def _probe_writable(directory: Path) -> None:
+    """Create the directory and open a temporary file in it."""
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with tempfile.TemporaryFile(dir=directory):
+        pass
+
+
 def check_temp_directory(environ: Mapping[str, str]) -> DiagnosticCheck:
     """Check that the configured temporary directory can accept writes."""
     home = get_home_dir(environ)
@@ -158,9 +168,7 @@ def check_temp_directory(environ: Mapping[str, str]) -> DiagnosticCheck:
         resolve_home_path(configured_path, home) if configured_path else home / "tmp"
     )
     try:
-        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-        with tempfile.TemporaryFile(dir=directory):
-            pass
+        _probe_writable(directory)
     except OSError as error:
         return DiagnosticCheck(
             "Temporary directory",
@@ -172,6 +180,12 @@ def check_temp_directory(environ: Mapping[str, str]) -> DiagnosticCheck:
         "OK",
         f"Writable: {directory}.",
     )
+
+
+def _probe_bind(family: int, host: str, port: int) -> None:
+    """Bind a TCP socket to the address to prove that the port is free."""
+    with socket.socket(family, socket.SOCK_STREAM) as listener:
+        listener.bind((host, port))
 
 
 def check_port(environ: Mapping[str, str]) -> DiagnosticCheck:
@@ -193,10 +207,9 @@ def check_port(environ: Mapping[str, str]) -> DiagnosticCheck:
             "AUDIODOC_PORT must be between 1 and 65535.",
         )
 
-    family = socket.AF_INET6 if ":" in host else socket.AF_INET
+    family = socket.AF_INET6 if IPV6_HOST_MARKER in host else socket.AF_INET
     try:
-        with socket.socket(family, socket.SOCK_STREAM) as listener:
-            listener.bind((host, port))
+        _probe_bind(family, host, port)
     except OSError as error:
         return DiagnosticCheck(
             "API port",

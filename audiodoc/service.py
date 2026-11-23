@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Literal
 
 ServiceMode = Literal["user", "system"]
+USER_MODE: ServiceMode = "user"
+SYSTEM_MODE: ServiceMode = "system"
 UNIT_NAME = "audiodoc.service"
 SYSTEM_UNIT_DIRECTORY = Path("/etc/systemd/system")
 DEFAULT_IP_ADDRESS_ALLOW = ("10.8.0.0/24", "127.0.0.1")
@@ -53,7 +55,7 @@ def _validate_unit_arguments(
     if not home.is_absolute():
         message = "The audiodoc home directory must be an absolute path."
         raise ValueError(message)
-    if mode not in {"user", "system"}:
+    if mode not in {USER_MODE, SYSTEM_MODE}:
         message = f"Unsupported systemd service mode: {mode}"
         raise ValueError(message)
     for name, value in (("MemoryHigh", memory_high), ("MemoryMax", memory_max)):
@@ -90,7 +92,7 @@ def render_service_unit(
 
     addresses: tuple[str, ...] = ()
     directives = ["Type=simple"]
-    if mode == "system":
+    if mode == SYSTEM_MODE:
         addresses = _validated_ip_addresses(ip_address_allow)
         directives.extend(("User=audiodoc", "Group=audiodoc"))
 
@@ -107,7 +109,7 @@ def render_service_unit(
             "UMask=0077",
         )
     )
-    if mode == "system":
+    if mode == SYSTEM_MODE:
         directives.extend(
             (
                 "",
@@ -149,17 +151,39 @@ def render_service_unit(
     return _UNIT_TEMPLATE.format(
         description=(
             "audiodoc (Whisper + Document Engine)"
-            if mode == "system"
+            if mode == SYSTEM_MODE
             else "audiodoc API service"
         ),
         after=(
             "network-online.target wg-quick@wg0.service"
-            if mode == "system"
+            if mode == SYSTEM_MODE
             else "network-online.target"
         ),
         directives="\n".join(directives),
-        wanted_by="multi-user.target" if mode == "system" else "default.target",
+        wanted_by="multi-user.target" if mode == SYSTEM_MODE else "default.target",
     )
+
+
+def _publish_unit_file(
+    descriptor: int,
+    content: str,
+    temporary_path: Path,
+    paths: tuple[Path, Path],
+    *,
+    exists: bool,
+) -> None:
+    """Write the unit to its temporary file and move it into place."""
+    unit_path, backup_path = paths
+    with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+        stream.write(content)
+        stream.flush()
+        os.fsync(stream.fileno())
+    temporary_path.chmod(0o644)
+    if exists:
+        shutil.copy2(unit_path, backup_path)
+        temporary_path.replace(unit_path)
+    else:
+        os.link(temporary_path, unit_path)
 
 
 def install_service_unit(
@@ -173,7 +197,7 @@ def install_service_unit(
     if unit_directory is None:
         unit_directory = (
             SYSTEM_UNIT_DIRECTORY
-            if mode == "system"
+            if mode == SYSTEM_MODE
             else Path.home() / ".config" / "systemd" / "user"
         )
     unit_path = unit_directory / UNIT_NAME
@@ -193,16 +217,13 @@ def install_service_unit(
     )
     temporary_path = Path(temporary_name)
     try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            stream.write(content)
-            stream.flush()
-            os.fsync(stream.fileno())
-        temporary_path.chmod(0o644)
-        if exists:
-            shutil.copy2(unit_path, backup_path)
-            temporary_path.replace(unit_path)
-        else:
-            os.link(temporary_path, unit_path)
+        _publish_unit_file(
+            descriptor,
+            content,
+            temporary_path,
+            (unit_path, backup_path),
+            exists=exists,
+        )
     finally:
         temporary_path.unlink(missing_ok=True)
     return unit_path

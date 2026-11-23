@@ -5,9 +5,9 @@ import logging
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import Depends, File, Form, HTTPException, UploadFile
 
-from audiodoc.api.auth import require_key
+from audiodoc.api.auth import key_protected_router
 from audiodoc.api.dependencies import get_document_queue
 from audiodoc.api.schemas import DocumentResponse, ErrorResponse
 from audiodoc.common.limited_upload import read_upload_limited
@@ -23,15 +23,41 @@ from audiodoc.errors.base import BackendError
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(
-    dependencies=[
-        Depends(
-            require_key(
-                lambda configured_settings: configured_settings.AUDIODOC_DOCUMENT_KEY
-            )
-        )
-    ]
+router = key_protected_router(
+    lambda configured_settings: configured_settings.AUDIODOC_DOCUMENT_KEY
 )
+
+
+async def _process_upload(
+    file: UploadFile,
+    filename: str,
+    max_characters: int | None,
+    queue: WorkQueue,
+) -> DocumentResult:
+    """Read the upload inside a queue slot and run Document Engine on it."""
+    # Reserve admission before copying multipart data into application memory.
+    async with queue.slot():
+        data = await read_upload_limited(file, MAX_DOCUMENT_SIZE)
+        logger.info(
+            "Document received: filename=%s, size=%s",
+            log_safe(filename),
+            len(data),
+        )
+
+        result = await process_document(
+            data,
+            filename,
+            max_characters,
+            queue=queue,
+            _slot_acquired=True,
+        )
+        logger.info(
+            "Document processed: filename=%s, format=%s, characters=%s",
+            log_safe(filename),
+            result["format"],
+            result["characters"],
+        )
+        return result
 
 
 @router.post(
@@ -85,29 +111,7 @@ async def process_document_endpoint(
     filename = Path(file.filename or "document").name
 
     try:
-        # Reserve admission before copying multipart data into application memory.
-        async with queue.slot():
-            data = await read_upload_limited(file, MAX_DOCUMENT_SIZE)
-            logger.info(
-                "Document received: filename=%s, size=%s",
-                log_safe(filename),
-                len(data),
-            )
-
-            result = await process_document(
-                data,
-                filename,
-                max_characters,
-                queue=queue,
-                _slot_acquired=True,
-            )
-            logger.info(
-                "Document processed: filename=%s, format=%s, characters=%s",
-                log_safe(filename),
-                result["format"],
-                result["characters"],
-            )
-            return result
+        return await _process_upload(file, filename, max_characters, queue)
 
     except HTTPException:
         raise

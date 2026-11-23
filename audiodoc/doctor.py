@@ -11,6 +11,9 @@ from audiodoc.document_engine.diagnostics import check_native_tools
 from audiodoc.system_diagnostics import DiagnosticCheck, collect_system_checks
 
 REQUIRED_TESSERACT_LANGUAGES = ("rus", "eng")
+CUDA_DEVICE = "cuda"
+TESSERACT_CHECK_NAME = "Tesseract"
+DJVULIBRE_CHECK_NAME = "DjVuLibre"
 
 
 def _model_files_present(directory: Path) -> bool:
@@ -98,9 +101,15 @@ def check_whisper_model(
     )
 
 
+def _cuda_device_count() -> int:
+    """Return the number of CUDA devices visible to CTranslate2."""
+    ctranslate2 = importlib.import_module("ctranslate2")
+    return int(ctranslate2.get_cuda_device_count())
+
+
 def check_cuda_device(configured_settings: Settings) -> DiagnosticCheck:
     """Check CUDA visibility when the configured Whisper device requires it."""
-    if configured_settings.WHISPER_DEVICE != "cuda":
+    if configured_settings.WHISPER_DEVICE != CUDA_DEVICE:
         return DiagnosticCheck(
             "CUDA",
             "OK",
@@ -109,8 +118,7 @@ def check_cuda_device(configured_settings: Settings) -> DiagnosticCheck:
         )
 
     try:
-        ctranslate2 = importlib.import_module("ctranslate2")
-        device_count = int(ctranslate2.get_cuda_device_count())
+        device_count = _cuda_device_count()
     except (
         AttributeError,
         ImportError,
@@ -147,7 +155,7 @@ def _collect_native_checks() -> tuple[DiagnosticCheck, ...]:
     if native_tools.tesseract is None:
         checks.append(
             DiagnosticCheck(
-                "Tesseract",
+                TESSERACT_CHECK_NAME,
                 "FAIL",
                 "The Tesseract executable was not found.",
             )
@@ -161,7 +169,7 @@ def _collect_native_checks() -> tuple[DiagnosticCheck, ...]:
         if missing_languages:
             checks.append(
                 DiagnosticCheck(
-                    "Tesseract",
+                    TESSERACT_CHECK_NAME,
                     "FAIL",
                     "Missing language data: " + ", ".join(missing_languages) + ".",
                 )
@@ -169,7 +177,7 @@ def _collect_native_checks() -> tuple[DiagnosticCheck, ...]:
         else:
             checks.append(
                 DiagnosticCheck(
-                    "Tesseract",
+                    TESSERACT_CHECK_NAME,
                     "OK",
                     f"Executable found at {native_tools.tesseract}; "
                     "rus and eng languages are available.",
@@ -189,7 +197,7 @@ def _collect_native_checks() -> tuple[DiagnosticCheck, ...]:
     if missing_djvu_tools:
         checks.append(
             DiagnosticCheck(
-                "DjVuLibre",
+                DJVULIBRE_CHECK_NAME,
                 "FAIL",
                 "Missing executables: " + ", ".join(missing_djvu_tools) + ".",
             )
@@ -197,7 +205,7 @@ def _collect_native_checks() -> tuple[DiagnosticCheck, ...]:
     else:
         checks.append(
             DiagnosticCheck(
-                "DjVuLibre",
+                DJVULIBRE_CHECK_NAME,
                 "OK",
                 "All required DjVuLibre executables are available.",
             )

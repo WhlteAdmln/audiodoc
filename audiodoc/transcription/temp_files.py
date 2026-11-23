@@ -41,21 +41,26 @@ def ensure_temp_dir() -> Path:
     return TEMP_DIR
 
 
+def _remove_if_stale(item: Path, now: float) -> None:
+    """Remove a managed audio file that is older than the staleness limit."""
+    # Only remove files created by temp_audio_file (UUID names). The
+    # configured directory may contain unrelated operator-managed files.
+    is_managed = bool(re.fullmatch(r"[0-9a-f]{32}", item.stem))
+    if (
+        not item.is_symlink()
+        and item.is_file()
+        and is_managed
+        and now - item.stat().st_mtime > STALE_AFTER_SECONDS
+    ):
+        item.unlink(missing_ok=True)
+
+
 def cleanup_stale_files() -> None:
     """Remove audio files left behind by a prior abnormal process exit."""
     now = time.time()
     for item in ensure_temp_dir().iterdir():
         try:
-            # Only remove files created by temp_audio_file (UUID names). The
-            # configured directory may contain unrelated operator-managed files.
-            is_managed = bool(re.fullmatch(r"[0-9a-f]{32}", item.stem))
-            if (
-                not item.is_symlink()
-                and item.is_file()
-                and is_managed
-                and now - item.stat().st_mtime > STALE_AFTER_SECONDS
-            ):
-                item.unlink(missing_ok=True)
+            _remove_if_stale(item, now)
         except OSError:
             # A concurrent cleanup or filesystem race should not prevent startup.
             continue

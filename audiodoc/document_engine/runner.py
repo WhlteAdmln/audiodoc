@@ -2,9 +2,10 @@
 """Asynchronous, bounded execution of the synchronous Document Engine pipeline."""
 
 import asyncio
+from functools import partial
 
 from audiodoc.common.deadline import Deadline
-from audiodoc.common.work_queue import WorkQueue
+from audiodoc.common.work_queue import WorkQueue, await_worker, run_in_slot
 from audiodoc.document_engine.limits import DOCUMENT_PROCESSING_TIMEOUT
 from audiodoc.document_engine.pipeline import process_document_sync
 from audiodoc.document_engine.result import DocumentResult
@@ -26,18 +27,7 @@ async def _run_pipeline(
             deadline,
         )
     )
-    try:
-        return await asyncio.shield(worker)
-    except asyncio.CancelledError:
-        # Cancelling asyncio.to_thread does not stop the OS thread. Keep this
-        # queue slot until the worker really exits so concurrency stays bounded.
-        cleanup = asyncio.gather(worker, return_exceptions=True)
-        while not cleanup.done():
-            try:
-                await asyncio.shield(cleanup)
-            except asyncio.CancelledError:
-                continue
-        raise
+    return await await_worker(worker)
 
 
 async def process_document(
@@ -54,8 +44,8 @@ async def process_document(
     before reading the multipart upload. Direct callers use the queue here.
     ``queue`` is owned by the application or direct caller.
     """
-    if _slot_acquired:
-        return await _run_pipeline(data, filename, max_characters)
-
-    async with queue.slot():
-        return await _run_pipeline(data, filename, max_characters)
+    return await run_in_slot(
+        queue,
+        partial(_run_pipeline, data, filename, max_characters),
+        slot_acquired=_slot_acquired,
+    )

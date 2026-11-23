@@ -10,6 +10,13 @@ from audiodoc.log_filters import SecretsFilter
 LOG_FORMAT = "%(asctime)s %(levelname)s [%(request_id)s] %(name)s: %(message)s"
 
 
+def split_secrets(*key_lists: str) -> tuple[str, ...]:
+    """Split comma-separated API key lists into individual non-empty secrets."""
+    return tuple(
+        part.strip() for value in key_lists for part in value.split(",") if part.strip()
+    )
+
+
 def configure_logging(level: str, secrets: Iterable[str] = ()) -> None:
     """Set root logging level, a consistent format, and security filters.
 

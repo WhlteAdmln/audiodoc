@@ -2,8 +2,11 @@
 """Bounded asynchronous admission queues for resource-intensive work."""
 
 import asyncio
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from typing import TypeVar
+
+_Result = TypeVar("_Result")
 
 
 class _InvalidWorkerCountError(ValueError):
@@ -42,7 +45,8 @@ class QueueFullError(RuntimeError):
     """Neutral common-layer signal that no active or waiting slot is available."""
 
 
-class WorkQueue:
+# The eight attributes are the state of one bounded queue and change together.
+class WorkQueue:  # pylint: disable=too-many-instance-attributes
     """Limit active workers and the number of tasks allowed to wait.
 
     Admission is reserved before the first await in ``slot``. A caller that
@@ -110,6 +114,11 @@ class WorkQueue:
         if not self._waiting and not self._active:
             self._idle.set()
 
+    async def _acquire_worker(self) -> None:
+        """Wait for a free worker and count it as active."""
+        await self._semaphore.acquire()
+        self._active += 1
+
     @asynccontextmanager
     async def slot(self) -> AsyncIterator[None]:
         """Reserve admission, wait for a worker, and release it on exit."""
@@ -120,11 +129,8 @@ class WorkQueue:
 
         self._waiting += 1
         self._idle.clear()
-        acquired = False
         try:
-            await self._semaphore.acquire()
-            acquired = True
-            self._active += 1
+            await self._acquire_worker()
         finally:
             self._waiting -= 1
             self._set_idle_if_idle()
@@ -132,10 +138,41 @@ class WorkQueue:
         try:
             yield
         finally:
-            if acquired:
-                self._active -= 1
-                self._semaphore.release()
-                self._set_idle_if_idle()
+            self._active -= 1
+            self._semaphore.release()
+            self._set_idle_if_idle()
+
+
+async def await_worker(worker: asyncio.Task[_Result]) -> _Result:
+    """Await a thread-backed task and keep waiting for it after a cancellation.
+
+    Cancelling ``asyncio.to_thread`` does not stop the OS thread. The caller keeps
+    its queue slot until the worker really exits so concurrency stays bounded.
+    """
+    try:
+        return await asyncio.shield(worker)
+    except asyncio.CancelledError:
+        cleanup = asyncio.gather(worker, return_exceptions=True)
+        while not cleanup.done():
+            try:
+                await asyncio.shield(cleanup)
+            except asyncio.CancelledError:
+                continue
+        raise
+
+
+async def run_in_slot(
+    queue: WorkQueue,
+    operation: Callable[[], Awaitable[_Result]],
+    *,
+    slot_acquired: bool,
+) -> _Result:
+    """Run the operation in a queue slot unless the caller already holds one."""
+    if slot_acquired:
+        return await operation()
+
+    async with queue.slot():
+        return await operation()
 
 
 def _is_integer(value: object) -> bool:

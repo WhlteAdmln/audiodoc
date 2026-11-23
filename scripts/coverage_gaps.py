@@ -1,3 +1,4 @@
+# VENDORED: keep identical in bot-obormot and audiodoc. Source of truth: audiodoc.
 # Copyright (c) 2026 Nikolai Zelensky
 """Report the files with the lowest measured coverage."""
 
@@ -12,6 +13,7 @@ from defusedxml import ElementTree
 
 _ROOT = Path(__file__).resolve().parents[1]
 _BRANCH_COUNTS = re.compile(r"\((\d+)/(\d+)\)\s*$")
+_BRANCH_FLAG = "true"
 _LIMIT_ERROR = "Limit must be positive"
 _CLASS_FILENAME_ERROR = "Missing class filename"
 _LINE_HITS_ERROR = "Missing line hit count"
@@ -40,7 +42,7 @@ def _relative_filename(filename: str, source_prefix: str) -> str:
 
 def _branch_counts(line: ElementTree.Element) -> tuple[int, int]:
     condition_coverage = line.get("condition-coverage")
-    if line.get("branch") == "true" and condition_coverage is None:
+    if line.get("branch") == _BRANCH_FLAG and condition_coverage is None:
         raise ValueError(_BRANCH_METADATA_ERROR)
     if condition_coverage is None:
         return 0, 0
@@ -83,6 +85,31 @@ def _class_statistics(
     return filename, statistics
 
 
+def _file_statistics(root: ElementTree.Element) -> dict[str, list[int]]:
+    source_prefix = _source_prefix(root)
+    file_statistics: dict[str, list[int]] = {}
+
+    for class_element in root.findall(".//class"):
+        class_data = _class_statistics(class_element, source_prefix)
+        if class_data is None:
+            continue
+
+        filename, statistics = class_data
+        totals = file_statistics.setdefault(filename, [0, 0, 0, 0])
+        for index, count in enumerate(statistics):
+            totals[index] += count
+
+    if not file_statistics:
+        raise ValueError(_EMPTY_REPORT_ERROR)
+    return file_statistics
+
+
+def _coverage_percentage(statistics: list[int]) -> float:
+    statements, covered_statements, branches, covered_branches = statistics
+    total = statements + branches
+    return 100.0 * (covered_statements + covered_branches) / total
+
+
 def find_coverage_gaps(
     xml_path: Path,
     limit: int = 15,
@@ -106,29 +133,11 @@ def find_coverage_gaps(
         raise ValueError(_LIMIT_ERROR)
 
     root = ElementTree.parse(xml_path, forbid_dtd=True).getroot()
-    source_prefix = _source_prefix(root)
-    file_statistics: dict[str, list[int]] = {}
-
-    for class_element in root.findall(".//class"):
-        class_data = _class_statistics(class_element, source_prefix)
-        if class_data is None:
-            continue
-
-        filename, statistics = class_data
-        totals = file_statistics.setdefault(filename, [0, 0, 0, 0])
-        for index, count in enumerate(statistics):
-            totals[index] += count
-
-    if not file_statistics:
-        raise ValueError(_EMPTY_REPORT_ERROR)
-
-    results: list[tuple[float, str]] = []
-    for filename, statistics in file_statistics.items():
-        statements, covered_statements, branches, covered_branches = statistics
-        total = statements + branches
-        percentage = 100.0 * (covered_statements + covered_branches) / total
-        results.append((percentage, filename))
-
+    file_statistics = _file_statistics(root)
+    results = [
+        (_coverage_percentage(statistics), filename)
+        for filename, statistics in file_statistics.items()
+    ]
     return sorted(results)[:limit]
 
 

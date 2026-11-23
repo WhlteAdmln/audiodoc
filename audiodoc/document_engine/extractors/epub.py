@@ -13,6 +13,8 @@ from audiodoc.document_engine.extractors.base import (
     make_context,
 )
 
+NAV_ITEM_NAME = "nav"
+
 
 def extract_epub(data: bytes, *, context: ExtractContext | None = None) -> str:
     """Extract EPUB content incrementally, skipping navigation and service items."""
@@ -24,7 +26,7 @@ def extract_epub(data: bytes, *, context: ExtractContext | None = None) -> str:
         ctx.check()
         name = item.get_name().lower()
         properties = getattr(item, "properties", [])
-        if "nav" in properties or "nav" in Path(name).stem.lower():
+        if NAV_ITEM_NAME in properties or NAV_ITEM_NAME in Path(name).stem.lower():
             continue
 
         soup = BeautifulSoup(item.get_content(), "html.parser")

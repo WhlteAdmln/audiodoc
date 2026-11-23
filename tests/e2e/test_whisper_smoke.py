@@ -13,6 +13,8 @@ from audiodoc.config import settings
 from audiodoc.transcription.model import ModelHolder
 from audiodoc.transcription.service import transcribe_file
 
+_EXPECTED_PHRASE = "this is"
+
 
 async def _generate_speech(executable: str, audio_path: Path) -> None:
     """Generate a short speech sample with eSpeak NG."""
@@ -76,6 +78,6 @@ def test_real_tiny_whisper_transcribes_generated_speech(
     )
     recognized_text = " ".join(re.findall(r"[a-z]+", transcription["text"].casefold()))
 
-    assert "this is" in recognized_text, (
-        f"Expected to recognize 'this is', got: {transcription['text']!r}"
+    assert _EXPECTED_PHRASE in recognized_text, (
+        f"Expected to recognize {_EXPECTED_PHRASE!r}, got: {transcription['text']!r}"
     )

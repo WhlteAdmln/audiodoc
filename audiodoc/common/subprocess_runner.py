@@ -12,6 +12,7 @@ from typing import IO, cast  # pylint: disable=unused-import  # string cast
 
 MAX_SUBPROCESS_OUTPUT = 20 * 1024 * 1024
 MAX_STDERR_PREVIEW = 4096
+POSIX_OS_NAME = "posix"
 
 
 class _InvalidSubprocessArgumentsError(ValueError):
@@ -56,7 +57,7 @@ class SubprocessOutputLimitError(ValueError):
 
 def _kill_process_group(process: subprocess.Popen[bytes]) -> None:
     """Kill the complete isolated process group."""
-    if os.name == "posix":
+    if os.name == POSIX_OS_NAME:
         with suppress(OSError):
             os.killpg(process.pid, signal.SIGKILL)
     else:
@@ -146,7 +147,7 @@ def run_limited(
             stdout=subprocess.PIPE,
             stderr=stderr_file,
             shell=False,
-            start_new_session=os.name == "posix",
+            start_new_session=os.name == POSIX_OS_NAME,
         )
         output, timed_out = _collect_process_output(
             process,

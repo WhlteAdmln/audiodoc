@@ -4,9 +4,11 @@
 import hmac
 from collections.abc import Awaitable, Callable
 
-from fastapi import Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from audiodoc.config import Settings, get_settings
+
+BEARER_SCHEME = "bearer"
 
 
 class _SharedAPIKeyError(RuntimeError):
@@ -44,7 +46,7 @@ def require_key(
         scheme, _, token = (authorization or "").partition(" ")
         accepted_keys = [key.strip() for key in expected.split(",") if key.strip()]
         supplied = token.strip()
-        valid = scheme.lower() == "bearer" and any(
+        valid = scheme.lower() == BEARER_SCHEME and any(
             hmac.compare_digest(supplied.encode("utf-8"), key.encode("utf-8"))
             for key in accepted_keys
         )
@@ -57,6 +59,11 @@ def require_key(
             )
 
     return dependency
+
+
+def key_protected_router(get_expected: Callable[[Settings], str]) -> APIRouter:
+    """Create a router whose routes all require the key chosen from settings."""
+    return APIRouter(dependencies=[Depends(require_key(get_expected))])
 
 
 def check_security_settings(settings: Settings) -> None:

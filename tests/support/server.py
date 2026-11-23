@@ -6,6 +6,7 @@ from __future__ import annotations
 import socket
 import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -64,14 +65,15 @@ class _FakeInfo:
 class _FakeWhisperModel:
     """Provide deterministic transcription without loading a real model."""
 
+    @staticmethod
     def transcribe(
-        self,
         audio: str,
         *,
         language: str | None,
         beam_size: int,
         vad_filter: bool,
     ) -> tuple[Iterator[_FakeSegment], _FakeInfo]:
+        """Return one fixed segment whatever the audio and options are."""
         _ = (audio, language, beam_size, vad_filter)
         return iter((_FakeSegment(),)), _FakeInfo()
 
@@ -117,6 +119,30 @@ def _create_live_application(options: LiveServerOptions) -> FastAPI:
     return application
 
 
+def _wait_until_started(server: uvicorn.Server, thread: threading.Thread) -> None:
+    """Wait for the server startup, failing when it stops or takes too long."""
+    deadline = time.monotonic() + 10
+    while not server.started:
+        if not thread.is_alive():
+            raise RuntimeError(_SERVER_EXITED_BEFORE_START)
+        if time.monotonic() >= deadline:
+            raise TimeoutError(_SERVER_START_TIMEOUT)
+        time.sleep(0.01)
+
+
+@contextmanager
+def _stopping(server: uvicorn.Server, thread: threading.Thread) -> Iterator[None]:
+    """Ask the server to exit and join its thread when the block ends."""
+    try:
+        yield
+    finally:
+        server.should_exit = True
+        if thread.ident is not None:
+            thread.join(timeout=10)
+        if thread.is_alive():
+            raise RuntimeError(_SERVER_SHUTDOWN_TIMEOUT)
+
+
 @pytest.fixture
 def live_server(
     monkeypatch: pytest.MonkeyPatch,
@@ -157,15 +183,9 @@ def live_server(
             daemon=True,
         )
 
-        try:
+        with _stopping(server, thread):
             thread.start()
-            deadline = time.monotonic() + 10
-            while not server.started:
-                if not thread.is_alive():
-                    raise RuntimeError(_SERVER_EXITED_BEFORE_START)
-                if time.monotonic() >= deadline:
-                    raise TimeoutError(_SERVER_START_TIMEOUT)
-                time.sleep(0.01)
+            _wait_until_started(server, thread)
 
             yield LiveServer(
                 base_url=f"http://{host}:{port}",
@@ -173,9 +193,3 @@ def live_server(
                 document_api_key=document_api_key,
                 temp_dir=tmp_path,
             )
-        finally:
-            server.should_exit = True
-            if thread.ident is not None:
-                thread.join(timeout=10)
-            if thread.is_alive():
-                raise RuntimeError(_SERVER_SHUTDOWN_TIMEOUT)
