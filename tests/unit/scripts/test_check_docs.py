@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 from scripts.check_docs import (
     DOCUMENTATION_ONLY_ENV_NAMES,
     _settings_environment_names,
+    check_docs,
     check_documented_commands,
     check_markdown_links,
     check_openapi_paths,
@@ -136,3 +137,13 @@ def test_openapi_paths_must_appear_in_api_documentation(tmp_path: Path) -> None:
 
     api_path.write_text("`/health`\n", encoding="utf-8")
     assert check_openapi_paths(tmp_path)
+
+
+def test_runs_the_changelog_check_with_the_documentation_checks(
+    tmp_path: Path,
+) -> None:
+    expected = "CHANGELOG.md: file not found"
+
+    errors = check_docs(tmp_path)
+
+    assert expected in errors, "check_docs must include the changelog order check"

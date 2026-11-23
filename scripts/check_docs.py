@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 from audiodoc.cli import build_parser
 from audiodoc.config import Settings
+from scripts.check_changelog import check_changelog
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -444,6 +445,7 @@ def check_docs(root: Path = PROJECT_ROOT) -> list[str]:
     errors: list[str] = []
 
     for check in (
+        check_changelog,
         check_markdown_links,
         check_section_parity,
         check_russian_documents,

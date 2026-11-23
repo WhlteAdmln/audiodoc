@@ -5,15 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Security
-
-- The lock resolves for Python 3.11.5 or newer, so it pins `soupsieve` 4.x instead of 2.10, which is affected by GHSA-mmhr-3c5m-f64f (denial of service in the descendant combinator). The `uv` migration had briefly pinned 2.10.
-
 ### Added
 
 - `make lock` generates `requirements-lock.txt` with `uv pip compile`; releases younger than 14 days are skipped unless `LOCK_MIN_RELEASE_AGE_DAYS=0` is passed.
 - Guidance on the assignment expression `:=` in `CONTRIBUTING.md`.
-- `scripts/check_test_layout.py`, shared with the other repository and run by `make lint`, requires every unit test file to mirror a production unit (`tests/unit/<dirs>/test_<name>.py`) or to live in `tests/unit/project/` or `tests/unit/scripts/`. `tests/layout_pending.txt` lists the multi-unit files that are still to be split; the list only shrinks.
+- `scripts/check_test_layout.py`, shared with the other repository and run by `make lint`, requires every unit test file to mirror a production unit (`tests/unit/<dirs>/test_<name>.py`) or to live in `tests/unit/project/` or `tests/unit/scripts/`. `tests/layout_pending.txt` may list multi-unit files that are still to be split; the list only shrinks, and it is currently absent because no file is pending.
+- `scripts/check_changelog.py`, shared with the other repository and run by `make docs-check`, requires the sections of every changelog version to follow the order Added, Changed, Deprecated, Fixed, Removed, Security, without duplicates or unknown sections.
 
 ### Changed
 
@@ -25,22 +22,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `scripts/coverage_gaps.py` is shared with bot-obormot and checked by `scripts/check_vendored.py`.
 - Renovate refreshes the lock on the first day of each month (`renovate/pip-compile-refresh`); a human merges it. The generic lock maintenance job is off because it duplicated that branch.
 - `build_parser` in the CLI module is public so that `scripts/check_docs.py` does not import a private name.
-- Unit tests that target one production unit moved to the mirrored path; tests of the project itself moved to `tests/unit/project/` and `tests/unit/scripts/`.
+- Unit tests moved to the path that mirrors the production unit they cover (multi-unit test files were split, shared helpers went to `tests/support/`); tests of the project itself moved to `tests/unit/project/` and `tests/unit/scripts/`.
 - Test functions and test modules need no docstring: pylint `no-docstring-rgx` exempts them and `D1` stays ignored for `tests/*`. This is technical debt that a later release removes. `AGENTS.md` records the rule.
 - `scripts/vulture_whitelist.py` is removed. vulture runs without a whitelist; `ignore_names` lists two Protocol parameter names.
 - The ruff ignores `FBT`, `TD002`, `TD003` and `FIX002` and the `ANN` and `ARG` ignores for tests are gone. Boolean parameters of `get_bool` and a few helpers are keyword-only, and the tests are annotated.
 - `typings/pymupdf` is a minimal stub, so the PDF extractor needs no `Any` casts.
+- The changelog sections of every version follow the same order in both repositories.
+
+### Security
+
+- The lock resolves for Python 3.11.5 or newer, so it pins `soupsieve` 4.x instead of 2.10, which is affected by GHSA-mmhr-3c5m-f64f (denial of service in the descendant combinator). The `uv` migration had briefly pinned 2.10.
 
 ## [0.3.0] - 2026-11-21
 
 Deprecated functionality is not supported starting with 0.3.0.
 
-### Removed
+### Added
 
-- The `WHISPER_API_KEY` and `DOCUMENT_API_KEY` environment variables. Use `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`.
-- The `app.py` module and the `uvicorn app:app` entry point. Use `audiodoc run`.
-- The duplicate modules `audiodoc.common.logging_setup`, `audiodoc.common.log_filters` and `audiodoc.config.env`. Import `audiodoc.logging_setup`, `audiodoc.log_filters` and `audiodoc.env_readers` instead.
-- The 0.1.x migration in `install.sh` and its CI job.
+- pylint with every message enabled and all stable extensions, next to ruff and mypy. It runs in `make pylint`, `make check` and CI.
+- `AGENTS.md` with the rules for LLM agents working in this repository.
+- Python 3.14 classifiers and a Python 3.14 CI job.
 
 ### Changed
 
@@ -51,11 +52,12 @@ Deprecated functionality is not supported starting with 0.3.0.
 - CI now runs the type, dependency, dead-code and import-contract gates, and the test matrix includes Python 3.14.
 - Fixed the installer reading the latest release metadata from GitHub and a broken URL in one installer error message.
 
-### Added
+### Removed
 
-- pylint with every message enabled and all stable extensions, next to ruff and mypy. It runs in `make pylint`, `make check` and CI.
-- `AGENTS.md` with the rules for LLM agents working in this repository.
-- Python 3.14 classifiers and a Python 3.14 CI job.
+- The `WHISPER_API_KEY` and `DOCUMENT_API_KEY` environment variables. Use `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`.
+- The `app.py` module and the `uvicorn app:app` entry point. Use `audiodoc run`.
+- The duplicate modules `audiodoc.common.logging_setup`, `audiodoc.common.log_filters` and `audiodoc.config.env`. Import `audiodoc.logging_setup`, `audiodoc.log_filters` and `audiodoc.env_readers` instead.
+- The 0.1.x migration in `install.sh` and its CI job.
 
 ## [0.2.0] - 2026-11-12
 
