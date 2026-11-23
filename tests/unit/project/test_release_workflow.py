@@ -333,7 +333,8 @@ def test_check_vendored_accepts_package_names_and_non_lint_settings(
     _write_vendored_repository(local, "audiodoc")
     _write_vendored_repository(other, "bot_obormot", pytest_addopts="-vv")
 
-    assert not check_vendored(other, root=local)
+    expected_empty = []
+    assert check_vendored(other, root=local) == expected_empty, "expected an empty list"
 
 
 def test_check_vendored_reports_lint_configuration_differences(
@@ -381,6 +382,21 @@ def test_check_vendored_reports_headerless_file_differences(tmp_path: Path) -> N
 
     assert check_vendored(other, root=local) == [
         "AGENTS.md: content differs from other repository"
+    ]
+
+
+def test_check_vendored_reports_claude_instructions_differences(
+    tmp_path: Path,
+) -> None:
+    """Compare the shared agent instructions byte for byte."""
+    local = tmp_path / "audiodoc"
+    other = tmp_path / "bot-obormot"
+    _write_vendored_repository(local, "audiodoc")
+    _write_vendored_repository(other, "bot_obormot")
+    (other / "CLAUDE.md").write_text("changed\n", encoding="utf-8")
+
+    assert check_vendored(other, root=local) == [
+        "CLAUDE.md: content differs from other repository"
     ]
 
 

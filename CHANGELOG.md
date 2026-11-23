@@ -10,6 +10,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `make lock` generates `requirements-lock.txt` with `uv pip compile`; releases younger than 14 days are skipped unless `LOCK_MIN_RELEASE_AGE_DAYS=0` is passed.
 - Guidance on the assignment expression `:=` in `CONTRIBUTING.md`.
 - `scripts/check_test_layout.py`, shared with the other repository and run by `make lint`, requires every unit test file to mirror a production unit (`tests/unit/<dirs>/test_<name>.py`) or to live in `tests/unit/project/` or `tests/unit/scripts/`. `tests/layout_pending.txt` may list multi-unit files that are still to be split; the list only shrinks, and it is currently absent because no file is pending.
+- `audiodoc.errors.djvu` and `audiodoc.errors.images` hold the client-safe DJVU and OCR errors as public classes (for example `DjvuTooManyPagesError`, `ImageTooLargeError`); they were private classes of the extractor modules. Messages, codes and HTTP statuses are unchanged.
+- `audiodoc.transcription.temp_files.temp_dir()` returns the private audio directory from the current settings.
+- `CLAUDE.md` holds the development standards for LLM agents and the rule for picking the next task; it is identical in both repositories and checked by `scripts/check_vendored.py`. `ROADMAP.md` lists the planned work as tasks of one session each (`AD-` and `BO-` IDs); `CONTRIBUTING.md` links both files.
 - `scripts/check_changelog.py`, shared with the other repository and run by `make docs-check`, requires the sections of every changelog version to follow the order Added, Changed, Deprecated, Fixed, Removed, Security, without duplicates or unknown sections.
 
 ### Changed
@@ -28,8 +31,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The ruff ignores `FBT`, `TD002`, `TD003` and `FIX002` and the `ANN` and `ARG` ignores for tests are gone. Boolean parameters of `get_bool` and a few helpers are keyword-only, and the tests are annotated.
 - `typings/pymupdf` is a minimal stub, so the PDF extractor needs no `Any` casts.
 - The changelog sections of every version follow the same order in both repositories.
-- pylint now checks every test module in both repositories (audiodoc no longer passes `--ignore-paths='^tests/unit/'`), and the ruff `PLR2004` and `SLF001` ignores for `tests/*` are gone. Literals compared in tests are local variables, fixtures use `@pytest.fixture(name=...)`, fakes that use no instance state are static or plain namespaces, and comparisons with empty literals use truthiness. The few tests that still pin a private helper carry a narrow, reasoned `# noqa: SLF001` and `# pylint: disable=protected-access`.
+- pylint now checks every test module in both repositories (audiodoc no longer passes `--ignore-paths='^tests/unit/'`), and the ruff `PLR2004` and `SLF001` ignores for `tests/*` are gone. Literals compared in tests are local variables, fixtures use `@pytest.fixture(name=...)`, fakes that use no instance state are static or plain namespaces, and comparisons with empty literals use truthiness.
+- Tests no longer touch private names: the Tesseract checks run through `ensure_ready`, image preprocessing through `recognize_pages`, the PDF DPI fallback through `extract_pdf`, the ZIP member guards through `validate_zip_archive` with archives whose central directory lies about sizes, and the queue sizes through `WorkQueue.slot`.
+- Tests that check for an empty result compare it with an empty literal of the expected type (`expected_empty = []`, then `assert value == expected_empty, "..."`) instead of relying on truthiness, so a `None` or a value of another type no longer passes.
+- `audiodoc.transcription.temp_files` resolves the temporary directory when it is used instead of at import, so importing the module no longer loads the settings.
 - Fake Whisper models and native-tool stubs moved to `tests/support/whisper.py`; the lifespan shutdown test drives the public `lifespan` context manager instead of calling `__aenter__`/`__aexit__`.
+
+### Removed
+
+- `TEMP_DIR` and `DEFAULT_TEMP_DIR` in `audiodoc.transcription.temp_files`. Call `temp_dir()` or set `BACKEND_TEMP_DIR`.
 
 ### Security
 

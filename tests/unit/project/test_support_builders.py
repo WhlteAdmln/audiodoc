@@ -79,7 +79,8 @@ def test_pdf_builders_create_text_and_image_documents() -> None:
         filetype="pdf",
     ) as document:
         page = document[0]
-        assert not page.get_text().strip()
+        expected_empty = ""
+        assert page.get_text().strip() == expected_empty, "expected an empty string"
         assert page.get_images(full=True)
 
     with pymupdf.open(

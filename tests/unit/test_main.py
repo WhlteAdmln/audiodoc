@@ -31,6 +31,7 @@ from tests.support.builders import create_wav
 from tests.support.import_safety import check_import_safety
 from tests.support.server import LiveServer, LiveServerOptions, fixture_live_server
 from tests.support.whisper import no_native_tools, silent_model
+from tests.support.work_queues import QueueCapacity, measure_capacity
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -508,7 +509,10 @@ async def test_client_disconnect_during_upload_closes_temporary_file(
 
     assert rolled_in_time
     assert await asyncio.to_thread(closed.wait, 5)
-    assert not list(live_server.temp_dir.iterdir())
+    expected_empty = []
+    assert list(live_server.temp_dir.iterdir()) == expected_empty, (
+        "expected an empty list"
+    )
 
 
 def test_health_route_reports_model_state_without_starting_lifespan() -> None:
@@ -596,26 +600,38 @@ def test_app_registers_all_expected_routes() -> None:
     assert expected_fragment in paths["/process-document"]
 
 
-def test_create_app_builds_independent_queues_from_settings() -> None:
-    # pylint: disable=protected-access  # the queue exposes no capacity getters
-    configured_settings = Settings(
+def _queue_settings() -> Settings:
+    return Settings(
         MAX_CONCURRENT_TRANSCRIPTIONS=3,
         MAX_WAITING_TRANSCRIPTIONS=2,
         MAX_WAITING_DOCUMENTS=1,
     )
+
+
+def test_create_app_builds_independent_queues_from_settings() -> None:
+    configured_settings = _queue_settings()
     first_app = main_module.create_app(configured_settings)
     second_app = main_module.create_app(configured_settings)
-
-    assert (
-        first_app.state.transcription_queue is not second_app.state.transcription_queue
+    actual = (
+        first_app.state.transcription_queue is second_app.state.transcription_queue,
+        first_app.state.document_queue is second_app.state.document_queue,
     )
-    assert first_app.state.document_queue is not second_app.state.document_queue
-    expected_workers = 3
-    assert first_app.state.transcription_queue._workers == expected_workers  # noqa: SLF001
-    expected_max_waiting = 2
-    assert first_app.state.transcription_queue._max_waiting == expected_max_waiting  # noqa: SLF001
-    assert first_app.state.document_queue._workers == MAX_CONCURRENT_DOCUMENTS  # noqa: SLF001
-    assert first_app.state.document_queue._max_waiting == 1  # noqa: SLF001
+    expected = (False, False)
+    assert actual == expected, "every application must own its queues"
+
+
+def test_create_app_sizes_transcription_queue_from_settings() -> None:
+    app = main_module.create_app(_queue_settings())
+    actual = measure_capacity(app.state.transcription_queue)
+    expected = QueueCapacity(active=3, waiting=2)
+    assert actual == expected, "the transcription queue ignored its settings"
+
+
+def test_create_app_sizes_document_queue_from_settings() -> None:
+    app = main_module.create_app(_queue_settings())
+    actual = measure_capacity(app.state.document_queue)
+    expected = QueueCapacity(active=MAX_CONCURRENT_DOCUMENTS, waiting=1)
+    assert actual == expected, "the document queue ignored its settings"
 
 
 def test_lifespan_creates_independent_model_holders(
@@ -817,7 +833,8 @@ def test_lifespan_fails_when_temp_directory_is_not_writable(
     ):
         pass
 
-    assert not events
+    expected_empty = []
+    assert events == expected_empty, "expected an empty list"
 
 
 def test_lifespan_waits_for_running_job_before_shutdown(

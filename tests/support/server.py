@@ -17,7 +17,6 @@ from audiodoc.api.middleware import BodySizeLimitMiddleware
 from audiodoc.config import Settings, settings
 from audiodoc.main import create_app
 from audiodoc.transcription import model as model_module
-from audiodoc.transcription import temp_files
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -91,7 +90,6 @@ def _configure_live_server_settings(
     )
     monkeypatch.setattr(settings, "ENABLE_DOCS", options.enable_docs)
     monkeypatch.setattr(settings, "TEMP_DIR", str(temp_dir))
-    monkeypatch.setattr(temp_files, "TEMP_DIR", temp_dir)
 
     def build_fake_model(
         _configured_settings: Settings | None,

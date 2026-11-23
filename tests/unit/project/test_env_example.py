@@ -69,11 +69,13 @@ def test_env_example_matches_settings_environment_variables() -> None:
     missing = sorted(settings_names - example_names)
     extra = sorted(example_names - settings_names)
 
-    assert not missing, (
+    expected_empty = []
+    assert missing == expected_empty, (
         ".env.example and audiodoc/config/settings.py are out of sync. "
         f"Missing from .env.example: {missing}"
     )
-    assert not extra, (
+    expected_empty = []
+    assert extra == expected_empty, (
         ".env.example and audiodoc/config/settings.py are out of sync. "
         f"not read by Settings: {extra}"
     )

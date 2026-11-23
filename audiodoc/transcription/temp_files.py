@@ -12,19 +12,14 @@ from pathlib import Path
 from audiodoc.config import settings
 from audiodoc.env_readers import get_home_dir, resolve_home_path
 
-DEFAULT_TEMP_DIR = get_home_dir() / "tmp"
+
+def temp_dir() -> Path:
+    """Return the private temporary audio directory from the current settings."""
+    home = get_home_dir()
+    configured = (settings.TEMP_DIR or "").strip()
+    return resolve_home_path(configured, home) if configured else home / "tmp"
 
 
-def _resolve_temp_dir(value: str | None) -> Path:
-    configured = (value or "").strip()
-    return (
-        resolve_home_path(configured, get_home_dir())
-        if configured
-        else DEFAULT_TEMP_DIR
-    )
-
-
-TEMP_DIR = _resolve_temp_dir(settings.TEMP_DIR)
 STALE_AFTER_SECONDS = 3600
 
 
@@ -35,10 +30,11 @@ def ensure_temp_dir() -> Path:
         The configured private temporary directory.
 
     """
-    TEMP_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+    directory = temp_dir()
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     # Tighten permissions if the directory already existed with broader access.
-    TEMP_DIR.chmod(0o700)
-    return TEMP_DIR
+    directory.chmod(0o700)
+    return directory
 
 
 def _remove_if_stale(item: Path, now: float) -> None:

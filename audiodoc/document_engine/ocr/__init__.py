@@ -10,28 +10,13 @@ from audiodoc.common.deadline import Deadline
 from audiodoc.document_engine.ocr.preprocessing import SUPPORTED_IMAGE_FORMATS
 from audiodoc.document_engine.ocr.recognize import recognize_pages
 from audiodoc.document_engine.ocr.tesseract import DEFAULT_OCR_LANGUAGES, ensure_ready
-from audiodoc.errors.documents import DocumentRejectedError
-from audiodoc.errors.messages import ERROR_MESSAGES
+from audiodoc.errors.images import (
+    EmptyImageError,
+    UnknownImageFormatError,
+    UnsupportedOcrImageFormatError,
+)
 
 logger = logging.getLogger(__name__)
-
-
-class _EmptyImageError(DocumentRejectedError):
-    """Raised when OCR receives empty image data."""
-
-    public_message = ERROR_MESSAGES["empty_image"]
-
-
-class _UnknownImageFormatError(DocumentRejectedError):
-    """Raised when the image format cannot be identified."""
-
-    public_message = ERROR_MESSAGES["unknown_image_format"]
-
-
-class _UnsupportedOcrImageFormatError(DocumentRejectedError):
-    """Raised when an image format is unsupported by OCR."""
-
-    public_message = ERROR_MESSAGES["unsupported_ocr_image_format"]
 
 
 def extract_image_text(
@@ -44,17 +29,17 @@ def extract_image_text(
     if deadline is not None:
         deadline.check()
     if not data:
-        raise _EmptyImageError
+        raise EmptyImageError
 
     ensure_ready(languages)
     try:
         image = Image.open(io.BytesIO(data))
     except UnidentifiedImageError as error:
-        raise _UnknownImageFormatError from error
+        raise UnknownImageFormatError from error
 
     with image:
         if image.format not in SUPPORTED_IMAGE_FORMATS:
-            raise _UnsupportedOcrImageFormatError
+            raise UnsupportedOcrImageFormatError
         return recognize_pages(image, languages, deadline=deadline)
 
 

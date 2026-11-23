@@ -12,7 +12,10 @@ def test_document_engine_processor_shim_is_removed() -> None:
 
 
 def test_project_root_has_no_stray_test_scripts_or_working_folders() -> None:
-    assert not list(PROJECT_ROOT.glob("test_*.py"))
+    expected_empty = []
+    assert list(PROJECT_ROOT.glob("test_*.py")) == expected_empty, (
+        "expected an empty list"
+    )
     assert not (PROJECT_ROOT / "test_documents").exists()
     assert not (PROJECT_ROOT / "uploads").exists()
 

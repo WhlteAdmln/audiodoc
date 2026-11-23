@@ -4,15 +4,7 @@
 from PIL import Image, ImageOps
 
 from audiodoc.document_engine.limits import MAX_IMAGE_PIXELS
-from audiodoc.errors.documents import DocumentRejectedError
-from audiodoc.errors.messages import ERROR_MESSAGES
-
-
-class _ImageTooLargeError(DocumentRejectedError):
-    """Raised when an image exceeds the OCR pixel limit."""
-
-    public_message = ERROR_MESSAGES["image_too_large"]
-
+from audiodoc.errors.images import ImageTooLargeError
 
 SUPPORTED_IMAGE_FORMATS = {
     "PNG",
@@ -26,7 +18,7 @@ SUPPORTED_IMAGE_FORMATS = {
 def _prepare_image(image: Image.Image) -> Image.Image:
     """Prepare an image for OCR."""
     if image.width * image.height > MAX_IMAGE_PIXELS:
-        raise _ImageTooLargeError
+        raise ImageTooLargeError
 
     # Correct the EXIF orientation.
     image = ImageOps.exif_transpose(image)

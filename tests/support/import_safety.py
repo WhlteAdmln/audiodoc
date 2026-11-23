@@ -61,4 +61,5 @@ def check_import_safety(working_directory: str) -> None:
     importlib.import_module(_MAIN_MODULE)
 
     assert tuple(root_logger.handlers) == handlers_before
-    assert not opened_paths, opened_paths
+    expected_empty = []
+    assert opened_paths == expected_empty, opened_paths

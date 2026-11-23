@@ -15,28 +15,13 @@ from audiodoc.document_engine.limits import (
     MAX_EXTRACTED_TEXT_LENGTH,
     SUBPROCESS_TIMEOUT,
 )
-from audiodoc.errors.documents import DocumentRejectedError, ProcessingTimeoutError
-from audiodoc.errors.messages import ERROR_MESSAGES
+from audiodoc.errors.djvu import (
+    DjvuTextLayerReadError,
+    DjvuTextLayerTimeoutError,
+    DjvuTextTooLargeError,
+)
 
 logger = logging.getLogger(__name__)
-
-
-class _DjvuTextTooLargeError(DocumentRejectedError):
-    """Raised when the embedded DjVu text layer exceeds its size limit."""
-
-    public_message = ERROR_MESSAGES["djvu_text_too_large"]
-
-
-class _DjvuTextLayerTimeoutError(ProcessingTimeoutError):
-    """Raised when extracting the DjVu text layer exceeds its deadline."""
-
-    public_message = ERROR_MESSAGES["djvu_text_layer_timeout"]
-
-
-class _DjvuTextLayerReadError(DocumentRejectedError):
-    """Raised when the embedded DjVu text layer cannot be read."""
-
-    public_message = ERROR_MESSAGES["djvu_text_layer_read_failed"]
 
 
 def extract_text_layer(
@@ -59,15 +44,15 @@ def extract_text_layer(
             max_output=MAX_EXTRACTED_TEXT_LENGTH * 4,
         )
     except SubprocessOutputLimitError as error:
-        raise _DjvuTextTooLargeError from error
+        raise DjvuTextTooLargeError from error
     except SubprocessTimeoutError as error:
         ctx.check()
-        raise _DjvuTextLayerTimeoutError from error
+        raise DjvuTextLayerTimeoutError from error
 
     if return_code != 0:
         logger.warning(
             "djvutxt failed: stderr=%r", stderr.decode("utf-8", errors="replace")
         )
-        raise _DjvuTextLayerReadError
+        raise DjvuTextLayerReadError
     ctx.check()
     return output.decode("utf-8", errors="replace").strip()

@@ -66,7 +66,8 @@ def test_check_native_tools_handles_tesseract_language_errors(
 
     expected_tesseract = "/usr/bin/tesseract"
     assert status.tesseract == expected_tesseract
-    assert not status.languages
+    expected_empty = ()
+    assert status.languages == expected_empty, "expected an empty tuple"
     assert status.djvulibre
 
 
@@ -102,7 +103,8 @@ def test_check_native_tools_handles_missing_pytesseract(
 
     expected_tesseract = "/usr/bin/tesseract"
     assert status.tesseract == expected_tesseract
-    assert not status.languages
+    expected_empty = ()
+    assert status.languages == expected_empty, "expected an empty tuple"
     assert status.djvulibre
 
 
@@ -128,7 +130,8 @@ def test_check_native_tools_reports_missing_tesseract(
     status = diagnostics_module.check_native_tools()
 
     assert status.tesseract is None
-    assert not status.languages
+    expected_empty = ()
+    assert status.languages == expected_empty, "expected an empty tuple"
     assert status.djvulibre
 
 

@@ -27,7 +27,7 @@ from audiodoc.document_engine import (
     process_document_sync,
     runner,
 )
-from audiodoc.document_engine.extractors import REGISTRY, _odf
+from audiodoc.document_engine.extractors import REGISTRY
 from audiodoc.document_engine.extractors import pdf as pdf_module
 from audiodoc.document_engine.extractors.djvu.tools import DjvuTools
 from audiodoc.document_engine.guards import zip_archive as zip_guard
@@ -207,7 +207,8 @@ def _assert_upload_clean(
 ) -> None:
     assert opened
     assert all(handle.closed for handle in opened)
-    assert not list(directory.iterdir())
+    expected_empty = []
+    assert list(directory.iterdir()) == expected_empty, "expected an empty list"
 
 
 def _billion_laughs_payload() -> bytes:
@@ -751,19 +752,18 @@ def test_odf_registry_entries_dispatch_to_the_correct_type(
         **_kwargs: object,
     ) -> object:
         calls.append((data, filetype))
-        return filetype.upper()
+        return ""
 
     monkeypatch.setattr(
         "audiodoc.document_engine.extractors.extract_odf",
         fake_extract_odf,
     )
 
-    # ODF adapters resolve the shared extract_odf function at call time.
-    # Rebuild only the three entries to make their dispatch observable.
     for kind in ("odt", "ods", "odp"):
-        assert _odf(kind)(b"odf") == kind.upper()
+        REGISTRY[kind](b"odf")
 
-    assert calls == [(b"odf", "odt"), (b"odf", "ods"), (b"odf", "odp")]
+    expected = [(b"odf", "odt"), (b"odf", "ods"), (b"odf", "odp")]
+    assert calls == expected, "each ODF registry entry must pass its own file type"
 
 
 def test_pipeline_dispatches_registered_extractor_and_builds_result(
