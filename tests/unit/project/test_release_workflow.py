@@ -385,6 +385,21 @@ def test_check_vendored_reports_headerless_file_differences(tmp_path: Path) -> N
     ]
 
 
+def test_check_vendored_reports_claude_instructions_differences(
+    tmp_path: Path,
+) -> None:
+    """Compare the shared agent instructions byte for byte."""
+    local = tmp_path / "audiodoc"
+    other = tmp_path / "bot-obormot"
+    _write_vendored_repository(local, "audiodoc")
+    _write_vendored_repository(other, "bot_obormot")
+    (other / "CLAUDE.md").write_text("changed\n", encoding="utf-8")
+
+    assert check_vendored(other, root=local) == [
+        "CLAUDE.md: content differs from other repository"
+    ]
+
+
 def test_project_vendored_files_have_required_headers() -> None:
     """Ensure every vendored project file starts with the required marker."""
     for relative_path in VENDORED_FILES:
