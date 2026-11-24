@@ -47,6 +47,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `CLAUDE.md` asks to run `make clean` after the final `make check`, so no build, coverage or cache artifacts stay in the working tree.
 - Tests follow the general test rules. Test functions have no docstrings and test files have no comments except the license header and tool pragmas with a reason. Fakes of PyMuPDF, openpyxl, Pillow, sockets, pytest items and spooled upload files live in `tests/support/`, and no class is defined inside a test function. `unittest.mock` is gone. Slow-model tests advance a fake monotonic clock (`tests/support/clock.py`) instead of sleeping, and the concurrency tests synchronize on events and scheduler yields. Temporary files stay under pytest's temporary directories. The API and contract tests create their application and test client in function-scoped fixtures. Constant test data is immutable. Tests without a verb in their name and mechanical variable names such as `expected_fragment` are renamed. The Docker CI test is split into three tests. Behavior is unchanged.
 - `CLAUDE.md` asks to name branches and write commit messages and pull request titles and text in the style of the repository history, without additions such as task IDs in titles.
+- `CLAUDE.md` lets the agent merge a pull request when the user asks in the session and every CI check passed, with a merge commit, then switch to `main` and pull; the branch stays.
 
 ### Removed
 
