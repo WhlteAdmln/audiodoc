@@ -2,45 +2,73 @@
 """Tests for shared, monotonic processing deadlines."""
 
 import math
-from types import SimpleNamespace
-from typing import Never
 
 import pytest
 
+from audiodoc.common import deadline as deadline_module
 from audiodoc.common.deadline import Deadline, DeadlineExceededError
-from audiodoc.document_engine import pipeline
-from audiodoc.errors.documents import ProcessingTimeoutError
+from tests.support.clock import FakeMonotonicClock
 
 
-def test_deadline_reports_remaining_time_and_expires(
-    monkeypatch: pytest.MonkeyPatch,
-) -> Never:
-    ticks = iter((100.0, 100.25, 101.1))
-    monkeypatch.setattr("audiodoc.common.deadline.time.monotonic", lambda: next(ticks))
-    deadline = Deadline(1.0)
-
-    assert deadline.remaining() == pytest.approx(0.75)
-    with pytest.raises(DeadlineExceededError):
-        raise DeadlineExceededError
+@pytest.fixture(name="clock")
+def fixture_clock(monkeypatch: pytest.MonkeyPatch) -> FakeMonotonicClock:
+    """Replace the clock the deadline module reads with a manual one."""
+    clock = FakeMonotonicClock()
+    clock.advance(4_183.5)
+    monkeypatch.setattr(deadline_module, "time", clock)
+    return clock
 
 
-def test_deadline_requires_a_finite_positive_duration() -> None:
-    for value in (0, -1, math.inf, math.nan):
-        with pytest.raises(
-            ValueError, match="seconds must be a finite positive number"
-        ):
-            Deadline(value)
+def test_reports_remaining_time(clock: FakeMonotonicClock) -> None:
+    deadline = Deadline(1.75)
+    clock.advance(0.5)
+
+    remaining = deadline.remaining()
+
+    expected_remaining = 1.25
+    assert remaining == pytest.approx(expected_remaining), "wrong remaining time"
 
 
-def test_pipeline_maps_deadline_expiration_to_safe_backend_error(
-    monkeypatch: pytest.MonkeyPatch,
+def test_reports_negative_remaining_time_after_expiry(
+    clock: FakeMonotonicClock,
 ) -> None:
-    monkeypatch.setattr(pipeline, "detect_format", lambda *_args: "txt")
+    deadline = Deadline(0.3)
+    clock.advance(2.8)
 
-    def check() -> Never:
-        raise DeadlineExceededError
+    remaining = deadline.remaining()
 
-    expired_deadline = SimpleNamespace(check=check)
+    expected_remaining = -2.5
+    assert remaining == pytest.approx(expected_remaining), "overdue time is lost"
 
-    with pytest.raises(ProcessingTimeoutError):
-        pipeline.process_document_sync(b"hello", "note.txt", deadline=expired_deadline)
+
+@pytest.mark.parametrize("elapsed", [0.75, 13.0])
+def test_check_raises_when_budget_is_spent(
+    clock: FakeMonotonicClock, elapsed: float
+) -> None:
+    deadline = Deadline(0.75)
+    clock.advance(elapsed)
+
+    with pytest.raises(DeadlineExceededError) as caught:
+        deadline.check()
+
+    expected_message = "processing deadline exceeded"
+    assert str(caught.value) == expected_message, "wrong deadline error message"
+
+
+def test_expired_deadline_is_a_timeout_error(clock: FakeMonotonicClock) -> None:
+    deadline = Deadline(0.01)
+    clock.advance(1.0)
+
+    with pytest.raises(TimeoutError) as caught:
+        deadline.check()
+
+    assert isinstance(caught.value, DeadlineExceededError), "callers catch TimeoutError"
+
+
+@pytest.mark.parametrize("seconds", [0, -0.0, -1, -1e-9, math.inf, -math.inf, math.nan])
+def test_rejects_duration_that_is_not_finite_and_positive(seconds: float) -> None:
+    with pytest.raises(ValueError, match="seconds") as caught:
+        Deadline(seconds)
+
+    expected_message = "seconds must be a finite positive number"
+    assert str(caught.value) == expected_message, "wrong validation message"

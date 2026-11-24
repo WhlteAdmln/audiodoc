@@ -3,8 +3,7 @@
 """Tests for API key authentication."""
 
 import asyncio
-from collections.abc import Awaitable, Callable
-from types import SimpleNamespace
+import re
 
 import pytest
 from fastapi import FastAPI, HTTPException, Request
@@ -14,184 +13,269 @@ from audiodoc.api.auth import check_security_settings, require_key
 from audiodoc.config import Settings, settings
 from audiodoc.main import create_app
 
-
-def _run_dependency(
-    dependency: Callable[..., Awaitable[None]],
-    authorization: str | None = None,
-) -> None:
-    application = FastAPI()
-    application.state.settings = Settings(AUDIODOC_AUDIO_KEY="expected-secret")
-    request = Request({"type": "http", "app": application})
-    return asyncio.run(dependency(request, authorization))
+AUDIO_KEY = "audio-K3y_~-2026"
+DOCUMENT_KEY = "doc-9f!Q-key=="
+NOTE = {"file": ("note.txt", b"short test", "text/plain")}
+VOICE = {"file": ("voice.ogg", b"fake audio", "audio/ogg")}
 
 
-def test_require_key_rejects_missing_and_invalid_tokens() -> None:
-    dependency = require_key(lambda configured: configured.AUDIODOC_AUDIO_KEY)
-    with pytest.raises(HTTPException) as missing:
-        _run_dependency(dependency)
-    expected_status_code = 401
-    assert missing.value.status_code == expected_status_code
-    expected_www_authenticate = "Bearer"
-    assert missing.value.headers["WWW-Authenticate"] == expected_www_authenticate
-
-    with pytest.raises(HTTPException) as invalid:
-        _run_dependency(dependency, "Bearer wrong-secret")
-    expected_status_code = 401
-    assert invalid.value.status_code == expected_status_code
-
-
-def test_require_key_accepts_valid_token_case_insensitive_scheme() -> None:
-    dependency = require_key(lambda configured: configured.AUDIODOC_AUDIO_KEY)
-    assert _run_dependency(dependency, "bearer expected-secret") is None
-
-
-def test_require_key_supports_two_comma_separated_rotation_keys() -> None:
-    dependency = require_key(lambda configured: configured.AUDIODOC_AUDIO_KEY)
-    configured_settings = Settings(AUDIODOC_AUDIO_KEY="new-secret, old-secret")
-    application = FastAPI()
-    application.state.settings = configured_settings
-    request = Request({"type": "http", "app": application})
-    assert asyncio.run(dependency(request, "Bearer old-secret")) is None
-
-
-def test_require_key_uses_process_settings_without_app_settings(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(settings, "AUDIODOC_AUDIO_KEY", "expected-secret")
+def _check(
+    authorization: str | None, expected_keys: str = "expected-secret"
+) -> int | None:
     dependency = require_key(lambda configured: configured.AUDIODOC_AUDIO_KEY)
     application = FastAPI()
+    application.state.settings = Settings(AUDIODOC_AUDIO_KEY=expected_keys)
     request = Request({"type": "http", "app": application})
+    try:
+        asyncio.run(dependency(request, authorization))
+    except HTTPException as error:
+        return error.status_code
+    return None
 
-    assert asyncio.run(dependency(request, "Bearer expected-secret")) is None
 
-
-def test_missing_keys_fail_closed_by_default() -> None:
-    configured_settings = SimpleNamespace(
-        AUDIODOC_AUDIO_KEY="",
-        AUDIODOC_DOCUMENT_KEY="document-secret",
-        ALLOW_UNAUTHENTICATED=False,
+def _security_error(audio: str, document: str, *, allow: bool = False) -> str:
+    configured = Settings(
+        AUDIODOC_AUDIO_KEY=audio,
+        AUDIODOC_DOCUMENT_KEY=document,
+        ALLOW_UNAUTHENTICATED=allow,
     )
-    with pytest.raises(
-        RuntimeError,
-        match=r"^Missing API keys: AUDIODOC_AUDIO_KEY\.",
-    ):
-        check_security_settings(configured_settings)
+    try:
+        check_security_settings(configured)
+    except RuntimeError as error:
+        return str(error)
+    return ""
 
 
-def test_missing_keys_are_allowed_only_when_explicitly_enabled() -> None:
-    configured_settings = SimpleNamespace(
-        AUDIODOC_AUDIO_KEY="",
-        AUDIODOC_DOCUMENT_KEY="",
-        ALLOW_UNAUTHENTICATED=True,
+@pytest.fixture(name="client")
+def fixture_client() -> TestClient:
+    """Create a client for an application with separate audio and document keys."""
+    return TestClient(
+        create_app(
+            Settings(AUDIODOC_DOCUMENT_KEY=DOCUMENT_KEY, AUDIODOC_AUDIO_KEY=AUDIO_KEY)
+        )
     )
-    check_security_settings(configured_settings)
-
-
-def test_comma_only_key_value_is_treated_as_missing() -> None:
-    configured_settings = SimpleNamespace(
-        AUDIODOC_AUDIO_KEY=", ,",
-        AUDIODOC_DOCUMENT_KEY="document-secret",
-        ALLOW_UNAUTHENTICATED=False,
-    )
-    with pytest.raises(
-        RuntimeError,
-        match=r"^Missing API keys: AUDIODOC_AUDIO_KEY\.",
-    ):
-        check_security_settings(configured_settings)
 
 
 @pytest.mark.parametrize(
-    ("whisper_key", "document_key"),
+    "authorization",
     [
-        ("shared-secret", "shared-secret"),
-        ("new-secret, shared-secret", "shared-secret, old-secret"),
+        None,
+        "",
+        "Bearer",
+        "Bearer ",
+        "Bearer wrong-secret",
+        "Basic expected-secret",
+        "expected-secret",
+        "Bearerexpected-secret",
+        "Bearer expected-secre",
+        "Bearer expected-secret-and-more",
+        "Bearer EXPECTED-SECRET",
+        "Bearer expected-secret\x00",
+        "Bearer expected\N{HYPHEN}secret",
+        "Bearer секрет",
+        "Bearer expected-secret, other",
+        "Bearer " + "x" * 100_000,
+    ],
+    ids=[
+        "missing",
+        "empty",
+        "scheme-only",
+        "empty-token",
+        "wrong",
+        "basic",
+        "no-scheme",
+        "no-space",
+        "prefix",
+        "suffix",
+        "upper-case",
+        "nul",
+        "unicode-hyphen",
+        "cyrillic",
+        "list",
+        "huge",
     ],
 )
-def test_shared_api_keys_fail_closed(
-    whisper_key: str,
-    document_key: str,
+def test_rejects_missing_or_wrong_credentials(authorization: str | None) -> None:
+    status = _check(authorization)
+
+    expected_status = 401
+    assert status == expected_status, "a bad credential was accepted"
+
+
+def test_asks_for_bearer_credentials_on_rejection() -> None:
+    dependency = require_key(lambda configured: configured.AUDIODOC_AUDIO_KEY)
+    application = FastAPI()
+    application.state.settings = Settings(AUDIODOC_AUDIO_KEY="expected-secret")
+    request = Request({"type": "http", "app": application})
+
+    with pytest.raises(HTTPException) as caught:
+        asyncio.run(dependency(request, "Bearer nope"))
+
+    expected_headers = {"WWW-Authenticate": "Bearer"}
+    assert caught.value.headers == expected_headers, "no Bearer challenge was sent"
+
+
+@pytest.mark.parametrize(
+    "authorization",
+    ["Bearer expected-secret", "bearer expected-secret", "BEARER  expected-secret "],
+)
+def test_accepts_the_key_with_any_scheme_case(authorization: str) -> None:
+    status = _check(authorization)
+
+    assert status is None, "a valid credential was rejected"
+
+
+@pytest.mark.parametrize("token", ["new-secret", "old-secret"])
+def test_accepts_every_rotation_key(token: str) -> None:
+    status = _check(f"Bearer {token}", " new-secret , old-secret ,")
+
+    assert status is None, "a rotation key was rejected"
+
+
+def test_skips_the_check_when_no_key_is_configured() -> None:
+    status = _check(None, "")
+
+    assert status is None, "an unconfigured key blocked the request"
+
+
+def test_reads_process_settings_without_app_settings(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    configured_settings = SimpleNamespace(
-        AUDIODOC_AUDIO_KEY=whisper_key,
-        AUDIODOC_DOCUMENT_KEY=document_key,
-        ALLOW_UNAUTHENTICATED=False,
-    )
+    monkeypatch.setattr(settings, "AUDIODOC_AUDIO_KEY", "process-wide-secret")
+    dependency = require_key(lambda configured: configured.AUDIODOC_AUDIO_KEY)
+    request = Request({"type": "http", "app": FastAPI()})
 
-    with pytest.raises(
-        RuntimeError,
-        match="must not share any key values",
-    ):
-        check_security_settings(configured_settings)
+    with pytest.raises(HTTPException) as caught:
+        asyncio.run(dependency(request, "Bearer anything-else"))
+
+    expected_status = 401
+    assert caught.value.status_code == expected_status, "process settings ignored"
 
 
-def test_document_route_requires_its_own_key() -> None:
-    app = create_app(
-        Settings(
-            AUDIODOC_DOCUMENT_KEY="document-test-key",
-            AUDIODOC_AUDIO_KEY="whisper-test-key",
-        )
-    )
+@pytest.mark.parametrize(
+    ("audio", "document", "missing"),
+    [
+        ("", "document-secret", "AUDIODOC_AUDIO_KEY"),
+        ("audio-secret", "   ", "AUDIODOC_DOCUMENT_KEY"),
+        (", ,", "document-secret", "AUDIODOC_AUDIO_KEY"),
+        ("", ",", "AUDIODOC_AUDIO_KEY, AUDIODOC_DOCUMENT_KEY"),
+    ],
+    ids=["audio-empty", "document-blank", "commas-only", "both"],
+)
+def test_fails_closed_when_keys_are_missing(
+    audio: str, document: str, missing: str
+) -> None:
+    message = _security_error(audio, document)
 
-    client = TestClient(app)
-    files = {"file": ("note.txt", b"short test", "text/plain")}
+    assert message.startswith(f"Missing API keys: {missing}."), "missing keys passed"
 
-    expected_missing_key_status = 401
-    assert (
-        client.post("/process-document", files=files).status_code
-        == expected_missing_key_status
+
+def test_allows_missing_keys_only_when_explicitly_enabled() -> None:
+    message = _security_error("", "", allow=True)
+
+    expected_message = ""
+    assert message == expected_message, "the explicit opt-out was ignored"
+
+
+@pytest.mark.parametrize(
+    ("audio", "document", "allow"),
+    [
+        ("shared-secret", "shared-secret", False),
+        ("new-secret, shared-secret", "shared-secret, old-secret", False),
+        ("  padded-secret ", "padded-secret", False),
+        ("shared-secret", "shared-secret", True),
+    ],
+    ids=["same", "rotation-overlap", "whitespace", "opt-out"],
+)
+def test_fails_closed_when_apis_share_a_key(
+    audio: str, document: str, *, allow: bool
+) -> None:
+    message = _security_error(audio, document, allow=allow)
+
+    expected_message = (
+        "AUDIODOC_AUDIO_KEY and AUDIODOC_DOCUMENT_KEY must not share any key values."
     )
-    expected_wrong_key_status = 401
-    assert (
-        client.post(
-            "/transcribe",
-            files={"file": ("voice.ogg", b"fake audio", "audio/ogg")},
-        ).status_code
-        == expected_wrong_key_status
-    )
-    expected_audio_key_status = 401
-    assert (
-        client.post(
-            "/process-document",
-            files=files,
-            headers={"Authorization": "Bearer wrong"},
-        ).status_code
-        == expected_audio_key_status
-    )
+    assert message == expected_message, "a shared key was accepted"
+
+
+def test_does_not_reveal_keys_in_the_error() -> None:
+    message = _security_error("", "shared-ab12, shared-ab12")
+
+    assert re.search("shared-ab12", message) is None, "a key leaked into the error"
+
+
+@pytest.mark.parametrize(
+    ("path", "files", "token"),
+    [
+        ("/process-document", NOTE, None),
+        ("/process-document", NOTE, "wrong"),
+        ("/process-document", NOTE, AUDIO_KEY),
+        ("/transcribe", VOICE, None),
+        ("/transcribe", VOICE, DOCUMENT_KEY),
+        ("/transcribe", VOICE, f"{AUDIO_KEY},{DOCUMENT_KEY}"),
+    ],
+    ids=[
+        "document-missing",
+        "document-wrong",
+        "document-with-audio-key",
+        "audio-missing",
+        "audio-with-document-key",
+        "audio-key-list",
+    ],
+)
+def test_route_rejects_a_key_of_another_api(
+    client: TestClient,
+    path: str,
+    files: dict[str, tuple[str, bytes, str]],
+    token: str | None,
+) -> None:
+    headers = {} if token is None else {"Authorization": f"Bearer {token}"}
+
+    response = client.post(path, files=files, headers=headers)
+
+    expected_status = 401
+    assert response.status_code == expected_status, "a foreign key was accepted"
+
+
+def test_document_route_accepts_its_own_key(client: TestClient) -> None:
     response = client.post(
         "/process-document",
-        files=files,
-        headers={"Authorization": "Bearer document-test-key"},
-    )
-    expected_document_key_status = 200
-    assert response.status_code == expected_document_key_status
-
-
-def test_api_keys_are_scoped_to_each_application_settings() -> None:
-    first_app = create_app(
-        Settings(
-            AUDIODOC_DOCUMENT_KEY="document-one",
-            AUDIODOC_AUDIO_KEY="whisper-one",
-        )
-    )
-    second_app = create_app(
-        Settings(
-            AUDIODOC_DOCUMENT_KEY="document-two",
-            AUDIODOC_AUDIO_KEY="whisper-two",
-        )
+        files=NOTE,
+        headers={"Authorization": f"Bearer {DOCUMENT_KEY}"},
     )
 
-    attempts = (
-        (first_app, "/process-document", "document-two", "note.txt", "text/plain"),
-        (second_app, "/process-document", "document-one", "note.txt", "text/plain"),
-        (first_app, "/transcribe", "whisper-two", "voice.ogg", "audio/ogg"),
-        (second_app, "/transcribe", "whisper-one", "voice.ogg", "audio/ogg"),
+    expected_status = 200
+    assert response.status_code == expected_status, "the document key was rejected"
+
+
+@pytest.mark.parametrize(
+    ("index", "path", "token", "files"),
+    [
+        (0, "/process-document", "document-two", NOTE),
+        (1, "/process-document", "document-one", NOTE),
+        (0, "/transcribe", "whisper-two", VOICE),
+        (1, "/transcribe", "whisper-one", VOICE),
+    ],
+)
+def test_keys_are_scoped_to_their_own_application(
+    index: int, path: str, token: str, files: dict[str, tuple[str, bytes, str]]
+) -> None:
+    applications = [
+        create_app(
+            Settings(
+                AUDIODOC_DOCUMENT_KEY="document-one", AUDIODOC_AUDIO_KEY="whisper-one"
+            )
+        ),
+        create_app(
+            Settings(
+                AUDIODOC_DOCUMENT_KEY="document-two", AUDIODOC_AUDIO_KEY="whisper-two"
+            )
+        ),
+    ]
+
+    response = TestClient(applications[index]).post(
+        path, files=files, headers={"Authorization": f"Bearer {token}"}
     )
 
-    for application, path, token, filename, content_type in attempts:
-        response = TestClient(application).post(
-            path,
-            files={"file": (filename, b"test upload", content_type)},
-            headers={"Authorization": f"Bearer {token}"},
-        )
-        expected_status_code = 401
-        assert response.status_code == expected_status_code
+    expected_status = 401
+    assert response.status_code == expected_status, "a key crossed applications"

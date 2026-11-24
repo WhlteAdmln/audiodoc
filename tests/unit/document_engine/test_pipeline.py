@@ -11,7 +11,7 @@ import threading
 import zipfile
 from io import BytesIO
 from pathlib import Path
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 from typing import IO, TYPE_CHECKING, Never
 
 import aiohttp
@@ -21,6 +21,7 @@ import starlette.formparsers
 
 import audiodoc.document_engine.extractors.djvu as djvu_module
 import audiodoc.document_engine.extractors.djvu.text_layer as text_layer_module
+from audiodoc.common.deadline import DeadlineExceededError
 from audiodoc.common.work_queue import WorkQueue
 from audiodoc.document_engine import pipeline as pipeline_module
 from audiodoc.document_engine import (
@@ -32,7 +33,11 @@ from audiodoc.document_engine.extractors import pdf as pdf_module
 from audiodoc.document_engine.extractors.djvu.tools import DjvuTools
 from audiodoc.document_engine.guards import zip_archive as zip_guard
 from audiodoc.errors.base import BackendError
-from audiodoc.errors.documents import DocumentRejectedError, UnsupportedFormatError
+from audiodoc.errors.documents import (
+    DocumentRejectedError,
+    ProcessingTimeoutError,
+    UnsupportedFormatError,
+)
 from tests.support.builders import (
     create_docx,
     create_epub,
@@ -892,3 +897,17 @@ def test_pipeline_hides_unexpected_extractor_exception(
     assert error.value.public_message == expected_public_message
     private_path = "/private/path/to/parser-internal-error"
     assert private_path not in error.value.public_message
+
+
+def test_pipeline_maps_deadline_expiration_to_safe_backend_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(pipeline_module, "detect_format", lambda *_args: "txt")
+
+    def check() -> Never:
+        raise DeadlineExceededError
+
+    expired_deadline = SimpleNamespace(check=check)
+
+    with pytest.raises(ProcessingTimeoutError):
+        process_document_sync(b"hello", "note.txt", deadline=expired_deadline)

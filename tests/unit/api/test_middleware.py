@@ -3,261 +3,157 @@
 """Tests for api middleware."""
 
 import asyncio
-import contextlib
 
 import pytest
-from fastapi import FastAPI, Request
-from fastapi.testclient import TestClient
-from starlette.types import Message, Receive, Scope, Send
+from starlette.types import ASGIApp, Message
 
 from audiodoc.api.middleware import BodySizeLimitMiddleware
+from tests.support.asgi import (
+    BodyReadingApp,
+    EarlyResponseApp,
+    ErrorSwallowingApp,
+    RecordingSend,
+    ScriptedReceive,
+    body_messages,
+    http_scope,
+)
+
+TOO_LARGE_BODY = b'{"detail":"Request body too large"}'
 
 
-def test_body_size_middleware_rejects_content_length_before_route() -> None:
-    route_called = False
-    test_app = FastAPI()
-
-    @test_app.post("/upload")
-    async def upload(request: Request) -> object:
-        nonlocal route_called
-        route_called = True
-        return {"size": len(await request.body())}
-
-    test_app.add_middleware(BodySizeLimitMiddleware, max_body_size=10)
-    response = TestClient(test_app).post("/upload", content=b"x" * 11)
-
-    expected_status_code = 413
-    assert response.status_code == expected_status_code
-    assert route_called is False
+def _run(
+    app: ASGIApp,
+    messages: list[Message],
+    headers: list[tuple[bytes, bytes]] | None = None,
+    limit: int = 5,
+) -> RecordingSend:
+    send = RecordingSend()
+    middleware = BodySizeLimitMiddleware(app, max_body_size=limit)
+    asyncio.run(middleware(http_scope(headers or []), ScriptedReceive(messages), send))
+    return send
 
 
-def test_body_size_middleware_counts_streamed_body_without_content_length() -> None:
-    async def app(_scope: object, receive: object, send: object) -> None:
-        while True:
-            message = await receive()
-            request_message_type = "http.request"
-            if message["type"] == request_message_type and not message.get("more_body"):
-                break
-        await send({"type": "http.response.start", "status": 200, "headers": []})
-        await send({"type": "http.response.body", "body": b"ok"})
+@pytest.mark.parametrize(
+    "declared", [b"11", b"99999999999999999999999999", b"0011"], ids=repr
+)
+def test_rejects_declared_oversized_body(declared: bytes) -> None:
+    send = _run(BodyReadingApp(), body_messages(b""), [(b"content-length", declared)])
 
-    middleware = BodySizeLimitMiddleware(app, max_body_size=5)
-    messages = [
-        {"type": "http.request", "body": b"123", "more_body": True},
-        {"type": "http.request", "body": b"456", "more_body": False},
-    ]
-    sent = []
-
-    async def receive() -> object:
-        return messages.pop(0)
-
-    async def send(message: object) -> None:
-        sent.append(message)
-
-    scope = {
-        "type": "http",
-        "asgi": {"version": "3.0", "spec_version": "2.3"},
-        "http_version": "1.1",
-        "method": "POST",
-        "scheme": "http",
-        "path": "/upload",
-        "raw_path": b"/upload",
-        "query_string": b"",
-        "headers": [],
-        "server": ("testserver", 80),
-        "client": ("testclient", 12345),
-    }
-    asyncio.run(middleware(scope, receive, send))
-
-    response_start_type = "http.response.start"
-    start = next(message for message in sent if message["type"] == response_start_type)
     expected_status = 413
-    assert start["status"] == expected_status
+    assert send.status == expected_status, "a declared oversized body passed"
 
 
-@pytest.mark.parametrize("content_length", [None, b"invalid", b"5"])
-def test_body_size_middleware_accepts_body_within_limit(
-    content_length: bytes | None,
+def test_rejects_declared_oversized_body_before_the_application_runs() -> None:
+    app = BodyReadingApp()
+    _run(app, body_messages(b"x" * 11), [(b"content-length", b"11")], limit=10)
+
+    expected_calls = 0
+    assert app.calls == expected_calls, "the application saw an oversized request"
+
+
+@pytest.mark.parametrize(
+    "chunks",
+    [(b"123", b"456"), (b"1",) * 6, (b"", b"", b"123456"), (b"\x00" * 4096,)],
+    ids=["two", "many-tiny", "late", "one-big"],
+)
+def test_counts_streamed_body_without_content_length(chunks: tuple[bytes]) -> None:
+    send = _run(BodyReadingApp(), body_messages(*chunks))
+
+    expected_status = 413
+    assert send.status == expected_status, "a streamed oversized body passed"
+
+
+@pytest.mark.parametrize("declared", [b"3", b"-1", b"abc", b"+6", b"1e9", b" 6"])
+def test_counts_real_body_when_content_length_lies(declared: bytes) -> None:
+    send = _run(
+        BodyReadingApp(),
+        body_messages(b"1234", b"5678"),
+        [(b"content-length", declared)],
+    )
+
+    expected_status = 413
+    assert send.status == expected_status, "a lying Content-Length let a body pass"
+
+
+@pytest.mark.parametrize(
+    ("declared", "chunks"),
+    [
+        (None, (b"12345",)),
+        (b"invalid", (b"12345",)),
+        (b"5", (b"123", b"45")),
+        (b"0", (b"",)),
+        (None, ()),
+    ],
+    ids=["undeclared", "invalid", "split", "empty", "no-messages"],
+)
+def test_accepts_body_within_limit(
+    declared: bytes | None, chunks: tuple[bytes, ...]
 ) -> None:
-    sent: list[Message] = []
+    headers = [] if declared is None else [(b"content-length", declared)]
 
-    async def app(_scope: Scope, receive: Receive, send: Send) -> None:
-        message = await receive()
-        expected_body = b"12345"
-        assert message["body"] == expected_body
-        await send(
-            {
-                "type": "http.response.start",
-                "status": 200,
-                "headers": [],
-            }
-        )
-        await send({"type": "http.response.body", "body": b"ok"})
-
-    async def receive() -> Message:
-        return {
-            "type": "http.request",
-            "body": b"12345",
-            "more_body": False,
-        }
-
-    async def send(message: Message) -> None:
-        sent.append(message)
-
-    headers = [] if content_length is None else [(b"content-length", content_length)]
-    middleware = BodySizeLimitMiddleware(app, max_body_size=5)
-    asyncio.run(
-        middleware(
-            {"type": "http", "headers": headers},
-            receive,
-            send,
-        )
-    )
+    send = _run(BodyReadingApp(), body_messages(*chunks), headers)
 
     expected_status = 200
-    assert sent[0]["status"] == expected_status
+    assert send.status == expected_status, "a body within the limit was rejected"
 
 
-def test_body_size_middleware_rejects_non_positive_limit() -> None:
-    async def app(_scope: Scope, _receive: Receive, _send: Send) -> None:
-        raise AssertionError
+def test_passes_the_whole_body_to_the_application() -> None:
+    app = BodyReadingApp()
+    _run(app, body_messages(b"\x00\xff", b"ab", b"\n"))
 
-    with pytest.raises(ValueError, match="max_body_size must be positive"):
-        BodySizeLimitMiddleware(app, max_body_size=0)
+    received = b"".join(message.get("body", b"") for message in app.received)
 
-
-def test_body_size_middleware_passes_non_http_scopes() -> None:
-    called = False
-
-    async def app(_scope: Scope, _receive: Receive, _send: Send) -> None:
-        nonlocal called
-        called = True
-
-    async def receive() -> Message:
-        raise AssertionError
-
-    async def send(_message: Message) -> None:
-        raise AssertionError
-
-    middleware = BodySizeLimitMiddleware(app, max_body_size=5)
-    asyncio.run(middleware({"type": "lifespan"}, receive, send))
-
-    assert called is True
+    expected_received = b"\x00\xffab\n"
+    assert received == expected_received, "the body changed on its way"
 
 
-def test_body_size_middleware_ignores_disconnect_messages() -> None:
-    sent: list[Message] = []
+@pytest.mark.parametrize("limit", [0, -1, -(2**63)])
+def test_rejects_non_positive_limit(limit: int) -> None:
+    with pytest.raises(ValueError, match="max_body_size") as caught:
+        BodySizeLimitMiddleware(BodyReadingApp(), max_body_size=limit)
 
-    async def app(_scope: Scope, receive: Receive, send: Send) -> None:
-        message = await receive()
-        expected_type = "http.disconnect"
-        assert message["type"] == expected_type
-        await send(
-            {
-                "type": "http.response.start",
-                "status": 200,
-                "headers": [],
-            }
-        )
+    expected_message = "max_body_size must be positive"
+    assert str(caught.value) == expected_message, "a non-positive limit was accepted"
 
-    async def receive() -> Message:
-        return {"type": "http.disconnect"}
 
-    async def send(message: Message) -> None:
-        sent.append(message)
+@pytest.mark.parametrize("scope_type", ["lifespan", "websocket"])
+def test_passes_non_http_scopes_to_the_application(scope_type: str) -> None:
+    app = BodyReadingApp()
+    middleware = BodySizeLimitMiddleware(app, max_body_size=1)
+    asyncio.run(middleware({"type": scope_type}, ScriptedReceive([]), RecordingSend()))
 
-    middleware = BodySizeLimitMiddleware(app, max_body_size=5)
-    asyncio.run(
-        middleware(
-            {"type": "http", "headers": []},
-            receive,
-            send,
-        )
-    )
+    expected_calls = 1
+    assert app.calls == expected_calls, "a non-HTTP scope did not reach the app"
+
+
+def test_ignores_disconnect_messages() -> None:
+    send = _run(BodyReadingApp(), [{"type": "http.disconnect"}])
 
     expected_status = 200
-    assert sent[0]["status"] == expected_status
+    assert send.status == expected_status, "a disconnect counted as body"
 
 
-def test_body_size_middleware_does_not_replace_started_response() -> None:
-    sent: list[Message] = []
+def test_does_not_replace_a_started_response() -> None:
+    send = _run(EarlyResponseApp(), body_messages(b"123456"))
 
-    async def app(_scope: Scope, receive: Receive, send: Send) -> None:
-        await send(
-            {
-                "type": "http.response.start",
-                "status": 200,
-                "headers": [],
-            }
-        )
-        await receive()
-
-    async def receive() -> Message:
-        return {
-            "type": "http.request",
-            "body": b"123456",
-            "more_body": False,
-        }
-
-    async def send(message: Message) -> None:
-        sent.append(message)
-
-    middleware = BodySizeLimitMiddleware(app, max_body_size=5)
-    asyncio.run(
-        middleware(
-            {"type": "http", "headers": []},
-            receive,
-            send,
-        )
-    )
-
-    assert [message["type"] for message in sent] == ["http.response.start"]
+    expected_types = ["http.response.start"]
+    assert send.types == expected_types, "a started response was replaced"
 
 
-def test_body_size_middleware_replaces_downstream_error_after_oversized_body() -> None:
-    sent: list[Message] = []
+def test_replaces_downstream_error_status_after_oversized_body() -> None:
+    send = _run(ErrorSwallowingApp(), body_messages(b"123456"))
 
-    async def app(_scope: Scope, receive: Receive, send: Send) -> None:
-        with contextlib.suppress(Exception):
-            await receive()
-        await send(
-            {
-                "type": "http.response.start",
-                "status": 400,
-                "headers": [],
-            }
-        )
-        await send(
-            {
-                "type": "http.response.body",
-                "body": b"Invalid multipart body",
-            }
-        )
-
-    async def receive() -> Message:
-        return {
-            "type": "http.request",
-            "body": b"123456",
-            "more_body": False,
-        }
-
-    async def send(message: Message) -> None:
-        sent.append(message)
-
-    middleware = BodySizeLimitMiddleware(app, max_body_size=5)
-    asyncio.run(
-        middleware(
-            {"type": "http", "headers": []},
-            receive,
-            send,
-        )
-    )
-
-    response_start_type = "http.response.start"
-    start = next(message for message in sent if message["type"] == response_start_type)
-    response_body_type = "http.response.body"
-    body = next(message for message in sent if message["type"] == response_body_type)
     expected_status = 413
-    assert start["status"] == expected_status
-    expected_body = b'{"detail":"Request body too large"}'
-    assert body["body"] == expected_body
+    assert send.status == expected_status, "the downstream error leaked"
+
+
+def test_replaces_downstream_error_body_after_oversized_body() -> None:
+    send = _run(ErrorSwallowingApp(), body_messages(b"123456"))
+
+    assert send.body == TOO_LARGE_BODY, "the downstream error body leaked"
+
+
+def test_sends_a_json_error_for_oversized_body() -> None:
+    send = _run(BodyReadingApp(), body_messages(b"1234567"))
+
+    assert send.body == TOO_LARGE_BODY, "wrong error body"

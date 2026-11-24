@@ -2,6 +2,7 @@
 
 """Fake Whisper models for transcription tests."""
 
+import contextlib
 import threading
 from types import SimpleNamespace
 
@@ -41,6 +42,24 @@ def loaded_model_holder(model: object) -> ModelHolder:
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(model_module, "_build_model", lambda *_args: model)
         holder.load()
+    return holder
+
+
+class ModelBuildError(RuntimeError):
+    """Raised by a model builder that cannot create the model."""
+
+
+def _fail_build(*_args: object) -> object:
+    raise ModelBuildError
+
+
+def failed_model_holder() -> ModelHolder:
+    """Return a model holder whose model failed to load."""
+    holder = ModelHolder()
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(model_module, "_build_model", _fail_build)
+        with contextlib.suppress(ModelBuildError):
+            holder.load()
     return holder
 
 
