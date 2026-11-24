@@ -676,6 +676,65 @@ def test_upgrade_replaces_the_environment_and_preserves_application_data(
     assert observed == expected, result.stdout + result.stderr
 
 
+def _files_naming(directory: Path, text: str) -> list[str]:
+    needle = os.fsencode(text)
+    return [
+        str(path.relative_to(directory))
+        for path in sorted(directory.rglob("*"))
+        if path.is_file() and not path.is_symlink() and needle in path.read_bytes()
+    ]
+
+
+def test_upgrade_leaves_no_staged_path_in_the_environment(
+    initial_install: InstallerRun,
+    inactive_systemctl: tuple[Path, Path],
+    user_home: Path,
+    release: LocalRelease,
+) -> None:
+    app_home = initial_install.app_home
+    bin_dir, _systemctl_log = inactive_systemctl
+
+    result = _run_installer(
+        UPGRADE_FLAG,
+        home=user_home,
+        release=release,
+        extra_env={"PATH": path_with(bin_dir)},
+    )
+
+    observed = (result.returncode, _files_naming(app_home / ".venv", ".venv.new"))
+    expected = (0, [])
+    assert observed == expected, result.stdout + result.stderr
+
+
+def test_upgraded_command_runs_the_offline_doctor(
+    initial_install: InstallerRun,
+    inactive_systemctl: tuple[Path, Path],
+    user_home: Path,
+    release: LocalRelease,
+) -> None:
+    app_home = initial_install.app_home
+    bin_dir, _systemctl_log = inactive_systemctl
+    _run_installer(
+        UPGRADE_FLAG,
+        home=user_home,
+        release=release,
+        extra_env={"PATH": path_with(bin_dir)},
+    )
+
+    doctor = subprocess.run(  # noqa: S603 - runs the upgraded local command.
+        [str(app_home / ".venv" / "bin" / "audiodoc"), "doctor", "--offline"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "AUDIODOC_HOME": str(app_home)},
+        timeout=60,
+    )
+
+    observed = (doctor.returncode, doctor.stdout)
+    expected = (0, "doctor OK\n")
+    assert observed == expected, doctor.stderr
+
+
 def test_upgrade_rolls_back_when_the_offline_doctor_fails(
     initial_install: InstallerRun,
     inactive_systemctl: tuple[Path, Path],

@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `install.sh --upgrade` points the staged environment at `.venv` before the swap, so scripts, `activate`, `pyvenv.cfg` and bytecode no longer refer to `.venv.new` and the systemd service starts after an upgrade.
+
 ## [0.3.0] - 2026-11-24
 
 Deprecated functionality is not supported starting with 0.3.0.
