@@ -1,601 +1,117 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Tests for the POSIX release wheel installer."""
 
-import base64
-import csv
-import functools
-import hashlib
-import http.server
-import io
+from __future__ import annotations
+
 import json
 import os
 import shutil
 import subprocess
-import threading
-import zipfile
-from collections.abc import Iterator
 from pathlib import Path
+from typing import TYPE_CHECKING, NamedTuple
 
 import pytest
 
+from tests.support.release_server import (
+    LocalRelease,
+    checksum_line,
+    publish,
+    serve_release,
+    write_manifest,
+)
+from tests.support.system_commands import (
+    install_command,
+    install_recording_command,
+    path_with,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 INSTALLER = PROJECT_ROOT / "install.sh"
-
-FAKE_CLI_SOURCE = """
-import json
-import os
-import sys
-from pathlib import Path
-
-
-def main():
-    args = sys.argv[1:]
-    home = Path(os.environ["AUDIODOC_HOME"])
-    home.mkdir(parents=True, exist_ok=True)
-    with (home / "calls.jsonl").open("a", encoding="utf-8") as stream:
-        stream.write(json.dumps(args) + "\\n")
-
-    if args[0] == "init":
-        env_path = home / ".env"
-        env_path.write_text(
-            "AUDIODOC_AUDIO_KEY=test-audio\\n"
-            "AUDIODOC_DOCUMENT_KEY=test-document\\n"
-            "WHISPER_MODEL_PATH=\\n"
-            "WHISPER_OFFLINE=false\\n",
-            encoding="utf-8",
-        )
-        env_path.chmod(0o600)
-        return 0
-
-    if args[0] == "model":
-        directory = Path(args[args.index("--dir") + 1])
-        directory.mkdir(parents=True, exist_ok=True)
-        (directory / "config.json").write_text("{}", encoding="utf-8")
-        (directory / "model.bin").write_bytes(b"test-model")
-        print("Model downloaded to: " + str(directory))
-        return 0
-
-    if args[0] == "doctor":
-        if os.environ.get("FAKE_DOCTOR_FAIL") == "1":
-            print("FAIL forced doctor failure.")
-            return 1
-        marker = os.environ.get("FAKE_INSTALL_MARKER")
-        if (
-            os.environ.get("FAKE_DOCTOR_REQUIRES_NATIVE") == "1"
-            and (marker is None or not Path(marker).is_file())
-        ):
-            print("FAIL Tesseract: executable not found.")
-            print("Install missing native tools with one of:")
-            print("  Debian/Ubuntu: sudo apt install test-native-package")
-            print("  Fedora/RHEL: sudo dnf install test-native-package")
-            print("  Arch Linux: sudo pacman -S test-native-package")
-            return 1
-        if "--offline" in args and os.environ.get("FAKE_DOCTOR_FAIL_OFFLINE") == "1":
-            print("FAIL Whisper model: model is not cached.")
-            return 1
-        print("doctor OK")
-        return 0
-
-    if args[:2] == ["service", "install"]:
-        if "--print" in args:
-            unit = (
-                "[Unit]\\n"
-                "Description=audiodoc API service\\n"
-                "After=network-online.target\\n"
-                "Wants=network-online.target\\n\\n"
-                "[Service]\\n"
-                "Type=simple\\n"
-                f"WorkingDirectory={home}\\n"
-                f"EnvironmentFile={home}/.env\\n"
-                f'Environment="AUDIODOC_HOME={home}"\\n'
-                "Environment=PYTHONUNBUFFERED=1\\n"
-                f'ExecStart="{home}/.venv/bin/audiodoc" run\\n'
-                "Restart=on-failure\\n"
-                "RestartSec=5\\n"
-                "UMask=0077\\n\\n"
-                "[Install]\\n"
-                "WantedBy=default.target\\n"
-            )
-            sys.stdout.write(unit)
-            return 0
-        (home / "service-installed").write_text("ok", encoding="utf-8")
-        return 0
-
-    return 2
-"""
+UPGRADE_FLAG = "--upgrade"
+CLEARED_VARIABLES = (
+    "AUDIODOC_HOME",
+    "AUDIODOC_RELEASE_URL",
+    "AUDIODOC_RELEASE_TAG",
+    "AUDIODOC_GITHUB_REPOSITORY",
+    "GITHUB_TOKEN",
+)
 
 
-def run_installer(
+class InstallerRun(NamedTuple):
+    """The finished installer process and the application home it used."""
+
+    result: subprocess.CompletedProcess[str]
+    app_home: Path
+
+
+def _run_installer(
     *arguments: str,
-    release_url: str | None = None,
-    home: Path | None = None,
+    home: Path,
+    release: LocalRelease | None = None,
     app_home: Path | None = None,
     extra_env: dict[str, str] | None = None,
-    command: list[str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Run the installer or a command in its test installation."""
-    if command is None:
-        shell_path = shutil.which("sh")
-        assert shell_path is not None, "A POSIX shell is required"
-        invocation = [shell_path, str(INSTALLER), *arguments]
-        working_directory = PROJECT_ROOT
-    else:
-        assert app_home is not None, "app_home is required to run its command."
-        invocation = command
-        working_directory = app_home.parent
-
-    environment = os.environ.copy()
+    shell_path = shutil.which("sh") or "/bin/sh"
+    environment = {
+        name: value
+        for name, value in os.environ.items()
+        if name not in CLEARED_VARIABLES
+    }
     environment["PIP_NO_INDEX"] = "1"
     environment["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
-    environment.pop("AUDIODOC_HOME", None)
-    environment.pop("AUDIODOC_RELEASE_URL", None)
-    environment.pop("AUDIODOC_RELEASE_TAG", None)
-    environment.pop("AUDIODOC_GITHUB_REPOSITORY", None)
-    environment.pop("GITHUB_TOKEN", None)
-
-    if home is not None:
-        environment["HOME"] = str(home)
+    environment["HOME"] = str(home)
     if app_home is not None:
         environment["AUDIODOC_HOME"] = str(app_home)
-    if release_url is not None:
-        environment["AUDIODOC_RELEASE_URL"] = release_url
+    if release is not None:
+        environment["AUDIODOC_RELEASE_URL"] = release.url
         environment["AUDIODOC_RELEASE_TAG"] = "local"
-    if extra_env is not None:
-        environment.update(extra_env)
-
-    upgrade_flag = "--upgrade"
+    environment.update(extra_env or {})
     return subprocess.run(  # noqa: S603 - resolved shell runs the local installer.
-        invocation,
-        cwd=working_directory,
+        [shell_path, str(INSTALLER), *arguments],
+        cwd=PROJECT_ROOT,
         check=False,
         capture_output=True,
         text=True,
         env=environment,
-        timeout=600 if upgrade_flag in arguments else 60,
+        timeout=600 if UPGRADE_FLAG in arguments else 60,
     )
 
 
-def installed_version(app_home: Path) -> str:
-    """Return the installed audiodoc distribution version."""
-    metadata_files = list(
-        (app_home / ".venv").glob(
-            "lib/python*/site-packages/audiodoc-*.dist-info/METADATA"
-        )
-    )
-    assert len(metadata_files) == 1
-    for line in metadata_files[0].read_text(encoding="utf-8").splitlines():
-        if line.startswith("Version: "):
-            return line.removeprefix("Version: ")
-    message = "Installed audiodoc metadata has no Version field."
-    raise AssertionError(message)
+def _rejection(
+    result: subprocess.CompletedProcess[str], message: str
+) -> tuple[int, bool]:
+    return result.returncode, message in result.stderr
 
 
-def create_systemctl_stub(
-    tmp_path: Path,
-    *,
-    active: bool,
-) -> tuple[Path, Path]:
-    """Create a systemctl stub that reports service state and records calls."""
-    fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
-    log_path = tmp_path / "systemctl.log"
-    active_status = 0 if active else 3
-    systemctl = fake_bin / "systemctl"
-    systemctl.write_text(
-        "#!/bin/sh\n"
-        'printf "%s\\n" "$*" >> "$FAKE_SYSTEMCTL_LOG"\n'
-        'if [ "$2" = "is-active" ]; then exit '
-        f"{active_status}; fi\n"
-        'if [ "$2" = "daemon-reload" ]; then exit 0; fi\n'
-        "exit 1\n",
-        encoding="utf-8",
-    )
-    systemctl.chmod(0o755)
-    return fake_bin, log_path
-
-
-def create_test_wheel(release_dir: Path, *, version: str = "1.2.3") -> Path:
-    """Build a minimal wheel containing an isolated fake audiodoc CLI."""
-    distribution = f"audiodoc-{version}.dist-info"
-    wheel_name = f"audiodoc-{version}-py3-none-any.whl"
-
-    files = {
-        "audiodoc/__init__.py": b"",
-        "audiodoc/__main__.py": (
-            b"from audiodoc.cli import main\nraise SystemExit(main())\n"
-        ),
-        "audiodoc/cli.py": FAKE_CLI_SOURCE.encode("utf-8"),
-        f"{distribution}/METADATA": (
-            "Metadata-Version: 2.1\n"
-            "Name: audiodoc\n"
-            f"Version: {version}\n"
-            "Requires-Python: >=3.11\n\n"
-        ).encode(),
-        f"{distribution}/WHEEL": (
-            b"Wheel-Version: 1.0\n"
-            b"Generator: audiodoc-installer-test\n"
-            b"Root-Is-Purelib: true\n"
-            b"Tag: py3-none-any\n"
-        ),
-        f"{distribution}/entry_points.txt": (
-            b"[console_scripts]\naudiodoc = audiodoc.cli:main\n"
-        ),
-    }
-
-    rows = []
-    for name, content in files.items():
-        digest = (
-            base64.urlsafe_b64encode(hashlib.sha256(content).digest())
-            .rstrip(b"=")
-            .decode("ascii")
-        )
-        rows.append((name, f"sha256={digest}", str(len(content))))
-
-    record_name = f"{distribution}/RECORD"
-    record_stream = io.StringIO()
-    csv.writer(record_stream, lineterminator="\n").writerows(
-        [*rows, (record_name, "", "")]
-    )
-    files[record_name] = record_stream.getvalue().encode("utf-8")
-
-    wheel_path = release_dir / wheel_name
-    with zipfile.ZipFile(wheel_path, "w", zipfile.ZIP_DEFLATED) as archive:
-        for name, content in files.items():
-            archive.writestr(name, content)
-
-    return wheel_path
-
-
-def write_checksums(
-    release_dir: Path,
-    wheel_path: Path,
-    *,
-    corrupt: bool = False,
-) -> None:
-    """Write a release checksum manifest."""
-    wheel_digest = hashlib.sha256(wheel_path.read_bytes()).hexdigest()
-    if corrupt:
-        wheel_digest = "0" * 64
-
-    archive_digest = hashlib.sha256(b"release-archive").hexdigest()
-    constraints_digest = hashlib.sha256(
-        (release_dir / "constraints.txt").read_bytes()
-    ).hexdigest()
-
-    manifest = (
-        f"{archive_digest}  audiodoc-1.2.3.zip\n"
-        f"{wheel_digest}  {wheel_path.name}\n"
-        f"{constraints_digest}  constraints.txt\n"
-    )
-    (release_dir / "SHA256SUMS").write_text(manifest, encoding="utf-8")
-
-
-@pytest.fixture(name="local_release")
-def fixture_local_release(tmp_path: Path) -> Iterator[tuple[str, Path]]:
-    """Provide release assets through a local HTTP server."""
-    release_dir = tmp_path / "release"
-    release_dir.mkdir()
-
-    wheel_path = create_test_wheel(release_dir)
-    (release_dir / "constraints.txt").write_text("", encoding="utf-8")
-    write_checksums(release_dir, wheel_path)
-
-    server = http.server.ThreadingHTTPServer(
-        ("127.0.0.1", 0),
-        functools.partial(
-            http.server.SimpleHTTPRequestHandler,
-            directory=str(release_dir),
-        ),
-    )
-    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
-    server_thread.start()
-    try:
-        yield f"http://127.0.0.1:{server.server_address[1]}", release_dir
-    finally:
-        server.shutdown()
-        server.server_close()
-        server_thread.join(timeout=5)
-
-
-def test_installer_help_succeeds() -> None:
-    result = run_installer("--help")
-
-    assert result.returncode == 0
-    model_option = "--model"
-    assert model_option in result.stdout
-    device_option = "--device"
-    assert device_option in result.stdout
-    compute_type_option = "--compute-type"
-    assert compute_type_option in result.stdout
-    systemd_option = "--systemd"
-    assert systemd_option in result.stdout
-    no_model_option = "--no-model"
-    assert no_model_option in result.stdout
-    os_packages_option = "--os-packages"
-    assert os_packages_option in result.stdout
-
-
-def test_installer_rejects_invalid_port_before_installation() -> None:
-    result = run_installer("--port", "65536")
-
-    assert result.returncode != 0
-    port_message = "Port must be an integer"
-    assert port_message in result.stderr
-
-
-def test_installer_rejects_unsupported_device_before_installation() -> None:
-    result = run_installer("--device", "gpu")
-
-    assert result.returncode != 0
-    device_message = "--device must be cpu or cuda"
-    assert device_message in result.stderr
-
-
-def test_installer_rejects_unknown_model_before_installation() -> None:
-    result = run_installer("--model", "made-up-model")
-
-    assert result.returncode != 0
-    model_message = "Unsupported Whisper model name"
-    assert model_message in result.stderr
-
-
-def test_installer_rejects_invalid_host_before_installation() -> None:
-    result = run_installer("--host", "0.0.0.0;touch /tmp/unsafe")
-
-    assert result.returncode != 0
-    host_message = "Invalid host address"
-    assert host_message in result.stderr
-
-
-def test_installer_installs_wheel_and_initializes_application(
-    tmp_path: Path,
-    local_release: tuple[str, Path],
-) -> None:
-    release_url, _release_dir = local_release
-    user_home = tmp_path / "user"
-    user_home.mkdir()
-    app_home = user_home / "custom audiodoc home"
-
-    result = run_installer(
-        "--no-model",
-        "--model",
-        "tiny",
-        "--device",
-        "cuda",
-        "--compute-type",
-        "int8",
-        "--host",
-        "127.0.0.2",
-        "--port",
-        "8123",
-        "--systemd",
-        release_url=release_url,
-        home=user_home,
-        app_home=app_home,
-    )
-
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert (app_home / ".venv" / "bin" / "audiodoc").is_file()
-    assert (app_home / ".env").is_file()
-    assert (app_home / "service-installed").is_file()
-
-    calls = [
-        json.loads(line)
-        for line in (app_home / "calls.jsonl").read_text(encoding="utf-8").splitlines()
+def _installed_version(app_home: Path) -> str:
+    pattern = "lib/python*/site-packages/audiodoc-*.dist-info/METADATA"
+    versions = [
+        line.removeprefix("Version: ")
+        for metadata in (app_home / ".venv").glob(pattern)
+        for line in metadata.read_text(encoding="utf-8").splitlines()
+        if line.startswith("Version: ")
     ]
-    assert calls == [
-        [
-            "init",
-            "--model",
-            "tiny",
-            "--device",
-            "cuda",
-            "--compute-type",
-            "int8",
-            "--host",
-            "127.0.0.2",
-            "--port",
-            "8123",
-        ],
-        ["doctor"],
-        ["service", "install", "--user"],
-    ]
+    return ",".join(versions)
 
 
-def test_installer_downloads_model_and_configures_offline_path(
-    tmp_path: Path,
-    local_release: tuple[str, Path],
-) -> None:
-    release_url, _release_dir = local_release
-    user_home = tmp_path / "user"
-    user_home.mkdir()
-    app_home = user_home / "audiodoc"
-
-    result = run_installer(
-        release_url=release_url,
-        home=user_home,
-    )
-
-    assert result.returncode == 0, result.stdout + result.stderr
-
-    model_path = app_home / "models" / "small"
-    assert (model_path / "config.json").is_file()
-    assert (model_path / "model.bin").is_file()
-
-    env_content = (app_home / ".env").read_text(encoding="utf-8")
-    assert f'WHISPER_MODEL_PATH="{model_path}"' in env_content
-    offline_setting = "WHISPER_OFFLINE=true"
-    assert offline_setting in env_content
-
-    calls = [
-        json.loads(line)
-        for line in (app_home / "calls.jsonl").read_text(encoding="utf-8").splitlines()
-    ]
-    assert calls[0] == [
-        "init",
-        "--model",
-        "small",
-        "--device",
-        "cpu",
-        "--compute-type",
-        "int8",
-        "--host",
-        "127.0.0.1",
-        "--port",
-        "8000",
-    ]
-    assert calls[1] == [
-        "model",
-        "download",
-        "--name",
-        "small",
-        "--dir",
-        str(model_path),
-    ]
-    assert calls[2] == ["doctor"]
+def _recorded_calls(app_home: Path) -> list[list[str]]:
+    lines = (app_home / "calls.jsonl").read_text(encoding="utf-8").splitlines()
+    return [json.loads(line) for line in lines]
 
 
-def test_os_packages_are_installed_only_when_opted_in(
-    tmp_path: Path,
-    local_release: tuple[str, Path],
-) -> None:
-    release_url, _release_dir = local_release
-    user_home = tmp_path / "user"
-    user_home.mkdir()
-    app_home = tmp_path / "audiodoc"
-    fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
-
-    marker = tmp_path / "native-installed"
-    sudo_log = tmp_path / "sudo.log"
-
-    (fake_bin / "apt-get").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-    (fake_bin / "sudo").write_text(
-        "#!/bin/sh\n"
-        'printf "%s\\n" "$*" >> "$FAKE_SUDO_LOG"\n'
-        'touch "$FAKE_INSTALL_MARKER"\n',
-        encoding="utf-8",
-    )
-    (fake_bin / "apt-get").chmod(0o755)
-    (fake_bin / "sudo").chmod(0o755)
-
-    extra_env = {
-        "PATH": str(fake_bin) + os.pathsep + os.environ["PATH"],
-        "FAKE_DOCTOR_REQUIRES_NATIVE": "1",
-        "FAKE_INSTALL_MARKER": str(marker),
-        "FAKE_SUDO_LOG": str(sudo_log),
-    }
-
-    result = run_installer(
-        "--no-model",
-        "--os-packages",
-        release_url=release_url,
-        home=user_home,
-        app_home=app_home,
-        extra_env=extra_env,
-    )
-
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert marker.is_file()
-    expected_text = "apt install test-native-package"
-    assert sudo_log.read_text(encoding="utf-8").strip() == expected_text
+def _existing_files(app_home: Path, names: list[str]) -> list[str]:
+    return [name for name in names if (app_home / name).is_file()]
 
 
-def test_installer_does_not_install_os_packages_without_opt_in(
-    tmp_path: Path,
-    local_release: tuple[str, Path],
-) -> None:
-    release_url, _release_dir = local_release
-    user_home = tmp_path / "user"
-    user_home.mkdir()
-    app_home = user_home / "audiodoc"
-    fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
-
-    sudo_log = tmp_path / "sudo.log"
-    marker = tmp_path / "native-installed"
-
-    (fake_bin / "apt-get").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-    (fake_bin / "sudo").write_text(
-        "#!/bin/sh\n"
-        'printf "%s\\n" "$*" >> "$FAKE_SUDO_LOG"\n'
-        'touch "$FAKE_INSTALL_MARKER"\n',
-        encoding="utf-8",
-    )
-    (fake_bin / "apt-get").chmod(0o755)
-    (fake_bin / "sudo").chmod(0o755)
-
-    result = run_installer(
-        "--no-model",
-        release_url=release_url,
-        home=user_home,
-        app_home=app_home,
-        extra_env={
-            "PATH": str(fake_bin) + os.pathsep + os.environ["PATH"],
-            "FAKE_DOCTOR_REQUIRES_NATIVE": "1",
-            "FAKE_INSTALL_MARKER": str(marker),
-            "FAKE_SUDO_LOG": str(sudo_log),
-        },
-    )
-
-    assert result.returncode != 0
-    doctor_failure = "audiodoc doctor failed"
-    assert doctor_failure in result.stderr
-    assert not marker.exists()
-    assert not sudo_log.exists()
-    assert not app_home.exists()
-
-
-def test_installer_rejects_checksum_mismatch(
-    tmp_path: Path,
-    local_release: tuple[str, Path],
-) -> None:
-    release_url, release_dir = local_release
-    wheel_path = next(release_dir.glob("audiodoc-*.whl"))
-    write_checksums(release_dir, wheel_path, corrupt=True)
-
-    user_home = tmp_path / "user"
-    user_home.mkdir()
-    app_home = user_home / "audiodoc"
-
-    result = run_installer(
-        "--no-model",
-        release_url=release_url,
-        home=user_home,
-        app_home=app_home,
-    )
-
-    assert result.returncode != 0
-    checksum_failure = "SHA-256 verification failed"
-    assert checksum_failure in result.stderr
-    assert not app_home.exists()
-
-
-def test_installer_refuses_existing_home(
-    tmp_path: Path,
-    local_release: tuple[str, Path],
-) -> None:
-    release_url, _release_dir = local_release
-    user_home = tmp_path / "user"
-    user_home.mkdir()
-    app_home = user_home / "audiodoc"
-    app_home.mkdir()
-
-    marker = app_home / "keep.txt"
-    marker.write_text("existing data", encoding="utf-8")
-
-    result = run_installer(
-        "--no-model",
-        release_url=release_url,
-        home=user_home,
-        app_home=app_home,
-    )
-
-    assert result.returncode != 0
-    existing_home_message = "Installation directory already exists"
-    assert existing_home_message in result.stderr
-    expected_text = "existing data"
-    assert marker.read_text(encoding="utf-8") == expected_text
+def _fake_installation(app_home: Path) -> None:
+    (app_home / ".venv" / "bin").mkdir(parents=True)
+    (app_home / ".env").write_text("CUSTOM_SETTING=keep\n", encoding="utf-8")
+    python = app_home / ".venv" / "bin" / "python"
+    python.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    python.chmod(0o755)
 
 
 def _seed_application_data(app_home: Path) -> dict[Path, bytes]:
@@ -610,138 +126,586 @@ def _seed_application_data(app_home: Path) -> dict[Path, bytes]:
     return files
 
 
-def _recorded_calls(app_home: Path) -> list[object]:
-    lines = (app_home / "calls.jsonl").read_text(encoding="utf-8").splitlines()
-    return [json.loads(line) for line in lines]
+@pytest.fixture(name="user_home")
+def fixture_user_home(tmp_path: Path) -> Path:
+    """Provide an empty home directory for the installing user."""
+    home = tmp_path / "user"
+    home.mkdir()
+    return home
 
 
-def test_installer_upgrades_existing_environment_and_preserves_application_data(
-    tmp_path: Path,
-    local_release: tuple[str, Path],
-) -> None:
-    release_url, release_dir = local_release
-    user_home = tmp_path / "user"
-    user_home.mkdir()
-    app_home = user_home / "audiodoc"
+@pytest.fixture(name="release")
+def fixture_release(tmp_path: Path) -> Iterator[LocalRelease]:
+    """Serve a valid release with version 1.2.3 over local HTTP."""
+    directory = tmp_path / "release"
+    directory.mkdir()
+    publish(directory)
+    with serve_release(directory) as release:
+        yield release
 
-    initial = run_installer(
+
+@pytest.fixture(name="default_install")
+def fixture_default_install(user_home: Path, release: LocalRelease) -> InstallerRun:
+    """Install with default options into the default application home."""
+    result = _run_installer(home=user_home, release=release)
+    return InstallerRun(result, user_home / "audiodoc")
+
+
+@pytest.fixture(name="initial_install")
+def fixture_initial_install(user_home: Path, release: LocalRelease) -> InstallerRun:
+    """Install version 1.2.3 with a user service and publish version 2.0.0."""
+    result = _run_installer("--no-model", "--systemd", home=user_home, release=release)
+    publish(release.directory, version="2.0.0")
+    return InstallerRun(result, user_home / "audiodoc")
+
+
+@pytest.fixture(name="inactive_systemctl")
+def fixture_inactive_systemctl(tmp_path: Path) -> tuple[Path, Path]:
+    """Provide a systemctl that reports an inactive service and logs calls."""
+    log_path = tmp_path / "systemctl.log"
+    bin_dir = tmp_path / "bin"
+    install_recording_command(bin_dir, "systemctl", log_path, exit_code=3)
+    return bin_dir, log_path
+
+
+def test_installer_help_lists_every_option(user_home: Path) -> None:
+    options = [
+        "--model",
+        "--device",
+        "--compute-type",
+        "--host",
+        "--port",
         "--no-model",
         "--systemd",
-        release_url=release_url,
-        home=user_home,
-    )
-    assert initial.returncode == 0, initial.stdout + initial.stderr
-    old_version = "1.2.3"
-    assert installed_version(app_home) == old_version
+        "--os-packages",
+        "--upgrade",
+    ]
 
+    result = _run_installer("--help", home=user_home)
+
+    missing = [option for option in options if option not in result.stdout]
+    expected: tuple[int, list[str]] = (0, [])
+    assert (result.returncode, missing) == expected, "help must list every option"
+
+
+@pytest.mark.parametrize(
+    ("arguments", "message"),
+    [
+        (["--port", "65536"], "Port must be an integer between 1 and 65535."),
+        (["--port", "0"], "Port must be an integer between 1 and 65535."),
+        (["--port", "80;id"], "Port must be an integer between 1 and 65535."),
+        (["--port", "1e3"], "Port must be an integer between 1 and 65535."),
+        (["--device", "gpu"], "--device must be cpu or cuda."),
+        (["--device", "cuda$(id)"], "--device must be cpu or cuda."),
+        (["--model", "made-up-model"], "Unsupported Whisper model name"),
+        (["--model", "../small"], "Unsupported Whisper model name"),
+        (["--compute-type", "int8;id"], "Invalid compute type"),
+        (["--host", "0.0.0.0;touch unsafe"], "Invalid host address"),
+        (["--host", "127.0.0.1 --reload"], "Invalid host address"),
+        (["--host", "-0.0.0.0"], "Invalid value for --host"),
+        (["--model", ""], "Invalid value for --model"),
+        (["--port"], "Option --port requires a value."),
+        (["--sudo"], "Unknown argument: --sudo"),
+        (["--upgrade", "--os-packages"], "--upgrade cannot be combined"),
+    ],
+)
+def test_installer_rejects_unsafe_option_before_installation(
+    user_home: Path, arguments: list[str], message: str
+) -> None:
+    result = _run_installer(*arguments, home=user_home)
+
+    expected = (1, True)
+    assert _rejection(result, message) == expected, result.stderr
+
+
+@pytest.mark.parametrize(
+    "template",
+    ["127.0.0.1;touch {marker}", "$(touch {marker})", "`touch {marker}`"],
+)
+def test_installer_does_not_run_a_command_injected_through_the_host(
+    tmp_path: Path, user_home: Path, template: str
+) -> None:
+    marker = tmp_path / "внедрённый маркер"
+
+    _run_installer("--host", template.format(marker=marker), home=user_home)
+
+    assert marker.exists() is False, "a host value must never run as a command"
+
+
+@pytest.mark.parametrize(
+    ("repository", "message"),
+    [
+        ("owner/name/extra", "Invalid GitHub repository"),
+        ("owner/na me", "Invalid GitHub repository"),
+        ("/name", "Invalid GitHub repository"),
+        ("owner/", "Invalid GitHub repository"),
+        ("owner/name;id", "Invalid GitHub repository"),
+        ("owner", "must have owner/name format"),
+    ],
+)
+def test_installer_rejects_unsafe_github_repository(
+    user_home: Path, repository: str, message: str
+) -> None:
+    result = _run_installer(
+        home=user_home, extra_env={"AUDIODOC_GITHUB_REPOSITORY": repository}
+    )
+
+    expected = (1, True)
+    assert _rejection(result, message) == expected, result.stderr
+
+
+@pytest.mark.parametrize("suffix", ["", "/", "//"])
+def test_installer_refuses_the_user_home_as_installation_directory(
+    user_home: Path, suffix: str
+) -> None:
+    app_home = Path(f"{user_home}{suffix}")
+
+    result = _run_installer("--no-model", home=user_home, app_home=app_home)
+
+    expected = (1, True)
+    message = "Refusing unsafe installation directory"
+    assert _rejection(result, message) == expected, result.stderr
+
+
+def test_installer_refuses_the_root_as_installation_directory(
+    user_home: Path,
+) -> None:
+    root = Path("/")
+
+    result = _run_installer("--no-model", home=user_home, app_home=root)
+
+    expected = (1, True)
+    message = "Refusing unsafe installation directory: /"
+    assert _rejection(result, message) == expected, result.stderr
+
+
+def test_installer_keeps_data_of_an_existing_home(
+    user_home: Path, release: LocalRelease
+) -> None:
+    app_home = user_home / "audiodoc"
+    app_home.mkdir()
+    marker = app_home / "keep.txt"
+    marker.write_text("existing data", encoding="utf-8")
+
+    result = _run_installer("--no-model", home=user_home, release=release)
+
+    observed = (
+        *_rejection(result, "Installation directory already exists"),
+        marker.read_text(encoding="utf-8"),
+    )
+    expected = (1, True, "existing data")
+    assert observed == expected, "an existing home must be left untouched"
+
+
+def test_installer_refuses_a_symlink_as_installation_directory(
+    tmp_path: Path, user_home: Path, release: LocalRelease
+) -> None:
+    target = tmp_path / "elsewhere"
+    target.mkdir()
+    app_home = user_home / "audiodoc"
+    app_home.symlink_to(target)
+
+    result = _run_installer(
+        "--no-model", home=user_home, release=release, app_home=app_home
+    )
+
+    observed = (
+        *_rejection(result, "Installation directory already exists"),
+        sorted(path.name for path in target.iterdir()),
+    )
+    expected: tuple[int, bool, list[str]] = (1, True, [])
+    assert observed == expected, "a symlinked home must not be installed into"
+
+
+def _remove_home(app_home: Path) -> None:
+    shutil.rmtree(app_home)
+
+
+def _symlink_env(app_home: Path) -> None:
+    real_env = app_home.parent / "real.env"
+    (app_home / ".env").rename(real_env)
+    (app_home / ".env").symlink_to(real_env)
+
+
+def _remove_venv(app_home: Path) -> None:
+    shutil.rmtree(app_home / ".venv")
+
+
+def _make_python_non_executable(app_home: Path) -> None:
+    (app_home / ".venv" / "bin" / "python").chmod(0o644)
+
+
+def _leave_staged_venv(app_home: Path) -> None:
+    (app_home / ".venv.new").mkdir()
+
+
+def _link_backup_venv(app_home: Path) -> None:
+    (app_home / ".venv.prev").symlink_to(app_home.parent)
+
+
+def _symlink_home(app_home: Path) -> None:
+    real_home = app_home.parent / "real-home"
+    app_home.rename(real_home)
+    app_home.symlink_to(real_home)
+
+
+@pytest.mark.parametrize(
+    ("damage", "message"),
+    [
+        (_remove_home, "Upgrade requires an existing installation directory"),
+        (_symlink_home, "Upgrade requires an existing installation directory"),
+        (_symlink_env, "Upgrade requires an existing regular .env file."),
+        (_remove_venv, "Upgrade requires an existing .venv directory."),
+        (_make_python_non_executable, "has no executable Python interpreter"),
+        (_leave_staged_venv, "Refusing to overwrite stale upgrade directory"),
+        (_link_backup_venv, "Refusing to overwrite stale upgrade backup"),
+    ],
+)
+def test_upgrade_refuses_an_unsafe_existing_installation(
+    user_home: Path, damage: Callable[[Path], None], message: str
+) -> None:
+    app_home = user_home / "audiodoc"
+    _fake_installation(app_home)
+    damage(app_home)
+
+    result = _run_installer(UPGRADE_FLAG, home=user_home)
+
+    expected = (1, True)
+    assert _rejection(result, message) == expected, result.stderr
+
+
+def test_upgrade_refuses_an_active_user_service(
+    tmp_path: Path, user_home: Path
+) -> None:
+    app_home = user_home / "audiodoc"
+    _fake_installation(app_home)
+    bin_dir = tmp_path / "bin"
+    install_command(bin_dir, "systemctl", "exit 0\n")
+
+    result = _run_installer(
+        UPGRADE_FLAG, home=user_home, extra_env={"PATH": path_with(bin_dir)}
+    )
+
+    observed = (
+        *_rejection(result, "user service is active"),
+        sorted(path.name for path in app_home.iterdir()),
+    )
+    expected = (1, True, [".env", ".venv"])
+    assert observed == expected, "an active service must block the upgrade"
+
+
+def _corrupt_wheel_digest(directory: Path) -> list[str]:
+    wheel = next(directory.glob("audiodoc-*.whl"))
+    return ["0" * 64 + f"  {wheel.name}", checksum_line(directory / "constraints.txt")]
+
+
+def _corrupt_constraints_digest(directory: Path) -> list[str]:
+    wheel = next(directory.glob("audiodoc-*.whl"))
+    return [checksum_line(wheel), "f" * 64 + "  constraints.txt"]
+
+
+def _list_two_wheels(directory: Path) -> list[str]:
+    wheel = next(directory.glob("audiodoc-*.whl"))
+    return [
+        checksum_line(wheel),
+        "a" * 64 + "  audiodoc-9.9.9-py3-none-any.whl",
+        checksum_line(directory / "constraints.txt"),
+    ]
+
+
+def _duplicate_wheel(directory: Path) -> list[str]:
+    wheel = next(directory.glob("audiodoc-*.whl"))
+    return [
+        checksum_line(wheel),
+        checksum_line(wheel),
+        checksum_line(directory / "constraints.txt"),
+    ]
+
+
+def _omit_constraints(directory: Path) -> list[str]:
+    return [checksum_line(next(directory.glob("audiodoc-*.whl")))]
+
+
+def _traverse_wheel_path(directory: Path) -> list[str]:
+    wheel = next(directory.glob("audiodoc-*.whl"))
+    digest = checksum_line(wheel).split()[0]
+    return [
+        f"{digest}  ../{wheel.name}",
+        checksum_line(directory / "constraints.txt"),
+    ]
+
+
+def _list_missing_wheel(directory: Path) -> list[str]:
+    return [
+        "b" * 64 + "  audiodoc-7.0.0-py3-none-any.whl",
+        checksum_line(directory / "constraints.txt"),
+    ]
+
+
+def _empty_manifest(_directory: Path) -> list[str]:
+    return []
+
+
+@pytest.mark.parametrize(
+    ("manifest", "message"),
+    [
+        (_corrupt_wheel_digest, "Release SHA-256 verification failed."),
+        (_corrupt_constraints_digest, "Release SHA-256 verification failed."),
+        (_list_two_wheels, "Release SHA256SUMS is invalid."),
+        (_duplicate_wheel, "Release SHA256SUMS is invalid."),
+        (_omit_constraints, "Release SHA256SUMS is invalid."),
+        (_traverse_wheel_path, "has no wheel asset"),
+        (_empty_manifest, "has no wheel asset"),
+        (_list_missing_wheel, "Could not download release asset"),
+    ],
+)
+def test_installer_rejects_an_untrusted_release_and_leaves_no_home(
+    user_home: Path,
+    release: LocalRelease,
+    manifest: Callable[[Path], list[str]],
+    message: str,
+) -> None:
+    write_manifest(release.directory, manifest(release.directory))
+
+    result = _run_installer("--no-model", home=user_home, release=release)
+
+    observed = (*_rejection(result, message), (user_home / "audiodoc").exists())
+    expected = (1, True, False)
+    assert observed == expected, result.stderr
+
+
+@pytest.mark.parametrize("tag", ["v1;id", "../v1", "v1 v2", "v1\nv2"])
+def test_installer_rejects_an_unsafe_release_tag(
+    user_home: Path, release: LocalRelease, tag: str
+) -> None:
+    result = _run_installer(
+        "--no-model",
+        home=user_home,
+        release=release,
+        extra_env={"AUDIODOC_RELEASE_TAG": tag},
+    )
+
+    expected = (1, True)
+    assert _rejection(result, "Invalid release tag") == expected, result.stderr
+
+
+def test_installer_passes_options_to_init_and_installs_the_user_service(
+    user_home: Path, release: LocalRelease
+) -> None:
+    app_home = user_home / "custom audiodoc home"
+    options = [
+        "--model",
+        "tiny",
+        "--device",
+        "cuda",
+        "--compute-type",
+        "int8",
+        "--host",
+        "127.0.0.2",
+        "--port",
+        "8123",
+    ]
+
+    result = _run_installer(
+        "--no-model",
+        *options,
+        "--systemd",
+        home=user_home,
+        release=release,
+        app_home=app_home,
+    )
+
+    files = [".venv/bin/audiodoc", ".env", "service-installed"]
+    observed = {
+        "returncode": result.returncode,
+        "files": _existing_files(app_home, files),
+        "calls": _recorded_calls(app_home),
+    }
+    expected = {
+        "returncode": 0,
+        "files": files,
+        "calls": [["init", *options], ["doctor"], ["service", "install", "--user"]],
+    }
+    assert observed == expected, result.stdout + result.stderr
+
+
+def test_installer_downloads_the_model_and_configures_offline_use(
+    default_install: InstallerRun,
+) -> None:
+    app_home = default_install.app_home
+    model_path = app_home / "models" / "small"
+    env_lines = (app_home / ".env").read_text(encoding="utf-8").splitlines()
+
+    observed = {
+        "returncode": default_install.result.returncode,
+        "model": _existing_files(model_path, ["config.json", "model.bin"]),
+        "settings": [line for line in env_lines if line.startswith("WHISPER_")],
+        "calls": _recorded_calls(app_home)[1:],
+    }
+    expected = {
+        "returncode": 0,
+        "model": ["config.json", "model.bin"],
+        "settings": [f'WHISPER_MODEL_PATH="{model_path}"', "WHISPER_OFFLINE=true"],
+        "calls": [
+            ["model", "download", "--name", "small", "--dir", str(model_path)],
+            ["doctor"],
+        ],
+    }
+    assert observed == expected, default_install.result.stderr
+
+
+def test_installer_creates_a_private_application_directory(
+    default_install: InstallerRun,
+) -> None:
+    mode = default_install.app_home.stat().st_mode & 0o777
+
+    expected_mode = 0o700
+    assert mode == expected_mode, "the application home must be private to the user"
+
+
+def _native_package_environment(tmp_path: Path) -> tuple[dict[str, str], Path, Path]:
+    bin_dir = tmp_path / "bin"
+    marker = tmp_path / "native-installed"
+    sudo_log = tmp_path / "sudo.log"
+    install_command(bin_dir, "apt-get", "exit 0\n")
+    install_command(
+        bin_dir,
+        "sudo",
+        'printf "%s\\n" "$*" >> "$FAKE_SUDO_LOG"\ntouch "$FAKE_INSTALL_MARKER"\n',
+    )
+    environment = {
+        "PATH": path_with(bin_dir),
+        "FAKE_DOCTOR_REQUIRES_NATIVE": "1",
+        "FAKE_INSTALL_MARKER": str(marker),
+        "FAKE_SUDO_LOG": str(sudo_log),
+    }
+    return environment, marker, sudo_log
+
+
+def test_installer_runs_the_native_package_command_when_opted_in(
+    tmp_path: Path, user_home: Path, release: LocalRelease
+) -> None:
+    environment, marker, sudo_log = _native_package_environment(tmp_path)
+
+    result = _run_installer(
+        "--no-model",
+        "--os-packages",
+        home=user_home,
+        release=release,
+        extra_env=environment,
+    )
+
+    observed = (
+        result.returncode,
+        marker.is_file(),
+        sudo_log.read_text(encoding="utf-8") if sudo_log.exists() else "",
+    )
+    expected = (0, True, "apt install test-native-package\n")
+    assert observed == expected, result.stdout + result.stderr
+
+
+def test_installer_runs_no_native_package_command_without_opt_in(
+    tmp_path: Path, user_home: Path, release: LocalRelease
+) -> None:
+    environment, marker, sudo_log = _native_package_environment(tmp_path)
+
+    result = _run_installer(
+        "--no-model", home=user_home, release=release, extra_env=environment
+    )
+
+    observed = (
+        *_rejection(result, "audiodoc doctor failed"),
+        marker.exists(),
+        sudo_log.exists(),
+        (user_home / "audiodoc").exists(),
+    )
+    expected = (1, True, False, False, False)
+    assert observed == expected, "no sudo call and no partial installation"
+
+
+def test_upgrade_replaces_the_environment_and_preserves_application_data(
+    initial_install: InstallerRun,
+    inactive_systemctl: tuple[Path, Path],
+    user_home: Path,
+    release: LocalRelease,
+) -> None:
+    app_home = initial_install.app_home
     preserved = _seed_application_data(app_home)
     old_marker = app_home / ".venv" / "old-environment-marker"
     old_marker.write_text("old", encoding="utf-8")
+    bin_dir, systemctl_log = inactive_systemctl
 
-    write_checksums(release_dir, create_test_wheel(release_dir, version="2.0.0"))
-
-    result = run_installer(
-        "--upgrade",
-        release_url=release_url,
+    result = _run_installer(
+        UPGRADE_FLAG,
         home=user_home,
+        release=release,
+        extra_env={"PATH": path_with(bin_dir)},
     )
-
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert {path: path.read_bytes() for path in preserved} == preserved, (
-        "the upgrade must keep the application data"
-    )
-    expected_text = "ok"
-    assert (app_home / "service-installed").read_text(encoding="utf-8") == expected_text
-    assert not old_marker.exists()
-    assert (app_home / ".venv" / "bin" / "audiodoc").is_file()
-    new_version = "2.0.0"
-    assert installed_version(app_home) == new_version
-    assert not (app_home / ".venv.new").exists()
-    assert not (app_home / ".venv.prev").exists()
-    restart_command = "systemctl --user restart audiodoc.service"
-    assert restart_command in result.stdout
 
     calls = _recorded_calls(app_home)
-    assert calls[-1] == ["doctor", "--offline"]
-    assert calls.count(["service", "install", "--user"]) == 1
+    restart_hint = "systemctl --user restart audiodoc.service"
+    observed = {
+        "returncode": result.returncode,
+        "preserved": {path: path.read_bytes() for path in preserved} == preserved,
+        "service unit kept": (app_home / "service-installed").is_file(),
+        "old environment left": old_marker.exists(),
+        "version": _installed_version(app_home),
+        "leftovers": [
+            name for name in (".venv.new", ".venv.prev") if (app_home / name).exists()
+        ],
+        "restart hint": restart_hint in result.stdout,
+        "last call": calls[-1],
+        "service installs": calls.count(["service", "install", "--user"]),
+        "systemctl": systemctl_log.read_text(encoding="utf-8").splitlines(),
+    }
+    expected = {
+        "returncode": 0,
+        "preserved": True,
+        "service unit kept": True,
+        "old environment left": False,
+        "version": "2.0.0",
+        "leftovers": [],
+        "restart hint": True,
+        "last call": ["doctor", "--offline"],
+        "service installs": 1,
+        "systemctl": [
+            "--user is-active --quiet audiodoc.service",
+            "--user is-active --quiet audiodoc.service",
+        ],
+    }
+    assert observed == expected, result.stdout + result.stderr
 
 
-def test_installer_upgrade_rolls_back_when_offline_doctor_fails(
-    tmp_path: Path,
-    local_release: tuple[str, Path],
+def test_upgrade_rolls_back_when_the_offline_doctor_fails(
+    initial_install: InstallerRun,
+    inactive_systemctl: tuple[Path, Path],
+    user_home: Path,
+    release: LocalRelease,
 ) -> None:
-    release_url, release_dir = local_release
-    user_home = tmp_path / "user"
-    user_home.mkdir()
-    app_home = user_home / "audiodoc"
-
-    initial = run_installer(
-        "--no-model",
-        release_url=release_url,
-        home=user_home,
-    )
-    assert initial.returncode == 0, initial.stdout + initial.stderr
-    expected_installed_version = "1.2.3"
-    assert installed_version(app_home) == expected_installed_version
-
+    app_home = initial_install.app_home
     old_marker = app_home / ".venv" / "old-environment-marker"
     old_marker.write_text("old", encoding="utf-8")
+    bin_dir, _systemctl_log = inactive_systemctl
 
-    new_wheel = create_test_wheel(release_dir, version="2.0.0")
-    write_checksums(release_dir, new_wheel)
-
-    result = run_installer(
-        "--upgrade",
-        release_url=release_url,
+    result = _run_installer(
+        UPGRADE_FLAG,
         home=user_home,
-        extra_env={"FAKE_DOCTOR_FAIL_OFFLINE": "1"},
+        release=release,
+        extra_env={"PATH": path_with(bin_dir), "FAKE_DOCTOR_FAIL_OFFLINE": "1"},
     )
 
-    assert result.returncode != 0
-    rollback_reason = "doctor --offline failed"
-    assert rollback_reason in result.stderr
-    expected_text = "old"
-    assert old_marker.read_text(encoding="utf-8") == expected_text
-    expected_installed_version = "1.2.3"
-    assert installed_version(app_home) == expected_installed_version
-    assert not (app_home / ".venv.new").exists()
-    assert not (app_home / ".venv.prev").exists()
-
-
-def test_installer_upgrade_refuses_active_user_service(
-    tmp_path: Path,
-    local_release: tuple[str, Path],
-) -> None:
-    release_url, _release_dir = local_release
-    user_home = tmp_path / "user"
-    user_home.mkdir()
-    app_home = user_home / "audiodoc"
-
-    initial = run_installer(
-        "--no-model",
-        release_url=release_url,
-        home=user_home,
-    )
-    assert initial.returncode == 0, initial.stdout + initial.stderr
-
-    old_marker = app_home / ".venv" / "old-environment-marker"
-    old_marker.write_text("old", encoding="utf-8")
-    fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
-    systemctl = fake_bin / "systemctl"
-    systemctl.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-    systemctl.chmod(0o755)
-
-    result = run_installer(
-        "--upgrade",
-        release_url=release_url,
-        home=user_home,
-        extra_env={"PATH": str(fake_bin) + os.pathsep + os.environ["PATH"]},
-    )
-
-    assert result.returncode != 0
-    active_service_message = "user service is active"
-    assert active_service_message in result.stderr
-    expected_text = "old"
-    assert old_marker.read_text(encoding="utf-8") == expected_text
-    assert not (app_home / ".venv.new").exists()
+    observed = {
+        "rejection": _rejection(result, "doctor --offline failed"),
+        "old environment": old_marker.read_text(encoding="utf-8"),
+        "version": _installed_version(app_home),
+        "leftovers": [
+            name for name in (".venv.new", ".venv.prev") if (app_home / name).exists()
+        ],
+    }
+    expected = {
+        "rejection": (1, True),
+        "old environment": "old",
+        "version": "1.2.3",
+        "leftovers": [],
+    }
+    assert observed == expected, result.stdout + result.stderr
