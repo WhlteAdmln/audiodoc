@@ -65,13 +65,13 @@ Goal: remove deprecated functionality, make the code base uniform with bot-oborm
   - ~~Remove shared mutable state and fixtures wider than `function` scope, except immutable data.~~
 - Done when: a throwaway scan finds none of the above; the test count did not fall; `make check` is green.
 
-#### AD-06 [shared] `scripts/check_test_rules.py`
+#### ~~AD-06 [shared] `scripts/check_test_rules.py`~~
 
 - Needs: AD-05, BO-09.
 - Scope:
-  - Add `scripts/check_test_rules.py` with its own tests. It fails on mocks, classes inside test functions, comments other than `# noqa`, `# pylint`, `# type:` and `# pragma` with a reason, `time.sleep` and `tempfile` outside `tmp_path`.
-  - For the files of the security list (AD-07 to AD-09 and BO-11 to BO-13) it also fails on tests with more than one assert and on asserts without a message. The list is kept in the script or in a file that only grows.
-  - Add the script to the vendored files and to `CONTRIBUTING.md` of both repositories; run it from `make lint`, `make check` and CI.
+  - ~~Add `scripts/check_test_rules.py` with its own tests. It fails on mocks, classes inside test functions, comments other than `# noqa`, `# pylint`, `# type:` and `# pragma` with a reason, `time.sleep` and `tempfile` outside `tmp_path`.~~
+  - ~~For the files of the security list (AD-07 to AD-09 and BO-11 to BO-13) it also fails on tests with more than one assert and on asserts without a message. The list is kept in the script or in a file that only grows.~~
+  - ~~Add the script to the vendored files and to `CONTRIBUTING.md` of both repositories; run it from `make lint`, `make check` and CI.~~
 - Done when: both repositories pass the script and `check_vendored.py` matches.
 
 #### AD-07 Security tests: API and common utilities

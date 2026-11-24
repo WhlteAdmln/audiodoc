@@ -45,6 +45,7 @@ lint: docs-check
 	$(PYTHON) -m ruff format --check .
 	$(PYTHON) scripts/check_lock.py
 	$(PYTHON) scripts/check_test_layout.py
+	$(PYTHON) scripts/check_test_rules.py
 	$(PYTHON_SCRIPTS_DIR)/shfmt -i 0 -d install.sh
 	find scripts -type f -name '*.sh' -exec $(PYTHON_SCRIPTS_DIR)/shfmt -i 2 -sr -d {} +
 	find deploy -type f -name '*.sh' -exec $(PYTHON_SCRIPTS_DIR)/shfmt -i 2 -sr -d {} +

@@ -16,13 +16,15 @@
 
 `make check` runs every CI gate that needs only Python and network access: lint and documentation checks, mypy, pylint, deptry, vulture, import contracts, `pip check`, unit tests with coverage that fail when a test is skipped (`make test-no-skips`), `pip-audit` of the lock (`make audit`) and a release build with verified checksums (`make release-check`). The test dependencies are the `test` extra of `pyproject.toml`; the `dev` extra includes it, and the CI job with the latest allowed dependencies installs it.
 
+`make lint` also runs `scripts/check_test_layout.py` and `scripts/check_test_rules.py`. The second one fails when a `test_*.py` or `conftest.py` module under `tests/` uses mocks (`unittest.mock`, `mock`, the `mocker` fixture or `assert_called*`), defines a class inside a function, imports `tempfile` or `time.sleep`, when a test function calls `time.sleep`, or when a comment inside a test function is not a `# noqa`, `# pylint:`, `# type:` or `# pragma:` pragma followed by a reason. The files listed in `tests/strict_test_files.txt` must also have exactly one assert per test and a failure message on every assert; the list only grows, and it is currently absent because no file is listed yet.
+
 Only CI runs the jobs that need system tools or services: integration tests with Tesseract and DjVuLibre (`make integration`), the real Whisper test (`make e2e`), the Docker image (`make docker`), the installer smoke test against a locally served release, and the systemd, UFW and nginx examples.
 
 ## Files shared with bot-obormot
 
 `.editorconfig`, `.pre-commit-config.yaml`, `.github/renovate.json5`, `.markdownlint-cli2.yaml`, `AGENTS.md`, `CLAUDE.md`,
 `scripts/build_release.sh`, `scripts/check_changelog.py`, `scripts/check_lock.py`, `scripts/check_test_layout.py`,
-`scripts/check_vendored.py`, `scripts/coverage_gaps.py`, `tests/unit/scripts/test_check_changelog.py`, the `ruff`, `mypy` and `pylint` tables of `pyproject.toml`,
+`scripts/check_test_rules.py`, `scripts/check_vendored.py`, `scripts/coverage_gaps.py`, `tests/unit/scripts/test_check_changelog.py`, `tests/unit/scripts/test_check_test_rules.py`, the `ruff`, `mypy` and `pylint` tables of `pyproject.toml`,
 `audiodoc/log_filters.py` and `audiodoc/env_readers.py` are copied into bot-obormot.
 audiodoc is the source of truth. After changing one of them, copy it to the bot repository
 and run `python scripts/check_vendored.py --other ../bot-obormot` in both repositories.
