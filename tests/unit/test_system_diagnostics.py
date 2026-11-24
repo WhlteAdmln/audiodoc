@@ -44,23 +44,29 @@ def fixture_busy_listener(monkeypatch: pytest.MonkeyPatch) -> FakeSocket:
     ("version", "expected"),
     [
         (
-            (3, 11, 0),
-            DiagnosticCheck("Python", "OK", "Python 3.11 is supported."),
+            (3, 11, 5),
+            DiagnosticCheck("Python", "OK", "Python 3.11.5 is supported."),
         ),
         (
             (4, 0, 2),
-            DiagnosticCheck("Python", "OK", "Python 4.0 is supported."),
+            DiagnosticCheck("Python", "OK", "Python 4.0.2 is supported."),
+        ),
+        (
+            (3, 11, 4),
+            DiagnosticCheck(
+                "Python", "FAIL", "Python 3.11.5 or newer is required; found 3.11.4."
+            ),
         ),
         (
             (3, 10, 9),
             DiagnosticCheck(
-                "Python", "FAIL", "Python 3.11 or newer is required; found 3.10."
+                "Python", "FAIL", "Python 3.11.5 or newer is required; found 3.10.9."
             ),
         ),
         (
             (2, 7, 18),
             DiagnosticCheck(
-                "Python", "FAIL", "Python 3.11 or newer is required; found 2.7."
+                "Python", "FAIL", "Python 3.11.5 or newer is required; found 2.7.18."
             ),
         ),
     ],
