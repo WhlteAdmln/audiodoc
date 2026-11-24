@@ -1,7 +1,9 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """System configuration diagnostics for the audiodoc installation."""
 
+import errno
 import ipaddress
+import json
 import os
 import socket
 import stat
@@ -9,12 +11,17 @@ import sys
 import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
+from http import HTTPStatus
+from http.client import HTTPConnection, HTTPException
 from pathlib import Path
 from typing import Literal
 
 from audiodoc.env_readers import get_bool, get_home_dir, resolve_home_path
 
 MAX_PORT = 65_535
+HEALTH_PROBE_TIMEOUT_SECONDS = 2.0
+HEALTHY_STATUS = "ok"
+HEALTH_LOADED_FIELD = "loaded"
 ALL_INTERFACES_HOSTS = frozenset(
     (str(ipaddress.IPv4Address(0)), str(ipaddress.IPv6Address(0)))
 )
@@ -188,6 +195,35 @@ def _probe_bind(family: int, host: str, port: int) -> None:
         listener.bind((host, port))
 
 
+def _request_health(connection: HTTPConnection) -> tuple[int, bytes]:
+    """Send GET /health and return the response status and body."""
+    connection.request("GET", "/health")
+    response = connection.getresponse()
+    return response.status, response.read()
+
+
+def _serves_audiodoc_health(host: str, port: int) -> bool:
+    """Return whether an audiodoc service answers /health on the address."""
+    connection = HTTPConnection(host, port, timeout=HEALTH_PROBE_TIMEOUT_SECONDS)
+    try:
+        status, body = _request_health(connection)
+    except (OSError, HTTPException):
+        return False
+    finally:
+        connection.close()
+    if status != HTTPStatus.OK:
+        return False
+    try:
+        payload = json.loads(body)
+    except ValueError:
+        return False
+    return (
+        isinstance(payload, dict)
+        and payload.get("status") == HEALTHY_STATUS
+        and HEALTH_LOADED_FIELD in payload
+    )
+
+
 def check_port(environ: Mapping[str, str]) -> DiagnosticCheck:
     """Check that the configured server TCP port is available."""
     host = (environ.get("AUDIODOC_HOST", "127.0.0.1").strip()) or "127.0.0.1"
@@ -211,6 +247,12 @@ def check_port(environ: Mapping[str, str]) -> DiagnosticCheck:
     try:
         _probe_bind(family, host, port)
     except OSError as error:
+        if error.errno == errno.EADDRINUSE and _serves_audiodoc_health(host, port):
+            return DiagnosticCheck(
+                "API port",
+                "OK",
+                f"Port {port} on {host} is used by the running audiodoc service.",
+            )
         return DiagnosticCheck(
             "API port",
             "FAIL",

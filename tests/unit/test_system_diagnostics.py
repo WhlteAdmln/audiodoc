@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Tests for system configuration diagnostics."""
 
+import errno
 import ipaddress
 from pathlib import Path
 
@@ -8,6 +9,7 @@ import pytest
 
 from audiodoc import system_diagnostics as diagnostics
 from audiodoc.system_diagnostics import DiagnosticCheck
+from tests.support.http_connections import FakeHealthServer
 from tests.support.sockets import FakeSocket
 
 
@@ -35,9 +37,26 @@ def fixture_free_listener(monkeypatch: pytest.MonkeyPatch) -> FakeSocket:
 @pytest.fixture(name="busy_listener")
 def fixture_busy_listener(monkeypatch: pytest.MonkeyPatch) -> FakeSocket:
     """Make every socket bind fail as if the port were in use."""
-    listener = FakeSocket(unavailable=True)
+    listener = FakeSocket(bind_errno=errno.EADDRINUSE)
     monkeypatch.setattr(diagnostics.socket, "socket", lambda *_args: listener)
     return listener
+
+
+@pytest.fixture(name="audiodoc_server")
+def fixture_audiodoc_server(monkeypatch: pytest.MonkeyPatch) -> FakeHealthServer:
+    """Answer the health probe like a running audiodoc service."""
+    body = b'{"status": "ok", "model": "small", "loaded": true}'
+    server = FakeHealthServer(body=body)
+    monkeypatch.setattr(diagnostics, "HTTPConnection", server.connect)
+    return server
+
+
+@pytest.fixture(name="closed_server")
+def fixture_closed_server(monkeypatch: pytest.MonkeyPatch) -> FakeHealthServer:
+    """Refuse every health probe connection."""
+    server = FakeHealthServer(refused=True)
+    monkeypatch.setattr(diagnostics, "HTTPConnection", server.connect)
+    return server
 
 
 @pytest.mark.parametrize(
@@ -353,12 +372,77 @@ def test_probes_configured_ipv6_host_and_port(free_listener: FakeSocket) -> None
     assert free_listener.address == expected_address, "wrong address was probed"
 
 
+@pytest.mark.usefixtures("closed_server")
 def test_rejects_port_in_use(busy_listener: FakeSocket) -> None:
     result = diagnostics.check_port({"AUDIODOC_PORT": "65535"})
 
     expected = ("API port", "FAIL", ("127.0.0.1", 65535))
     assert (result.name, result.status, busy_listener.address) == expected, (
         "a busy port must fail"
+    )
+
+
+@pytest.mark.usefixtures("busy_listener")
+def test_accepts_port_held_by_running_service(
+    audiodoc_server: FakeHealthServer,
+) -> None:
+    result = diagnostics.check_port({"AUDIODOC_PORT": "18731"})
+
+    expected = DiagnosticCheck(
+        "API port",
+        "OK",
+        "Port 18731 on 127.0.0.1 is used by the running audiodoc service.",
+    )
+    assert (result, audiodoc_server.path) == (expected, "/health"), (
+        "a port held by audiodoc must pass after the health probe"
+    )
+
+
+@pytest.mark.usefixtures("busy_listener")
+def test_probes_health_on_configured_address(
+    audiodoc_server: FakeHealthServer,
+) -> None:
+    diagnostics.check_port({"AUDIODOC_HOST": " fd12::7 ", "AUDIODOC_PORT": "9441"})
+
+    expected_address = ("fd12::7", 9441)
+    assert audiodoc_server.address == expected_address, "wrong address was probed"
+
+
+@pytest.mark.parametrize(
+    ("status", "body"),
+    [
+        (503, b'{"status": "ok", "loaded": false}'),
+        (200, b"<html>nginx</html>"),
+        (200, b"\xff\xfe\x00"),
+        (200, b'{"status": "degraded", "loaded": true}'),
+        (200, b'{"status": "ok"}'),
+        (200, b'["ok", "loaded"]'),
+    ],
+)
+@pytest.mark.usefixtures("busy_listener")
+def test_rejects_busy_port_without_audiodoc_health(
+    monkeypatch: pytest.MonkeyPatch, status: int, body: bytes
+) -> None:
+    server = FakeHealthServer(status=status, body=body)
+    monkeypatch.setattr(diagnostics, "HTTPConnection", server.connect)
+
+    result = diagnostics.check_port({"AUDIODOC_PORT": "7077"})
+
+    expected_status = "FAIL"
+    assert result.status == expected_status, "a foreign listener must fail"
+
+
+def test_skips_health_probe_when_bind_fails_otherwise(
+    monkeypatch: pytest.MonkeyPatch, audiodoc_server: FakeHealthServer
+) -> None:
+    listener = FakeSocket(bind_errno=errno.EACCES)
+    monkeypatch.setattr(diagnostics.socket, "socket", lambda *_args: listener)
+
+    result = diagnostics.check_port({"AUDIODOC_PORT": "443"})
+
+    expected = ("FAIL", None)
+    assert (result.status, audiodoc_server.address) == expected, (
+        "only an address in use may be probed over HTTP"
     )
 
 
