@@ -98,11 +98,11 @@ Goal: remove deprecated functionality, make the code base uniform with bot-oborm
   - ~~Review the whole test tree once more against the security criteria (limits, authentication and permissions, dangerous files, masking of secrets and logs, subprocesses, installation) and add files that qualify.~~ The review added `tests/unit/test_logging_setup.py`, `tests/unit/cli/test_init.py`, `tests/unit/cli/test_config.py` and `tests/unit/test_service.py`, done here, and the larger files of AD-11.
 - Done when: as AD-07.
 
-#### AD-11 Security tests: application, settings, diagnostics, document pipeline, Docker image
+#### ~~AD-11 Security tests: application, settings, diagnostics, document pipeline, Docker image~~
 
 - Needs: AD-09.
 - Scope:
-  - Same standard as AD-07 for the files that the AD-09 review found but did not fit into its session: `tests/unit/test_main.py` (authentication, body limits, umask, redaction), `tests/unit/test_config.py` (key and limit validation), `tests/unit/test_system_diagnostics.py` (permissions of `.env`, API keys), `tests/unit/document_engine/test_pipeline.py` (symlinks, decompression bombs, path traversal, limits) and `tests/unit/project/test_docker_image.py` (non-root user, secrets, permissions).
+  - ~~Same standard as AD-07 for the files that the AD-09 review found but did not fit into its session: `tests/unit/test_main.py` (authentication, body limits, umask, redaction), `tests/unit/test_config.py` (key and limit validation), `tests/unit/test_system_diagnostics.py` (permissions of `.env`, API keys), `tests/unit/document_engine/test_pipeline.py` (symlinks, decompression bombs, path traversal, limits) and `tests/unit/project/test_docker_image.py` (non-root user, secrets, permissions).~~
 - Done when: as AD-07.
 
 #### AD-10 [shared] Release 0.3.0
@@ -164,6 +164,8 @@ The scope is not defined yet.
 - `extract_xml_text` reads only `element.text` and drops tail text, so `<r><b>one</b>tail</r>` gives `one`.
 - The Tesseract proxy decodes the output as strict UTF-8, so invalid bytes raise `UnicodeDecodeError` instead of a client-safe OCR error; the pipeline reports a generic extraction failure.
 - An image whose header declares more than Pillow's decompression bomb threshold (about 179 million pixels) raises `PIL.Image.DecompressionBombError` in `extract_image_text` instead of `ImageTooLargeError`; the pipeline reports a generic extraction failure.
+- `check_bind_address` warns only for the spellings `0.0.0.0` and `::`; other spellings of the all-interfaces address (`0`, `::0`, `0:0:0:0:0:0:0:0`) report OK. Parsing the host with `ipaddress` and checking `is_unspecified` would fix it; this changes behavior.
+- `tests/unit/test_config.py` still tests `log_safe` from `audiodoc/common/safe_log.py`, and `tests/unit/document_engine/test_pipeline.py` still tests the extractor registry, `runner.process_document` and the removal of `processor.py`; they belong in their mirrored test files.
 
 ## Released
 

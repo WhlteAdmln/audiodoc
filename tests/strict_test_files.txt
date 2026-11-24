@@ -18,9 +18,14 @@ tests/unit/document_engine/ocr/test_preprocessing.py
 tests/unit/document_engine/ocr/test_recognize.py
 tests/unit/document_engine/ocr/test_tesseract.py
 tests/unit/document_engine/test_ocr.py
+tests/unit/document_engine/test_pipeline.py
+tests/unit/project/test_docker_image.py
 tests/unit/project/test_installer.py
 tests/unit/project/test_installer_python_snippets.py
+tests/unit/test_config.py
 tests/unit/test_log_filters.py
 tests/unit/test_logging_setup.py
+tests/unit/test_main.py
 tests/unit/test_service.py
+tests/unit/test_system_diagnostics.py
 tests/unit/transcription/test_temp_files.py
