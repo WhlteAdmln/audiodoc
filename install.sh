@@ -439,7 +439,7 @@ if [ "$UPGRADE" -eq 1 ]; then
 	NEW_CLI="$NEW_VENV/bin/audiodoc"
 
 	log "Creating a staged virtual environment."
-	"$PYTHON_BIN" -m venv "$NEW_VENV" ||
+	"$PYTHON_BIN" -m venv --prompt .venv "$NEW_VENV" ||
 		die "Could not create the staged virtual environment."
 
 	log "Installing the verified release wheel into the staged environment."
@@ -458,6 +458,29 @@ if [ "$UPGRADE" -eq 1 ]; then
 		cat "$DOCTOR_OUTPUT"
 		die "Staged audiodoc doctor --offline failed. The existing installation was not replaced."
 	fi
+
+	log "Pointing the staged environment at its final location."
+	"$NEW_PYTHON" - "$NEW_VENV" "$HOME_DIR/.venv" <<'PY' ||
+import compileall
+import os
+import sys
+from pathlib import Path
+
+staged, final = sys.argv[1:]
+staged_bytes, final_bytes = os.fsencode(staged), os.fsencode(final)
+root = Path(staged)
+scripts = [path for path in (root / "bin").iterdir() if not path.is_symlink()]
+for path in [root / "pyvenv.cfg", *scripts]:
+    if path.is_file():
+        content = path.read_bytes()
+        if staged_bytes in content:
+            path.write_bytes(content.replace(staged_bytes, final_bytes))
+
+compileall.compile_dir(
+    root / "lib", quiet=2, force=True, stripdir=staged, prependdir=final
+)
+PY
+		die "Could not relocate the staged virtual environment. The existing installation was not replaced."
 
 	refuse_active_service
 

@@ -2,7 +2,9 @@
 """Regression tests for the Python snippets embedded in ``install.sh``."""
 
 import hashlib
+import importlib.util
 import json
+import os
 import re
 import runpy
 import sys
@@ -15,6 +17,7 @@ HEREDOC = re.compile(r"<<'PY'[^\n]*\n(.*?)\nPY\n", re.DOTALL)
 RELEASE_SNIPPET = "release.get("
 CHECKSUM_SNIPPET = "__NO_WHEEL__"
 SETTINGS_SNIPPET = "Unexpected .env model settings"
+RELOCATION_SNIPPET = "compileall.compile_dir("
 
 
 def _snippets() -> list[str]:
@@ -42,11 +45,11 @@ def _digest(seed: str) -> str:
     return hashlib.sha256(seed.encode()).hexdigest()
 
 
-def test_installer_embeds_three_python_snippets() -> None:
+def test_installer_embeds_four_python_snippets() -> None:
     count = len(_snippets())
 
-    expected_count = 3
-    assert count == expected_count, "the snippet tests expect three here-documents"
+    expected_count = 4
+    assert count == expected_count, "the snippet tests expect four here-documents"
 
 
 def test_no_shell_command_follows_a_here_document_operator() -> None:
@@ -281,3 +284,86 @@ def test_settings_snippet_refuses_an_unexpected_settings_file(
     observed = (code, env_path.read_text(encoding="utf-8"))
     expected = (SETTINGS_SNIPPET, content)
     assert observed == expected, "an unexpected .env must stay unchanged"
+
+
+def _staged_environment(tmp_path: Path) -> tuple[Path, Path]:
+    staged = tmp_path / "дом приложения" / ".venv.new"
+    final = staged.with_name(".venv")
+    (staged / "bin").mkdir(parents=True)
+    package = staged / "lib" / "python3.11" / "site-packages" / "tiny_pkg"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("ANSWER = 41\n", encoding="utf-8")
+    (staged / "pyvenv.cfg").write_text(
+        f"home = /opt/py/bin\ncommand = /opt/py/bin/python -m venv {staged}\n",
+        encoding="utf-8",
+    )
+    (staged / "bin" / "activate").write_text(
+        f"VIRTUAL_ENV='{staged}'\nexport VIRTUAL_ENV\n", encoding="utf-8"
+    )
+    (staged / "bin" / "audiodoc").write_text(
+        f"#!{staged}/bin/python\nfrom audiodoc.cli import main\n", encoding="utf-8"
+    )
+    return staged, final
+
+
+def test_relocation_snippet_points_scripts_and_settings_at_the_final_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    staged, final = _staged_environment(tmp_path)
+
+    _run_snippet(RELOCATION_SNIPPET, [staged, final], tmp_path, monkeypatch)
+
+    observed = {
+        name: (staged / name).read_text(encoding="utf-8")
+        for name in ("pyvenv.cfg", "bin/activate", "bin/audiodoc")
+    }
+    expected = {
+        "pyvenv.cfg": (
+            f"home = /opt/py/bin\ncommand = /opt/py/bin/python -m venv {final}\n"
+        ),
+        "bin/activate": f"VIRTUAL_ENV='{final}'\nexport VIRTUAL_ENV\n",
+        "bin/audiodoc": f"#!{final}/bin/python\nfrom audiodoc.cli import main\n",
+    }
+    assert observed == expected, "the staged path must be replaced by the final one"
+
+
+def test_relocation_snippet_keeps_the_mode_of_rewritten_scripts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    staged, final = _staged_environment(tmp_path)
+    script = staged / "bin" / "audiodoc"
+    script.chmod(0o751)
+
+    _run_snippet(RELOCATION_SNIPPET, [staged, final], tmp_path, monkeypatch)
+
+    expected_mode = 0o751
+    assert script.stat().st_mode & 0o777 == expected_mode, "scripts stay executable"
+
+
+def test_relocation_snippet_leaves_symlinked_interpreters_alone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    staged, final = _staged_environment(tmp_path)
+    interpreter = tmp_path / "base-python3.12"
+    interpreter.write_text(f"#!/bin/sh\n# built for {staged}\n", encoding="utf-8")
+    (staged / "bin" / "python").symlink_to(interpreter)
+
+    _run_snippet(RELOCATION_SNIPPET, [staged, final], tmp_path, monkeypatch)
+
+    expected = f"#!/bin/sh\n# built for {staged}\n"
+    content = interpreter.read_text(encoding="utf-8")
+    assert content == expected, "a file outside the environment must not change"
+
+
+def test_relocation_snippet_records_the_final_path_in_bytecode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    staged, final = _staged_environment(tmp_path)
+    package = Path("lib") / "python3.11" / "site-packages" / "tiny_pkg"
+
+    _run_snippet(RELOCATION_SNIPPET, [staged, final], tmp_path, monkeypatch)
+
+    source = staged / package / "__init__.py"
+    bytecode = Path(importlib.util.cache_from_source(str(source))).read_bytes()
+    expected = os.fsencode(final / package / "__init__.py")
+    assert expected in bytecode, "bytecode must name the final source path"
