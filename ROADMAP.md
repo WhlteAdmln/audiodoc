@@ -37,13 +37,13 @@ Goal: remove deprecated functionality, make the code base uniform with bot-oborm
   - ~~Move the tests so that every module has one mirrored test file.~~
 - Done when: the import-linter contracts stay valid, no production file is much longer than 350 lines (or the reason is listed), `make check` is green.
 
-#### AD-03 [shared] Split `scripts/check_docs.py` and document its differences
+#### ~~AD-03 [shared] Split `scripts/check_docs.py` and document its differences~~
 
 - Needs: none.
 - Scope:
-  - Split `scripts/check_docs.py` (audiodoc 474 lines, bot-obormot 471) by responsibility in both repositories.
-  - Describe the intentional differences between the two copies (settings source, OpenAPI check, CLI command check) in the "Documentation checks" part of `CONTRIBUTING.md` of both repositories.
-  - Replace the private `_settings_environment_names` import in `tests/unit/scripts/test_check_docs.py` of both repositories with a public name.
+  - ~~Split `scripts/check_docs.py` (audiodoc 474 lines, bot-obormot 471) by responsibility in both repositories.~~
+  - ~~Describe the intentional differences between the two copies (settings source, OpenAPI check, CLI command check) in the "Documentation checks" part of `CONTRIBUTING.md` of both repositories.~~
+  - ~~Replace the private `_settings_environment_names` import in `tests/unit/scripts/test_check_docs.py` of both repositories with a public name.~~
 - Done when: both `make docs-check` are green and no test imports a private name from the script.
 
 #### AD-04 [shared] `make check` runs every CI gate; one extra for test dependencies
@@ -144,7 +144,7 @@ The scope is not defined yet.
 
 ## Backlog
 
-Nothing yet.
+- Add `scripts/docs_checks/markdown.py`, `links.py`, `russian.py` and their tests to the files checked by `scripts/check_vendored.py`; they are identical in both repositories since AD-03.
 
 ## Released
 
