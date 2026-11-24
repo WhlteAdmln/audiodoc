@@ -27,6 +27,8 @@ The scope is not defined yet.
 
 ## Backlog
 
+- `install.sh --upgrade` leaves the paths of the staged `.venv.new` in the activated `.venv`: the shebang of `.venv/bin/audiodoc`, the `activate` scripts and `pyvenv.cfg` still point to `.venv.new`, so the systemd unit fails after an upgrade with `Failed to execute .../.venv/bin/audiodoc: No such file or directory` (seen when upgrading 0.2.0 to 0.3.0). bot-obormot fixed the same bug with `relocate_venv` in its `install.sh` (pull request #65); port it with a test that no file in `.venv` mentions `.venv.new` after an upgrade and that `audiodoc doctor --offline` runs from the swapped environment. Users download `install.sh` from `main`, so the fix applies without a new release.
+- `audiodoc doctor` reports `FAIL API port: Port 8000 on 127.0.0.1 is unavailable: [Errno 98] Address already in use.` while the audiodoc service is running, because `check_port` tries to bind the port that the running service holds. Proposed solution: when the bind fails with `EADDRINUSE`, check whether audiodoc answers `/health` on that address and report that the port is used by the running service instead of a failure; this changes behavior.
 - Add `scripts/docs_checks/markdown.py`, `links.py`, `russian.py` and their tests to the files checked by `scripts/check_vendored.py`; they are identical in both repositories since AD-03.
 - The CI job with the latest allowed dependencies installs `-c requirements-lock.txt`, so its runtime packages are the locked ones, not the latest allowed; decide whether it should drop the constraint, as bot-obormot does.
 - The CI test, integration and e2e steps repeat the skipped-test check in shell; they could call `make test-no-skips` and an equivalent target for the other markers.
