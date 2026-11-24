@@ -40,7 +40,6 @@ def test_wireguard_examples_use_placeholders_and_expected_addresses(
     allowed_ips: str,
     endpoint: str | None,
 ) -> None:
-    """Ensure both WireGuard examples contain the expected placeholders."""
     parser = ConfigParser(interpolation=None, strict=True)
     with (DEPLOY_DIR / filename).open(encoding="utf-8") as config_file:
         parser.read_file(config_file)
@@ -53,21 +52,20 @@ def test_wireguard_examples_use_placeholders_and_expected_addresses(
     assert peer["publickey"] == public_key
     assert peer["allowedips"] == allowed_ips
     if endpoint is None:
-        expected_fragment = "endpoint"
-        assert expected_fragment not in peer
+        endpoint_key = "endpoint"
+        assert endpoint_key not in peer
     else:
         assert peer["endpoint"] == endpoint
 
 
 def test_ci_systemd_verification_uses_canonical_renderer() -> None:
-    """Keep CI systemd validation aligned with the canonical unit renderer."""
     workflow = (DEPLOY_DIR.parent / ".github" / "workflows" / "ci.yml").read_text(
         encoding="utf-8"
     )
 
-    expected_fragment = "from audiodoc.service import render_service_unit"
-    assert expected_fragment in workflow
-    expected_fragment = 'systemd-analyze verify "${service_file}"'
-    assert expected_fragment in workflow
-    expected_fragment = 'deploy/audiodoc.service.example > "${service_file}"'
-    assert expected_fragment not in workflow
+    renderer_import = "from audiodoc.service import render_service_unit"
+    assert renderer_import in workflow
+    verify_command = 'systemd-analyze verify "${service_file}"'
+    assert verify_command in workflow
+    example_redirect = 'deploy/audiodoc.service.example > "${service_file}"'
+    assert example_redirect not in workflow

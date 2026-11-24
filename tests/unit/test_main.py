@@ -8,7 +8,6 @@ import asyncio
 import multiprocessing
 import os
 import re
-import tempfile
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -30,6 +29,7 @@ from tests.support.bot_client import upload_file
 from tests.support.builders import create_wav
 from tests.support.import_safety import check_import_safety
 from tests.support.server import LiveServer, LiveServerOptions, fixture_live_server
+from tests.support.spooled_files import TrackedSpooledTemporaryFile
 from tests.support.whisper import no_native_tools, silent_model
 from tests.support.work_queues import QueueCapacity, measure_capacity
 
@@ -323,30 +323,30 @@ async def test_live_socket_health_ready_docs_and_request_ids(
             f"{live_server.base_url}/health",
             headers={"X-Request-ID": request_id},
         ) as response:
-            expected_status = 200
-            assert response.status == expected_status
+            expected_health_status = 200
+            assert response.status == expected_health_status
             assert response.headers["x-request-id"] == request_id
-            expected_status_2 = "ok"
-            assert (await response.json())["status"] == expected_status_2
+            expected_health_state = "ok"
+            assert (await response.json())["status"] == expected_health_state
 
         async with session.get(f"{live_server.base_url}/health") as response:
             generated_id = response.headers["x-request-id"]
             assert re.fullmatch(r"[0-9a-f]{32}", generated_id)
 
         async with session.get(f"{live_server.base_url}/ready") as response:
-            expected_status = 200
-            assert response.status == expected_status
+            expected_ready_status = 200
+            assert response.status == expected_ready_status
             payload = await response.json()
             assert payload["tesseract"] is False
             assert payload["djvulibre"] is False
 
         async with session.get(f"{live_server.base_url}/docs") as response:
-            expected_status = 404
-            assert response.status == expected_status
+            expected_docs_status = 404
+            assert response.status == expected_docs_status
 
         async with session.get(f"{live_server.base_url}/openapi.json") as response:
-            expected_status = 404
-            assert response.status == expected_status
+            expected_openapi_status = 404
+            assert response.status == expected_openapi_status
 
 
 @pytest.mark.parametrize(
@@ -400,11 +400,11 @@ async def test_live_socket_rejects_declared_body_over_limit(
         writer.close()
         await writer.wait_closed()
 
-    expected_bytes = b" 413 "
-    assert expected_bytes in response.split(b"\r\n", maxsplit=1)[0]
+    status_line = b" 413 "
+    assert status_line in response.split(b"\r\n", maxsplit=1)[0]
     assert f"x-request-id: {request_id}".encode() in response.lower()
-    expected_bytes = b"Request body too large"
-    assert expected_bytes in response
+    error_message = b"Request body too large"
+    assert error_message in response
 
 
 @pytest.mark.parametrize(
@@ -444,31 +444,13 @@ async def test_live_socket_rejects_chunked_body_over_limit(
 async def test_client_disconnect_during_upload_closes_temporary_file(
     live_server: LiveServer,
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     rolled = threading.Event()
     closed = threading.Event()
 
-    class TrackedSpooledTemporaryFile(tempfile.SpooledTemporaryFile):
-        """Stand in for the real TrackedSpooledTemporaryFile object."""
-
-        def write(self, s: bytes) -> int:
-            written = super().write(s)
-            if self._rolled:
-                rolled.set()
-            return written
-
-        def close(self) -> None:
-            try:
-                super().close()
-            finally:
-                closed.set()
-
-    def track_spooled_file(
-        *args: object,
-        **kwargs: object,
-    ) -> tempfile.SpooledTemporaryFile:
-        kwargs["max_size"] = 1
-        return TrackedSpooledTemporaryFile(*args, **kwargs)
+    def track_spooled_file(**_kwargs: object) -> TrackedSpooledTemporaryFile:
+        return TrackedSpooledTemporaryFile(tmp_path, rolled, closed)
 
     monkeypatch.setattr(
         starlette.formparsers,
@@ -585,19 +567,16 @@ def test_app_registers_all_expected_routes() -> None:
     app = main_module.create_app()
     expected_title = "audiodoc"
     assert app.title == expected_title
-    # FastAPI/Starlette may expose included routers as internal wrapper
-    # objects in app.routes. OpenAPI is the public, version-stable view of
-    # the routes registered on the application.
     paths = app.openapi()["paths"]
 
-    expected_fragment = "get"
-    assert expected_fragment in paths["/health"]
-    expected_fragment = "get"
-    assert expected_fragment in paths["/ready"]
-    expected_fragment = "post"
-    assert expected_fragment in paths["/transcribe"]
-    expected_fragment = "post"
-    assert expected_fragment in paths["/process-document"]
+    health_method = "get"
+    assert health_method in paths["/health"]
+    ready_method = "get"
+    assert ready_method in paths["/ready"]
+    transcribe_method = "post"
+    assert transcribe_method in paths["/transcribe"]
+    document_method = "post"
+    assert document_method in paths["/process-document"]
 
 
 def _queue_settings() -> Settings:

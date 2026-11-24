@@ -28,10 +28,10 @@ def test_prints_and_installs_user_unit_without_starting_it(
         app_home, mode="user"
     )
     output = capsys.readouterr().out
-    expected_fragment = "The service was not enabled or started."
-    assert expected_fragment in output
-    expected_fragment = "systemctl --user enable --now audiodoc.service"
-    assert expected_fragment in output
+    not_started_notice = "The service was not enabled or started."
+    assert not_started_notice in output
+    enable_command = "systemctl --user enable --now audiodoc.service"
+    assert enable_command in output
 
 
 def test_prints_hardened_system_unit(

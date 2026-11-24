@@ -7,5 +7,5 @@ from importlib import import_module
 
 def test_rtf_extractor_preserves_plain_text() -> None:
     rtf_module = import_module("audiodoc.document_engine.extractors.rtf")
-    expected_fragment = "RTF test"
-    assert expected_fragment in rtf_module.extract_rtf(b"{\\rtf1 RTF test}")
+    plain_text = "RTF test"
+    assert plain_text in rtf_module.extract_rtf(b"{\\rtf1 RTF test}")

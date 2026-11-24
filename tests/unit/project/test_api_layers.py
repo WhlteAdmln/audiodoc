@@ -34,7 +34,7 @@ def test_api_handlers_depend_on_the_application_services() -> None:
     document_api = _audiodoc_packages(AUDIODOC_ROOT / "api" / "documents.py")
     transcription_api = _audiodoc_packages(AUDIODOC_ROOT / "api" / "transcribe.py")
 
-    expected_fragment = "document_engine"
-    assert expected_fragment in document_api
-    expected_fragment = "transcription"
-    assert expected_fragment in transcription_api
+    document_service = "document_engine"
+    assert document_service in document_api
+    transcription_service = "transcription"
+    assert transcription_service in transcription_api

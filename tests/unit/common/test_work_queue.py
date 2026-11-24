@@ -27,7 +27,8 @@ def test_work_queue_limits_active_and_waiting_tasks() -> None:
                     active -= 1
 
         tasks = [asyncio.create_task(worker()) for _ in range(7)]
-        await asyncio.sleep(0.03)
+        for _ in tasks:
+            await asyncio.sleep(0)
 
         expected_active = 2
         assert active == expected_active

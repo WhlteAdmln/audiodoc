@@ -7,28 +7,26 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 
 
 def test_dockerfile_builds_a_multi_stage_python_image() -> None:
-    """Ensure the image uses a Python builder and runtime stage."""
     dockerfile = (ROOT_DIR / "Dockerfile").read_text(encoding="utf-8")
 
     assert dockerfile.startswith("ARG RUNTIME_BASE=python:3.12-slim\n")
-    expected_fragment = "FROM python:3.12-slim AS builder\n"
-    assert expected_fragment in dockerfile
-    expected_fragment = "FROM ${RUNTIME_BASE} AS runtime\n"
-    assert expected_fragment in dockerfile
-    expected_fragment = "requirements-lock.txt"
-    assert expected_fragment in dockerfile
-    expected_fragment = "pip wheel"
-    assert expected_fragment in dockerfile
-    expected_fragment = "--no-index"
-    assert expected_fragment in dockerfile
-    expected_fragment = "--find-links=/wheels"
-    assert expected_fragment in dockerfile
-    expected_fragment = "python -m venv /opt/venv"
-    assert expected_fragment in dockerfile
+    builder_stage = "FROM python:3.12-slim AS builder\n"
+    assert builder_stage in dockerfile
+    runtime_stage = "FROM ${RUNTIME_BASE} AS runtime\n"
+    assert runtime_stage in dockerfile
+    lock_file = "requirements-lock.txt"
+    assert lock_file in dockerfile
+    wheel_build = "pip wheel"
+    assert wheel_build in dockerfile
+    offline_install = "--no-index"
+    assert offline_install in dockerfile
+    wheel_source = "--find-links=/wheels"
+    assert wheel_source in dockerfile
+    venv_creation = "python -m venv /opt/venv"
+    assert venv_creation in dockerfile
 
 
 def test_dockerfile_declares_ghcr_source_repository() -> None:
-    """Ensure the image metadata identifies its source repository."""
     dockerfile = (ROOT_DIR / "Dockerfile").read_text(encoding="utf-8")
     expected_label = (
         'LABEL org.opencontainers.image.source="https://github.com/WhlteAdmln/audiodoc"'
@@ -38,7 +36,6 @@ def test_dockerfile_declares_ghcr_source_repository() -> None:
 
 
 def test_dockerfile_installs_native_document_dependencies() -> None:
-    """Ensure OCR languages and DjVuLibre tools are installed."""
     dockerfile = (ROOT_DIR / "Dockerfile").read_text(encoding="utf-8")
 
     for package in (
@@ -51,33 +48,30 @@ def test_dockerfile_installs_native_document_dependencies() -> None:
 
 
 def test_dockerfile_uses_persistent_storage_and_non_root_user() -> None:
-    """Ensure application data is persistent and the process is unprivileged."""
     dockerfile = (ROOT_DIR / "Dockerfile").read_text(encoding="utf-8")
 
-    expected_fragment = "AUDIODOC_HOME=/data"
-    assert expected_fragment in dockerfile
-    expected_fragment = "HF_HOME=/data/models"
-    assert expected_fragment in dockerfile
-    expected_fragment = 'VOLUME ["/data"]'
-    assert expected_fragment in dockerfile
-    expected_fragment = "USER audiodoc:audiodoc"
-    assert expected_fragment in dockerfile
+    home_variable = "AUDIODOC_HOME=/data"
+    assert home_variable in dockerfile
+    model_cache_variable = "HF_HOME=/data/models"
+    assert model_cache_variable in dockerfile
+    data_volume = 'VOLUME ["/data"]'
+    assert data_volume in dockerfile
+    service_user = "USER audiodoc:audiodoc"
+    assert service_user in dockerfile
 
 
 def test_dockerfile_configures_healthcheck_and_server_command() -> None:
-    """Ensure Docker can monitor the API and start the server."""
     dockerfile = (ROOT_DIR / "Dockerfile").read_text(encoding="utf-8")
 
-    expected_fragment = "HEALTHCHECK"
-    assert expected_fragment in dockerfile
-    expected_fragment = "http://127.0.0.1:8000/health"
-    assert expected_fragment in dockerfile
-    expected_fragment = 'CMD ["audiodoc", "run", "--host", "0.0.0.0"]'
-    assert expected_fragment in dockerfile
+    healthcheck = "HEALTHCHECK"
+    assert healthcheck in dockerfile
+    health_url = "http://127.0.0.1:8000/health"
+    assert health_url in dockerfile
+    server_command = 'CMD ["audiodoc", "run", "--host", "0.0.0.0"]'
+    assert server_command in dockerfile
 
 
 def test_dockerignore_excludes_secrets_and_local_state() -> None:
-    """Ensure secrets and development artifacts stay outside the build context."""
     ignored = set((ROOT_DIR / ".dockerignore").read_text(encoding="utf-8").splitlines())
 
     assert {
@@ -94,29 +88,26 @@ def test_dockerignore_excludes_secrets_and_local_state() -> None:
 
 
 def test_docker_entrypoint_uses_keys_from_persistent_home() -> None:
-    """Ensure host environment keys cannot mask keys generated in the volume."""
     entrypoint = (ROOT_DIR / "docker-entrypoint.sh").read_text(encoding="utf-8")
 
     for key in ("AUDIODOC_AUDIO_KEY", "AUDIODOC_DOCUMENT_KEY"):
         assert f"unset {key}" in entrypoint
-    expected_fragment = 'exec "$@"'
-    assert expected_fragment in entrypoint
+    exec_line = 'exec "$@"'
+    assert exec_line in entrypoint
 
 
 def test_docker_entrypoint_dispatches_cli_subcommands() -> None:
-    """Ensure entrypoint routes Compose subcommands through the CLI."""
     entrypoint = (ROOT_DIR / "docker-entrypoint.sh").read_text(encoding="utf-8")
 
-    expected_fragment = 'if [ "${1:-}" != "audiodoc" ]; then'
-    assert expected_fragment in entrypoint
-    expected_fragment = 'set -- audiodoc "$@"'
-    assert expected_fragment in entrypoint
-    expected_fragment = 'exec "$@"'
-    assert expected_fragment in entrypoint
+    command_check = 'if [ "${1:-}" != "audiodoc" ]; then'
+    assert command_check in entrypoint
+    command_prefix = 'set -- audiodoc "$@"'
+    assert command_prefix in entrypoint
+    exec_line = 'exec "$@"'
+    assert exec_line in entrypoint
 
 
 def test_compose_configures_secure_persistent_storage() -> None:
-    """Ensure Compose uses persistent data and safe container defaults."""
     compose = (ROOT_DIR / "compose.yaml").read_text(encoding="utf-8")
 
     for setting in (
@@ -140,78 +131,71 @@ def test_compose_configures_secure_persistent_storage() -> None:
     ):
         assert setting in compose
 
-    expected_fragment = "pids_limit:"
-    assert expected_fragment not in compose
+    pids_limit = "pids_limit:"
+    assert pids_limit not in compose
 
 
 def test_cuda_compose_uses_nvidia_runtime_and_reserves_gpu_devices() -> None:
-    """Ensure the CUDA override selects an NVIDIA runtime and GPU devices."""
     compose = (ROOT_DIR / "compose.cuda.yaml").read_text(encoding="utf-8")
 
-    expected_fragment = "nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04"
-    assert expected_fragment in compose
-    expected_fragment = "WHISPER_DEVICE: cuda"
-    assert expected_fragment in compose
-    expected_fragment = "WHISPER_COMPUTE_TYPE: float16"
-    assert expected_fragment in compose
-    expected_fragment = "driver: nvidia"
-    assert expected_fragment in compose
-    expected_fragment = "count: all"
-    assert expected_fragment in compose
-    expected_fragment = "- gpu"
-    assert expected_fragment in compose
+    cuda_base_image = "nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04"
+    assert cuda_base_image in compose
+    cuda_device = "WHISPER_DEVICE: cuda"
+    assert cuda_device in compose
+    compute_type = "WHISPER_COMPUTE_TYPE: float16"
+    assert compute_type in compose
+    gpu_driver = "driver: nvidia"
+    assert gpu_driver in compose
+    gpu_count = "count: all"
+    assert gpu_count in compose
+    gpu_capability = "- gpu"
+    assert gpu_capability in compose
 
 
-def test_ci_builds_checks_and_publishes_the_container_image() -> None:
-    """Ensure CI runs doctor in the image and publishes it to GHCR."""
+def test_ci_smoke_tests_the_container_image_through_the_makefile() -> None:
     workflow = (ROOT_DIR / ".github" / "workflows" / "ci.yml").read_text(
         encoding="utf-8"
     )
     makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
 
-    expected_fragment = "name: Docker image smoke test"
-    assert expected_fragment in workflow
-    expected_fragment = "docker compose -f compose.yaml config --quiet"
-    assert expected_fragment in makefile
-    expected_fragment = (
+    smoke_test_step = "name: Docker image smoke test"
+    assert smoke_test_step in workflow
+    compose_check = "docker compose -f compose.yaml config --quiet"
+    assert compose_check in makefile
+    cuda_compose_check = (
         "docker compose -f compose.yaml -f compose.cuda.yaml config --quiet"
     )
-    assert expected_fragment in makefile
-    expected_fragment = "docker compose -f compose.yaml build --pull audiodoc"
-    assert expected_fragment in makefile
-    expected_fragment = "path: .cache/whisper"
-    assert expected_fragment in workflow
-    expected_fragment = "whisper-tiny-${{ hashFiles('requirements-lock.txt') }}"
-    assert expected_fragment in workflow
-    expected_fragment = ".cache/whisper:/data/models"
-    assert expected_fragment in workflow
-    expected_fragment = "audiodoc model download --name tiny --dir /data/models/tiny"
-    assert expected_fragment in workflow
-    expected_fragment = "WHISPER_MODEL_PATH=/data/models/tiny"
-    assert expected_fragment in workflow
-    expected_fragment_2 = (
+    assert cuda_compose_check in makefile
+    image_build = "docker compose -f compose.yaml build --pull audiodoc"
+    assert image_build in makefile
+
+
+def test_ci_caches_the_whisper_model_and_runs_doctor_in_the_container() -> None:
+    workflow = (ROOT_DIR / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"
+    )
+
+    cache_path = "path: .cache/whisper"
+    assert cache_path in workflow
+    cache_key = "whisper-tiny-${{ hashFiles('requirements-lock.txt') }}"
+    assert cache_key in workflow
+    cache_mount = ".cache/whisper:/data/models"
+    assert cache_mount in workflow
+    model_download = "audiodoc model download --name tiny --dir /data/models/tiny"
+    assert model_download in workflow
+    model_path = "WHISPER_MODEL_PATH=/data/models/tiny"
+    assert model_path in workflow
+    doctor_step = (
         "      - name: Initialize persistent volume and run doctor\n"
         "        run: |\n"
         "          set -euo pipefail\n"
         "          docker compose -f compose.yaml run --rm --no-deps "
         "audiodoc init --model tiny\n"
     )
-    assert expected_fragment_2 in workflow
-    expected_fragment = "audiodoc doctor --offline"
-    assert expected_fragment in workflow
-    expected_fragment = "name: Publish Docker image to GHCR"
-    assert expected_fragment not in workflow
-    expected_fragment = "packages: write"
-    assert expected_fragment in workflow
-    expected_fragment = "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}"
-    assert expected_fragment in workflow
-    expected_fragment = "docker login ghcr.io"
-    assert expected_fragment in workflow
-    expected_fragment = 'docker push "${image}:${GITHUB_SHA}"'
-    assert expected_fragment in workflow
-    expected_fragment = 'docker push "${image}:latest"'
-    assert expected_fragment in workflow
-    expected_fragment_2 = (
+    assert doctor_step in workflow
+    offline_doctor = "audiodoc doctor --offline"
+    assert offline_doctor in workflow
+    cache_permissions_step = (
         "      - name: Make Whisper cache readable by runner\n"
         "        if: always()\n"
         "        run: |\n"
@@ -219,4 +203,23 @@ def test_ci_builds_checks_and_publishes_the_container_image() -> None:
         '            sudo chown -R "$(id -u):$(id -g)" .cache/whisper\n'
         "          fi\n"
     )
-    assert expected_fragment_2 in workflow
+    assert cache_permissions_step in workflow
+
+
+def test_ci_publishes_the_container_image_to_ghcr() -> None:
+    workflow = (ROOT_DIR / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"
+    )
+
+    publish_step = "name: Publish Docker image to GHCR"
+    assert publish_step not in workflow
+    packages_permission = "packages: write"
+    assert packages_permission in workflow
+    registry_auth_env = "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}"
+    assert registry_auth_env in workflow
+    registry_login = "docker login ghcr.io"
+    assert registry_login in workflow
+    sha_push = 'docker push "${image}:${GITHUB_SHA}"'
+    assert sha_push in workflow
+    latest_push = 'docker push "${image}:latest"'
+    assert latest_push in workflow

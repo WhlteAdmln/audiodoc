@@ -19,10 +19,10 @@ def test_ods_stops_at_configured_row_and_column_caps(
     text = extract_odf(create_ods(), "ods")
     expected_text = "--- Лист: Test sheet ---\nName"
     assert text == expected_text
-    expected_fragment = "Value"
-    assert expected_fragment not in text
-    expected_fragment = "Document engine"
-    assert expected_fragment not in text
+    header_cell = "Value"
+    assert header_cell not in text
+    first_cell = "Document engine"
+    assert first_cell not in text
 
 
 def test_ods_extracts_sheet_names_and_rows() -> None:

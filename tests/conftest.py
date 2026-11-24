@@ -15,7 +15,7 @@ os.environ.setdefault("AUDIODOC_AUDIO_KEY", "")
 os.environ.setdefault("AUDIODOC_DOCUMENT_KEY", "")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
 
-_TEST_MARKERS = {"unit", "integration", "contract", "e2e"}
+_TEST_MARKERS = frozenset({"unit", "integration", "contract", "e2e"})
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:

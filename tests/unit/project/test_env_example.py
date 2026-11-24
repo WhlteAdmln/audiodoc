@@ -9,7 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SETTINGS_PATH = PROJECT_ROOT / "audiodoc" / "config" / "settings.py"
 ENV_EXAMPLE_PATH = PROJECT_ROOT / ".env.example"
 _ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-_SETTING_READERS = {"read_bool", "read_int", "read_str"}
+_SETTING_READERS = frozenset({"read_bool", "read_int", "read_str"})
 
 
 def _read_settings_environment_names() -> set[str]:

@@ -8,13 +8,11 @@ in an isolated pytest temporary directory (tmp_path).
 import csv
 import math
 import sys
-import tempfile
 import wave
 from array import array
 from fractions import Fraction
 from importlib import import_module
 from io import BytesIO, StringIO
-from pathlib import Path
 
 _LITTLE_ENDIAN = "little"
 
@@ -133,10 +131,9 @@ def create_epub() -> bytes:
     book.add_item(epub.EpubNcx())
     book.add_item(epub.EpubNav())
 
-    with tempfile.TemporaryDirectory() as directory:
-        path = Path(directory) / "test.epub"
-        epub.write_epub(str(path), book)
-        return path.read_bytes()
+    buffer = BytesIO()
+    epub.write_epub(buffer, book)
+    return buffer.getvalue()
 
 
 def create_fb2() -> bytes:

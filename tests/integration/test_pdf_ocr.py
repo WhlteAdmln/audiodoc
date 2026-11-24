@@ -18,7 +18,7 @@ class _PytesseractModule(Protocol):
     def get_languages(self, config: str = "") -> list[str]: ...
 
 
-def test_pdf_text_layer_and_scanned_page_ocr(tmp_path: Path) -> None:
+def test_extracts_pdf_text_layer_and_recognizes_scanned_page(tmp_path: Path) -> None:
     if shutil.which("tesseract") is None:
         pytest.skip("Tesseract is not installed")
 

@@ -52,12 +52,12 @@ def test_get_int_reads_default_environment_and_minimum(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("INT_SETTING", raising=False)
-    expected_get_int = 6
-    assert get_int("INT_SETTING", "6") == expected_get_int
+    expected_default = 6
+    assert get_int("INT_SETTING", "6") == expected_default
 
     monkeypatch.setenv("INT_SETTING", "12")
-    expected_get_int = 12
-    assert get_int("INT_SETTING", "6") == expected_get_int
+    expected_from_environment = 12
+    assert get_int("INT_SETTING", "6") == expected_from_environment
 
     with pytest.raises(ValueError, match="at least"):
         get_int("INT_SETTING", "6", minimum=13)
@@ -103,12 +103,12 @@ def test_parse_ids_reads_unique_positive_ids() -> None:
 
 
 def test_get_log_level_validates_values_and_warns_on_invalid_value() -> None:
-    expected_get_log_level = "WARNING"
-    assert get_log_level(environ={"LOG_LEVEL": " warning "}) == expected_get_log_level
+    expected_level = "WARNING"
+    assert get_log_level(environ={"LOG_LEVEL": " warning "}) == expected_level
 
-    expected_get_log_level = "INFO"
+    expected_fallback_level = "INFO"
     with pytest.warns(RuntimeWarning, match="Invalid LOG_LEVEL"):
-        assert get_log_level(environ={"LOG_LEVEL": "trace"}) == expected_get_log_level
+        assert get_log_level(environ={"LOG_LEVEL": "trace"}) == expected_fallback_level
 
 
 def test_log_safe_removes_line_breaks_and_non_printable_characters() -> None:
@@ -238,16 +238,16 @@ def test_settings_proxy_is_cached_and_resettable(
 ) -> None:
     with monkeypatch.context() as scoped:
         scoped.setenv("WHISPER_MODEL_SIZE", "first")
-        expected_whisper_model_size = "first"
-        assert expected_whisper_model_size == settings.WHISPER_MODEL_SIZE
+        cached_size = "first"
+        assert cached_size == settings.WHISPER_MODEL_SIZE
 
         scoped.setenv("WHISPER_MODEL_SIZE", "second")
-        expected_whisper_model_size = "first"
-        assert expected_whisper_model_size == get_settings().WHISPER_MODEL_SIZE
+        cached_size = "first"
+        assert cached_size == get_settings().WHISPER_MODEL_SIZE
 
         reset_settings_cache()
-        expected_whisper_model_size = "second"
-        assert expected_whisper_model_size == settings.WHISPER_MODEL_SIZE
+        reloaded_size = "second"
+        assert reloaded_size == settings.WHISPER_MODEL_SIZE
 
 
 @pytest.mark.usefixtures("fresh_settings_cache")

@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Never
 
 import pytest
 from PIL import Image
@@ -16,30 +15,11 @@ from audiodoc.common.subprocess_runner import (
 from audiodoc.document_engine.ocr import recognize as recognize_module
 from audiodoc.document_engine.ocr import tesseract as tesseract_module
 from audiodoc.errors.documents import DocumentRejectedError
-
-
-class _UnexpectedImageCopyError(AssertionError):
-    """Raised when OCR copies an oversized image frame."""
-
-    def __init__(self) -> None:
-        """Initialize the test assertion error."""
-        super().__init__("copy must not be called for oversized frames")
-
-
-class _OversizedImage:
-    n_frames = 1
-    width = 100
-    height = 100
-
-    @staticmethod
-    def seek(_index: object) -> None:
-        """Provide the ``seek`` behaviour the test relies on."""
-        return
-
-    @staticmethod
-    def copy() -> Never:
-        """Provide the ``copy`` behaviour the test relies on."""
-        raise _UnexpectedImageCopyError
+from tests.support.pil_images import (
+    FakeMultiPageImage,
+    FakePreparedImage,
+    OversizedImage,
+)
 
 
 def test_ocr_timeout_returns_clean_error_and_removes_image_directory(
@@ -77,40 +57,11 @@ def test_ocr_timeout_returns_clean_error_and_removes_image_directory(
 def test_recognize_pages_preserves_page_headers_and_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    class DummyPrepared:
-        """Stand in for the real DummyPrepared object."""
-
-        def __init__(self) -> None:
-            self.closed = False
-
-        def close(self) -> None:
-            """Provide the ``close`` behaviour the test relies on."""
-            self.closed = True
-
-    class DummyImage:
-        """Stand in for the real DummyImage object."""
-
-        n_frames = 2
-        width = 10
-        height = 10
-
-        def __init__(self) -> None:
-            self.current_page = None
-
-        def seek(self, page: object) -> None:
-            """Provide the ``seek`` behaviour the test relies on."""
-            self.current_page = page
-
-        @staticmethod
-        def copy() -> object:
-            """Provide the ``copy`` behaviour the test relies on."""
-            return object()
-
     prepared_images = []
     calls = []
 
     def prepare(_image: object) -> object:
-        item = DummyPrepared()
+        item = FakePreparedImage()
         prepared_images.append(item)
         return item
 
@@ -127,7 +78,7 @@ def test_recognize_pages_preserves_page_headers_and_timeout(
         recognize,
     )
 
-    text = recognize_module.recognize_pages(DummyImage(), "rus+eng")
+    text = recognize_module.recognize_pages(FakeMultiPageImage(2), "rus+eng")
 
     expected_text = "--- Страница 1 ---\npage 1\n\n--- Страница 2 ---\npage 2"
     assert text == expected_text
@@ -140,4 +91,4 @@ def test_ocr_rejects_oversized_frame_before_copy(
 ) -> None:
     monkeypatch.setattr(recognize_module, "MAX_IMAGE_PIXELS", 99)
     with pytest.raises(DocumentRejectedError, match="лимит пикселей"):
-        recognize_module.recognize_pages(_OversizedImage(), "eng")
+        recognize_module.recognize_pages(OversizedImage(), "eng")

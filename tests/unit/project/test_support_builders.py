@@ -17,14 +17,14 @@ from tests.support import builders
 
 
 def test_text_builders_create_valid_content() -> None:
-    expected_bytes = b"TXT test"
-    assert expected_bytes in builders.create_txt()
-    expected_bytes = b"# Markdown test"
-    assert expected_bytes in builders.create_md()
-    expected_bytes = b"<html"
-    assert expected_bytes in builders.create_html()
-    expected_bytes = b"{\\rtf1"
-    assert expected_bytes in builders.create_rtf()
+    txt_content = b"TXT test"
+    assert txt_content in builders.create_txt()
+    markdown_heading = b"# Markdown test"
+    assert markdown_heading in builders.create_md()
+    html_start = b"<html"
+    assert html_start in builders.create_html()
+    rtf_header = b"{\\rtf1"
+    assert rtf_header in builders.create_rtf()
 
     xml_root = ElementTree.fromstring(builders.create_xml())
     expected_findtext = "XML test"
@@ -62,8 +62,8 @@ def test_archive_builders_create_valid_packages(
 
 def test_fb2_builder_creates_valid_xml() -> None:
     document = ElementTree.fromstring(builders.create_fb2())
-    expected_fragment = "FB2 test"
-    assert expected_fragment in "".join(document.itertext())
+    book_title = "FB2 test"
+    assert book_title in "".join(document.itertext())
 
 
 def test_pdf_builders_create_text_and_image_documents() -> None:
@@ -71,8 +71,8 @@ def test_pdf_builders_create_text_and_image_documents() -> None:
         stream=builders.create_pdf(),
         filetype="pdf",
     ) as document:
-        expected_fragment = "PDF document test"
-        assert expected_fragment in document[0].get_text()
+        text_page = "PDF document test"
+        assert text_page in document[0].get_text()
 
     with pymupdf.open(
         stream=builders.create_image_only_pdf(),
@@ -87,8 +87,8 @@ def test_pdf_builders_create_text_and_image_documents() -> None:
         stream=builders.create_scanned_pdf(),
         filetype="pdf",
     ) as document:
-        expected_fragment = "normal PDF text page"
-        assert expected_fragment in document[0].get_text()
+        normal_page = "normal PDF text page"
+        assert normal_page in document[0].get_text()
         assert document[1].get_images(full=True)
 
 

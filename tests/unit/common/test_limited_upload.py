@@ -5,8 +5,6 @@
 import asyncio
 import io
 from pathlib import Path
-from tempfile import TemporaryDirectory
-from unittest.mock import patch
 
 import pytest
 from hypothesis import given, settings
@@ -55,25 +53,26 @@ def test_save_upload_limited_rejects_file_over_limit(
 )
 @settings(max_examples=200)
 def test_save_upload_limited_never_writes_more_than_limit(
+    tmp_path_factory: pytest.TempPathFactory,
     data: bytes,
     limit: int,
 ) -> None:
-    with TemporaryDirectory() as temp_dir:
-        destination = Path(temp_dir) / "upload.bin"
-        upload = UploadFile(
-            file=io.BytesIO(data),
-            filename="upload.bin",
-        )
+    destination = tmp_path_factory.mktemp("upload") / "upload.bin"
+    upload = UploadFile(
+        file=io.BytesIO(data),
+        filename="upload.bin",
+    )
 
-        with patch.object(upload_limits, "CHUNK_SIZE", 32):
-            if len(data) > limit:
-                with pytest.raises(HTTPException) as error:
-                    asyncio.run(save_upload_limited(upload, destination, limit))
+    with pytest.MonkeyPatch.context() as patcher:
+        patcher.setattr(upload_limits, "CHUNK_SIZE", 32)
+        if len(data) > limit:
+            with pytest.raises(HTTPException) as error:
+                asyncio.run(save_upload_limited(upload, destination, limit))
 
-                expected_status_code = 413
-                assert error.value.status_code == expected_status_code
-            else:
-                saved = asyncio.run(save_upload_limited(upload, destination, limit))
-                assert saved == len(data)
+            expected_status_code = 413
+            assert error.value.status_code == expected_status_code
+        else:
+            saved = asyncio.run(save_upload_limited(upload, destination, limit))
+            assert saved == len(data)
 
         assert destination.stat().st_size <= limit

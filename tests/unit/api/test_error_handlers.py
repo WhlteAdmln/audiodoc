@@ -153,10 +153,10 @@ def test_unexpected_exception_returns_generic_message_without_details(
         "detail": "Internal server error",
         "code": "internal_error",
     }
-    expected_fragment = "secret.txt"
-    assert expected_fragment not in response.text
-    expected_fragment = "private /srv/audiodoc/secret.txt"
-    assert expected_fragment in caplog.text
+    private_file_name = "secret.txt"
+    assert private_file_name not in response.text
+    private_error_detail = "private /srv/audiodoc/secret.txt"
+    assert private_error_detail in caplog.text
 
 
 def test_document_filename_is_sanitized_before_logging(
@@ -182,8 +182,8 @@ def test_document_filename_is_sanitized_before_logging(
 
     expected_status_code = 200
     assert response.status_code == expected_status_code
-    expected_fragment = "filename=note%0AINJECTED.log.txt"
-    assert expected_fragment in caplog.text
+    escaped_filename = "filename=note%0AINJECTED.log.txt"
+    assert escaped_filename in caplog.text
     assert not any(
         line.startswith("INJECTED.log.txt") for line in caplog.text.splitlines()
     )
@@ -215,10 +215,10 @@ def test_typed_document_rejection_is_logged_without_raw_filename(
         "detail": "Документ не может быть обработан",
         "code": "document_rejected",
     }
-    expected_fragment = "Document rejected"
-    assert expected_fragment in caplog.text
-    expected_fragment = "filename=bad%0AFORGED.log.txt"
-    assert expected_fragment in caplog.text
+    rejection_message = "Document rejected"
+    assert rejection_message in caplog.text
+    escaped_filename = "filename=bad%0AFORGED.log.txt"
+    assert escaped_filename in caplog.text
     assert not any(
         line.startswith("FORGED.log.txt") for line in caplog.text.splitlines()
     )

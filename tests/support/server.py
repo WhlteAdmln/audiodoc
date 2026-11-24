@@ -125,7 +125,7 @@ def _wait_until_started(server: uvicorn.Server, thread: threading.Thread) -> Non
             raise RuntimeError(_SERVER_EXITED_BEFORE_START)
         if time.monotonic() >= deadline:
             raise TimeoutError(_SERVER_START_TIMEOUT)
-        time.sleep(0.01)
+        thread.join(timeout=0.01)
 
 
 @contextmanager

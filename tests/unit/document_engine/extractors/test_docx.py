@@ -17,12 +17,12 @@ def test_docx_extracts_paragraphs_and_table_cells() -> None:
     text = extract_docx(create_docx())
 
     assert isinstance(text, str)
-    expected_fragment = "DOCX test"
-    assert expected_fragment in text
-    expected_fragment = "Document engine works!"
-    assert expected_fragment in text
-    expected_fragment = "Name | Value"
-    assert expected_fragment in text
+    title = "DOCX test"
+    assert title in text
+    paragraph = "Document engine works!"
+    assert paragraph in text
+    table_row = "Name | Value"
+    assert table_row in text
 
 
 def test_docx_marks_truncation_when_another_paragraph_follows_an_exact_fit() -> None:
@@ -55,7 +55,6 @@ def test_docx_exact_fit_at_end_of_document_is_not_truncated() -> None:
 
 
 def test_docx_skips_empty_content_and_truncates_table_rows() -> None:
-    """Cover empty paragraphs, empty table rows, and table truncation."""
     document = Document()
     document.add_paragraph("")
     empty_table = document.add_table(rows=1, cols=1)

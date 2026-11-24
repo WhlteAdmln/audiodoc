@@ -2,16 +2,17 @@
 
 """Tests for api transcribe."""
 
-import time
 from importlib import import_module
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Never
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from audiodoc.api import ready as ready_module
+from audiodoc.common import deadline as deadline_module
 from audiodoc.config import Settings, settings
 from audiodoc.main import create_app
 from audiodoc.transcription import model as model_module
@@ -19,6 +20,7 @@ from audiodoc.transcription import service as service_module
 from audiodoc.transcription.model import ModelHolder
 from tests.support.api_app import app_with_router, closed_queue
 from tests.support.builders import create_wav
+from tests.support.clock import FakeMonotonicClock
 from tests.support.whisper import no_native_tools, overlong_model, speech_model
 
 
@@ -30,13 +32,18 @@ class _UnexpectedAudioWriteError(AssertionError):
         super().__init__("audio must not be copied when the queue is full")
 
 
-app = create_app(settings)
+@pytest.fixture(name="app")
+def fixture_app() -> FastAPI:
+    """Create an application with an unloaded model holder for one test."""
+    application = create_app(settings)
+    application.state.model_holder = ModelHolder(settings)
+    return application
 
 
-app.state.model_holder = ModelHolder(settings)
-
-
-client = TestClient(app)
+@pytest.fixture(name="client")
+def fixture_client(app: FastAPI) -> TestClient:
+    """Create a test client for the application of one test."""
+    return TestClient(app)
 
 
 class _ModelBuildError(RuntimeError):
@@ -72,8 +79,8 @@ def test_transcription_queue_rejects_before_temp_file_write(
     assert response.headers["Retry-After"] == expected_retry_after
 
 
-def test_transcribe_response_shape_with_fake_model(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+def test_transcribe_returns_text_language_and_duration(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, app: FastAPI, client: TestClient
 ) -> None:
     monkeypatch.setattr(app.state.model_holder, "_model", speech_model())
     monkeypatch.setattr(settings, "TEMP_DIR", str(tmp_path))
@@ -96,7 +103,7 @@ def test_transcribe_response_shape_with_fake_model(
 
 
 def test_transcribe_rejects_audio_over_configured_duration(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, app: FastAPI, client: TestClient
 ) -> None:
     monkeypatch.setattr(app.state.model_holder, "_model", overlong_model())
     monkeypatch.setattr(settings, "TEMP_DIR", str(tmp_path))
@@ -108,14 +115,14 @@ def test_transcribe_rejects_audio_over_configured_duration(
 
     expected_status_code = 400
     assert response.status_code == expected_status_code
-    expected_fragment = "слишком длинное"
-    assert expected_fragment in response.json()["detail"].lower()
+    duration_message = "слишком длинное"
+    assert duration_message in response.json()["detail"].lower()
     expected_empty = []
     assert list(tmp_path.iterdir()) == expected_empty, "expected an empty list"
 
 
 def test_transcribe_rejects_corrupt_audio_and_removes_temp_file(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, app: FastAPI, client: TestClient
 ) -> None:
     monkeypatch.setattr(app.state.model_holder, "_model", speech_model())
     monkeypatch.setattr(settings, "TEMP_DIR", str(tmp_path))
@@ -138,13 +145,17 @@ def test_transcribe_rejects_corrupt_audio_and_removes_temp_file(
 
 
 def test_transcribe_returns_gateway_timeout_for_slow_model(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, app: FastAPI, client: TestClient
 ) -> None:
+    clock = FakeMonotonicClock()
+
     def transcribe(_audio: object, **_kwargs: object) -> object:
-        time.sleep(0.2)
+        clock.advance(0.2)
         return iter([]), SimpleNamespace(language="ru", duration=0.25)
 
     slow_whisper_model = SimpleNamespace(transcribe=transcribe)
+
+    monkeypatch.setattr(deadline_module, "time", clock)
 
     monkeypatch.setattr(app.state.model_holder, "_model", slow_whisper_model)
     monkeypatch.setattr(service_module.settings, "WHISPER_TIMEOUT", 0.1)
@@ -165,6 +176,8 @@ def test_transcribe_returns_gateway_timeout_for_slow_model(
 
 def test_ready_reports_unloaded_model_after_model_load_failure(
     monkeypatch: pytest.MonkeyPatch,
+    app: FastAPI,
+    client: TestClient,
 ) -> None:
     def fail_build(_configured_settings: Settings) -> None:
         raise _ModelBuildError

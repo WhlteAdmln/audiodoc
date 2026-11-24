@@ -78,5 +78,5 @@ def test_wheel_excludes_tests_and_scripts(
         paths = archive.namelist()
 
     assert not any(path.startswith(("tests/", "scripts/")) for path in paths)
-    expected_fragment = "audiodoc/main.py"
-    assert expected_fragment in paths
+    module_path = "audiodoc/main.py"
+    assert module_path in paths
