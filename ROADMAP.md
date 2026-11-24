@@ -74,13 +74,13 @@ Goal: remove deprecated functionality, make the code base uniform with bot-oborm
   - ~~Add the script to the vendored files and to `CONTRIBUTING.md` of both repositories; run it from `make lint`, `make check` and CI.~~
 - Done when: both repositories pass the script and `check_vendored.py` matches.
 
-#### AD-07 Security tests: API and common utilities
+#### ~~AD-07 Security tests: API and common utilities~~
 
 - Needs: AD-06.
 - Scope:
-  - Bring these files to the full standard: one assert per test, a message on every assert, hostile and unusual inputs, public entry points only, and add them to the list of `check_test_rules.py`.
-  - `tests/unit/api/`: `test_auth.py`, `test_middleware.py`, `test_documents.py`, `test_transcribe.py`.
-  - `tests/unit/common/`: `test_limited_upload.py`, `test_work_queue.py`, `test_deadline.py`, `test_request_id.py`, `test_subprocess_runner.py`.
+  - ~~Bring these files to the full standard: one assert per test, a message on every assert, hostile and unusual inputs, public entry points only, and add them to the list of `check_test_rules.py`.~~
+  - ~~`tests/unit/api/`: `test_auth.py`, `test_middleware.py`, `test_documents.py`, `test_transcribe.py`.~~
+  - ~~`tests/unit/common/`: `test_limited_upload.py`, `test_work_queue.py`, `test_deadline.py`, `test_request_id.py`, `test_subprocess_runner.py`.~~
 - Done when: the script passes with these files on the list; coverage did not drop.
 
 #### AD-08 Security tests: document engine
@@ -147,9 +147,10 @@ The scope is not defined yet.
 - Add `scripts/docs_checks/markdown.py`, `links.py`, `russian.py` and their tests to the files checked by `scripts/check_vendored.py`; they are identical in both repositories since AD-03.
 - The CI job with the latest allowed dependencies installs `-c requirements-lock.txt`, so its runtime packages are the locked ones, not the latest allowed; decide whether it should drop the constraint, as bot-obormot does.
 - The CI test, integration and e2e steps repeat the skipped-test check in shell; they could call `make test-no-skips` and an equivalent target for the other markers.
-- `tests/unit/api/test_transcribe.py` and `tests/contract/test_bot_contract.py` still patch the private `ModelHolder._model`; they could load a fake model through `tests/support/whisper.py` (`loaded_model_holder`) instead.
+- `tests/contract/test_bot_contract.py` still patches the private `ModelHolder._model`; it could load a fake model through `tests/support/whisper.py` (`loaded_model_holder`) instead.
 - The three integration tests define the same `_PytesseractModule` protocol; it could move to `tests/support/`.
-- `tests/unit/common/test_subprocess_runner.py` polls with `time.sleep` until an orphaned grandchild process disappears, because there is no portable notification for a process that is not a direct child. Revisit when the subprocess runner tests are reworked in AD-07.
+- An API key with non-ASCII characters can never authenticate: Starlette decodes the `Authorization` header as Latin-1, while `require_key` compares UTF-8 bytes. It fails closed. Decision: startup rejects such keys with a clear error message, and the documentation says that keys are ASCII.
+- `WorkQueue` keeps its lifecycle (open, draining, closed) in a `_closed` flag and an `_idle` event; an explicit state enum would make `start` and `shutdown` easier to reason about. Decision: replace them with an explicit state enum.
 
 ## Released
 

@@ -15,6 +15,8 @@ from audiodoc.config import settings
 from audiodoc.document_engine import diagnostics as diagnostics_module
 from audiodoc.document_engine.extractors.djvu.tools import DjvuTools
 from audiodoc.transcription.model import ModelHolder
+from tests.support.api_app import app_with_router
+from tests.support.whisper import failed_model_holder, no_native_tools
 
 
 class _FakeTesseractError(RuntimeError):
@@ -216,3 +218,16 @@ def test_ready_reports_missing_programs_without_raising(
         "djvulibre": False,
         "model_loaded": False,
     }
+
+
+def test_ready_reports_unloaded_model_after_model_load_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(ready_module, "check_native_tools", no_native_tools)
+    client = TestClient(
+        app_with_router(ready_module.router, model_holder=failed_model_holder())
+    )
+
+    response = client.get("/ready")
+
+    assert response.json()["model_loaded"] is False, "a failed model looks loaded"
