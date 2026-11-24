@@ -3,12 +3,11 @@
 
 import tomllib
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import cast
+
+import pytest
 
 from tests.conftest import pytest_collection_modifyitems
-
-if TYPE_CHECKING:
-    import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
@@ -58,14 +57,12 @@ def test_pytest_configuration_is_strict() -> None:
     assert [item.markers for item in items] == [[marker] for marker in marker_names]
 
 
-def test_pytest_plugins_are_pinned() -> None:
-    """Keep random ordering and timeout plugins pinned in the development extra."""
+@pytest.mark.parametrize(
+    "pinned_plugin", ["pytest-randomly==5.0.0", "pytest-timeout==2.4.0"]
+)
+def test_pins_pytest_plugin_in_test_extra(pinned_plugin: str) -> None:
     configuration = tomllib.loads(
         (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     )
-    dependencies = configuration["project"]["optional-dependencies"]["dev"]
-
-    expected_fragment = "pytest-randomly==5.0.0"
-    assert expected_fragment in dependencies
-    expected_fragment = "pytest-timeout==2.4.0"
-    assert expected_fragment in dependencies
+    dependencies = configuration["project"]["optional-dependencies"]["test"]
+    assert pinned_plugin in dependencies, "the test extra must pin the plugin"
