@@ -90,17 +90,24 @@ Goal: remove deprecated functionality, make the code base uniform with bot-oborm
   - ~~Same standard as AD-07 for `tests/unit/document_engine/`: `guards/test_zip_archive.py`, `guards/test_xml_safe.py`, `extractors/test_djvu.py`, `extractors/test_xml_text.py`, `extractors/test_csv_text.py`, `ocr/test_preprocessing.py`, `ocr/test_recognize.py`, `ocr/test_tesseract.py`, `test_ocr.py`.~~
 - Done when: as AD-07.
 
-#### AD-09 Security tests: log filters, temporary files, installer
+#### ~~AD-09 Security tests: log filters, temporary files, installer~~
 
 - Needs: AD-06.
 - Scope:
-  - Same standard as AD-07 for `tests/unit/test_log_filters.py`, `tests/unit/transcription/test_temp_files.py`, `tests/unit/project/test_installer.py` and `tests/unit/project/test_installer_python_snippets.py`.
-  - Review the whole test tree once more against the security criteria (limits, authentication and permissions, dangerous files, masking of secrets and logs, subprocesses, installation) and add files that qualify.
+  - ~~Same standard as AD-07 for `tests/unit/test_log_filters.py`, `tests/unit/transcription/test_temp_files.py`, `tests/unit/project/test_installer.py` and `tests/unit/project/test_installer_python_snippets.py`.~~
+  - ~~Review the whole test tree once more against the security criteria (limits, authentication and permissions, dangerous files, masking of secrets and logs, subprocesses, installation) and add files that qualify.~~ The review added `tests/unit/test_logging_setup.py`, `tests/unit/cli/test_init.py`, `tests/unit/cli/test_config.py` and `tests/unit/test_service.py`, done here, and the larger files of AD-11.
+- Done when: as AD-07.
+
+#### AD-11 Security tests: application, settings, diagnostics, document pipeline, Docker image
+
+- Needs: AD-09.
+- Scope:
+  - Same standard as AD-07 for the files that the AD-09 review found but did not fit into its session: `tests/unit/test_main.py` (authentication, body limits, umask, redaction), `tests/unit/test_config.py` (key and limit validation), `tests/unit/test_system_diagnostics.py` (permissions of `.env`, API keys), `tests/unit/document_engine/test_pipeline.py` (symlinks, decompression bombs, path traversal, limits) and `tests/unit/project/test_docker_image.py` (non-root user, secrets, permissions).
 - Done when: as AD-07.
 
 #### AD-10 [shared] Release 0.3.0
 
-- Needs: AD-01 to AD-09 and BO-01 to BO-13.
+- Needs: AD-01 to AD-09, AD-11 and BO-01 to BO-13.
 - Scope:
   - Move `[Unreleased]` into `[0.3.0]`, shorten the entries, set the release date (now 2026-11-21) and `version = "0.3.0"`.
   - Replace the old version where it is current: README (EN and RU), docs, `Dockerfile`, `compose*.yaml`, `deploy/`, `install.sh`, version-asserting tests, `contract/openapi.json`; copy the contract to `bot-obormot/tests/contract/audiodoc-openapi.json`.
@@ -147,6 +154,7 @@ The scope is not defined yet.
 - Add `scripts/docs_checks/markdown.py`, `links.py`, `russian.py` and their tests to the files checked by `scripts/check_vendored.py`; they are identical in both repositories since AD-03.
 - The CI job with the latest allowed dependencies installs `-c requirements-lock.txt`, so its runtime packages are the locked ones, not the latest allowed; decide whether it should drop the constraint, as bot-obormot does.
 - The CI test, integration and e2e steps repeat the skipped-test check in shell; they could call `make test-no-skips` and an equivalent target for the other markers.
+- `configure_logging` keeps the `SecretsFilter` of its first call: a later call with other secrets adds no filter, so the new secrets are not redacted. Today it runs once per process; replacing the filter would change behavior.
 - `tests/contract/test_bot_contract.py` still patches the private `ModelHolder._model`; it could load a fake model through `tests/support/whisper.py` (`loaded_model_holder`) instead.
 - The three integration tests define the same `_PytesseractModule` protocol; it could move to `tests/support/`.
 - An API key with non-ASCII characters can never authenticate: Starlette decodes the `Authorization` header as Latin-1, while `require_key` compares UTF-8 bytes. It fails closed. Decision: startup rejects such keys with a clear error message, and the documentation says that keys are ASCII.
