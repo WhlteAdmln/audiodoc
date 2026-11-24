@@ -2,93 +2,175 @@
 
 """Tests for ocr recognize."""
 
-from __future__ import annotations
-
+import io
 from pathlib import Path
 
 import pytest
 from PIL import Image
 
-from audiodoc.common.subprocess_runner import (
-    SubprocessTimeoutError,
-)
+from audiodoc.common.deadline import Deadline, DeadlineExceededError
 from audiodoc.document_engine.ocr import recognize as recognize_module
-from audiodoc.document_engine.ocr import tesseract as tesseract_module
+from audiodoc.document_engine.ocr.recognize import recognize_pages
+from audiodoc.document_engine.ocr.tesseract import ensure_ready
 from audiodoc.errors.documents import DocumentRejectedError
-from tests.support.pil_images import (
-    FakeMultiPageImage,
-    FakePreparedImage,
-    OversizedImage,
-)
+from tests.support.pil_images import OversizedImage, multi_page_tiff
+from tests.support.tesseract import FakeTesseract
 
 
-def test_ocr_timeout_returns_clean_error_and_removes_image_directory(
+@pytest.fixture(name="tesseract")
+def fixture_tesseract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FakeTesseract:
+    """Put a fake Tesseract alone on PATH and forget earlier readiness checks."""
+    fake = FakeTesseract(tmp_path)
+    monkeypatch.setenv("PATH", str(fake.bin_dir))
+    ensure_ready.cache_clear()
+    return fake
+
+
+def _recognize_tiff(pages: int) -> str:
+    with Image.open(io.BytesIO(multi_page_tiff(pages))) as image:
+        return recognize_pages(image, "rus+eng")
+
+
+def _rejection(image: object) -> str:
+    with pytest.raises(DocumentRejectedError) as caught:
+        recognize_pages(image, "eng")
+    return str(caught.value)
+
+
+def test_labels_each_page_of_a_multi_page_image(tesseract: FakeTesseract) -> None:
+    tesseract.configure(pages=[b" page one \n", b"\tpage two "])
+
+    text = _recognize_tiff(2)
+
+    expected_text = "--- Страница 1 ---\npage one\n\n--- Страница 2 ---\npage two"
+    assert text == expected_text, "pages lost their labels or order"
+
+
+def test_does_not_label_a_single_page(tesseract: FakeTesseract) -> None:
+    tesseract.configure(pages=[b"  alone\n"])
+
+    text = _recognize_tiff(1)
+
+    expected_text = "alone"
+    assert text == expected_text, "a single page got a label"
+
+
+def test_skips_pages_without_text(tesseract: FakeTesseract) -> None:
+    tesseract.configure(pages=[b" \n\f", b"second"])
+
+    text = _recognize_tiff(2)
+
+    expected_text = "--- Страница 2 ---\nsecond"
+    assert text == expected_text, "an empty page reached the result"
+
+
+@pytest.mark.usefixtures("tesseract")
+def test_rejects_more_frames_than_the_page_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    directories: list[Path] = []
+    monkeypatch.setattr(recognize_module, "MAX_DOCUMENT_PAGES", 1)
 
-    def timeout_runner(
-        args: list[str],
-        *,
-        timeout: float,
-    ) -> tuple[int, bytes, bytes]:
-        image_path = Path(args[1])
-        assert image_path.is_file()
-        assert args[2:] == ["stdout", "-l", "eng", "--psm", "3"]
-        assert timeout > 0
-        directories.append(image_path.parent)
-        raise SubprocessTimeoutError
+    with Image.open(io.BytesIO(multi_page_tiff(2))) as image:
+        message = _rejection(image)
 
-    monkeypatch.setattr(tesseract_module, "_get_tesseract_command", lambda: "tesseract")
-    monkeypatch.setattr(tesseract_module, "run_limited", timeout_runner)
-
-    with (
-        Image.new("RGB", (8, 8)) as image,
-        pytest.raises(DocumentRejectedError) as error,
-    ):
-        recognize_module.recognize_pages(image, "eng")
-
-    expected_status_code = 400
-    assert error.value.status_code == expected_status_code
-    assert directories
-    assert all(not directory.exists() for directory in directories)
+    expected = "В изображении слишком много страниц"
+    assert message == expected, "too many frames were accepted"
 
 
-def test_recognize_pages_preserves_page_headers_and_timeout(
-    monkeypatch: pytest.MonkeyPatch,
+def test_reads_no_frame_of_an_image_over_the_page_limit(
+    tesseract: FakeTesseract, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    prepared_images = []
-    calls = []
+    monkeypatch.setattr(recognize_module, "MAX_DOCUMENT_PAGES", 1)
 
-    def prepare(_image: object) -> object:
-        item = FakePreparedImage()
-        prepared_images.append(item)
-        return item
+    with Image.open(io.BytesIO(multi_page_tiff(3))) as image:
+        _rejection(image)
 
-    def recognize(
-        _image: object, *, lang: object, config: object, timeout: object
-    ) -> str:
-        calls.append((lang, config, timeout))
-        return f" page {len(calls)} "
-
-    monkeypatch.setattr(recognize_module, "_prepare_image", prepare)
-    monkeypatch.setattr(
-        recognize_module.pytesseract,
-        "image_to_string",
-        recognize,
-    )
-
-    text = recognize_module.recognize_pages(FakeMultiPageImage(2), "rus+eng")
-
-    expected_text = "--- Страница 1 ---\npage 1\n\n--- Страница 2 ---\npage 2"
-    assert text == expected_text
-    assert calls == [("rus+eng", "--psm 3", 60)] * 2
-    assert all(item.closed for item in prepared_images)
+    expected_empty: list[list[str]] = []
+    assert tesseract.recognitions == expected_empty, "a frame was recognized"
 
 
-def test_ocr_rejects_oversized_frame_before_copy(
+def test_rejects_an_oversized_frame_before_copying_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(recognize_module, "MAX_IMAGE_PIXELS", 99)
-    with pytest.raises(DocumentRejectedError, match="лимит пикселей"):
-        recognize_module.recognize_pages(OversizedImage(), "eng")
+
+    message = _rejection(OversizedImage())
+
+    expected = "Изображение слишком большое: превышен лимит пикселей"
+    assert message == expected, "an oversized frame was not rejected"
+
+
+def test_cuts_the_text_at_the_extraction_limit(
+    tesseract: FakeTesseract, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(recognize_module, "MAX_EXTRACTED_TEXT_LENGTH", 21)
+    tesseract.configure(pages=[b"abcdef", b"ghi"])
+
+    text = _recognize_tiff(2)
+
+    expected_text = "--- Страница 1 ---\nab"
+    assert text == expected_text, "the text limit was not applied"
+
+
+def test_stops_recognizing_after_the_extraction_limit(
+    tesseract: FakeTesseract, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(recognize_module, "MAX_EXTRACTED_TEXT_LENGTH", 21)
+    tesseract.configure(pages=[b"abcdef", b"ghi"])
+
+    _recognize_tiff(2)
+
+    expected_runs = 1
+    assert len(tesseract.recognitions) == expected_runs, "OCR ran past the limit"
+
+
+def test_hides_tesseract_errors_behind_a_safe_message(
+    tesseract: FakeTesseract,
+) -> None:
+    tesseract.configure(exit_code=1, stderr="Error: /srv/secret/input.png corrupt")
+
+    with Image.new("RGB", (6, 6)) as image:
+        message = _rejection(image)
+
+    expected = "Не удалось распознать страницу изображения"
+    assert message == expected, "Tesseract details reached the client"
+
+
+def test_maps_a_page_timeout_to_a_recognition_error(
+    tesseract: FakeTesseract, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(recognize_module, "OCR_PAGE_TIMEOUT", 0.3)
+    tesseract.configure(delay=10)
+
+    with Image.new("RGB", (8, 8)) as image:
+        message = _rejection(image)
+
+    expected = "Не удалось распознать страницу изображения"
+    assert message == expected, "a hung page was not stopped"
+
+
+def test_removes_the_image_directory_after_a_timeout(
+    tesseract: FakeTesseract, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(recognize_module, "OCR_PAGE_TIMEOUT", 0.3)
+    tesseract.configure(delay=10)
+    with Image.new("RGB", (8, 8)) as image, pytest.raises(DocumentRejectedError):
+        recognize_pages(image, "eng")
+
+    image_directory = Path(tesseract.recognitions[0][0]).parent
+    assert image_directory.exists() is False, "the OCR image outlived a timeout"
+
+
+def test_reports_the_shared_deadline_when_it_runs_out(
+    tesseract: FakeTesseract,
+) -> None:
+    tesseract.configure(delay=10)
+
+    with (
+        Image.new("RGB", (8, 8)) as image,
+        pytest.raises(DeadlineExceededError) as caught,
+    ):
+        recognize_pages(image, "eng", deadline=Deadline(0.3))
+
+    expected_message = "processing deadline exceeded"
+    assert str(caught.value) == expected_message, "the deadline was not reported"

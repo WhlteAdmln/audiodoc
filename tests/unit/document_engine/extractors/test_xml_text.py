@@ -2,37 +2,96 @@
 
 """Tests for extractors xml text."""
 
-from audiodoc.common.deadline import Deadline
+import pytest
+
+from audiodoc.common import deadline as deadline_module
+from audiodoc.common.deadline import Deadline, DeadlineExceededError
 from audiodoc.common.text_budget import TextBudget
 from audiodoc.document_engine.extractors.base import ExtractContext
 from audiodoc.document_engine.extractors.xml_text import extract_xml_text
+from audiodoc.errors.documents import DocumentRejectedError
+from tests.support.clock import FakeMonotonicClock
 
 
-def test_xml_extracts_element_text_in_document_order() -> None:
+def _limited_context(limit: int) -> ExtractContext:
+    return ExtractContext(budget=TextBudget(limit), deadline=Deadline(10))
+
+
+def test_extracts_element_text_in_document_order() -> None:
     data = b"<root>root text<child>child text</child></root>"
-    expected_extract_xml_text = "root text\nchild text"
-    assert extract_xml_text(data) == expected_extract_xml_text
+
+    text = extract_xml_text(data)
+
+    expected_text = "root text\nchild text"
+    assert text == expected_text, "element text is missing or out of order"
 
 
-def test_xml_marks_truncation_when_another_text_node_follows_an_exact_fit() -> None:
-    budget = TextBudget(3)
-    context = ExtractContext(budget=budget, deadline=Deadline(10))
-
-    expected_extract_xml_text = "abc"
-    assert (
-        extract_xml_text(b"<root>abc<child>def</child></root>", context=context)
-        == expected_extract_xml_text
+def test_skips_comments_instructions_and_blank_nodes_but_keeps_cdata() -> None:
+    data = (
+        b"<r><?php system('id'); ?><!-- \xd0\xbf\xd0\xb0\xd1\x80\xd0\xbe\xd0\xbb\xd1"
+        b"\x8c -->\xd1\x82\xd0\xb5\xd0\xba\xd1\x81\xd1\x82<![CDATA[<b>]]>"
+        b"<e>\n\t </e></r>"
     )
-    assert budget.truncated is True
+
+    text = extract_xml_text(data)
+
+    expected_text = "текст<b>"
+    assert text == expected_text, "markup other than text reached the result"
 
 
-def test_xml_exact_fit_without_more_text_is_not_truncated() -> None:
-    budget = TextBudget(3)
-    context = ExtractContext(budget=budget, deadline=Deadline(10))
+def test_reads_deeply_nested_elements() -> None:
+    depth = 20_000
+    data = b"<a>" * depth + b"deep" + b"</a>" * depth
 
-    expected_extract_xml_text = "abc"
-    assert (
-        extract_xml_text(b"<root>abc</root>", context=context)
-        == expected_extract_xml_text
-    )
-    assert budget.truncated is False
+    text = extract_xml_text(data)
+
+    expected_text = "deep"
+    assert text == expected_text, "deep nesting broke extraction"
+
+
+def test_rejects_entity_declarations() -> None:
+    data = b'<!DOCTYPE root [<!ENTITY x "expanded">]><root>&x;</root>'
+
+    with pytest.raises(DocumentRejectedError) as caught:
+        extract_xml_text(data)
+
+    expected_message = "XML содержит запрещённые конструкции"
+    assert str(caught.value) == expected_message, "entities were not rejected"
+
+
+def test_stops_at_an_exact_fit_when_another_text_node_follows() -> None:
+    context = _limited_context(3)
+
+    text = extract_xml_text(b"<root>abc<child>def</child></root>", context=context)
+
+    expected_text = "abc"
+    assert text == expected_text, "text beyond the budget was returned"
+
+
+def test_marks_truncation_when_another_text_node_follows_an_exact_fit() -> None:
+    context = _limited_context(3)
+
+    extract_xml_text(b"<root>abc<child>def</child></root>", context=context)
+
+    assert context.budget.truncated is True, "the omitted node was not reported"
+
+
+def test_exact_fit_without_more_text_is_not_truncated() -> None:
+    context = _limited_context(3)
+
+    extract_xml_text(b"<root>abc</root>", context=context)
+
+    assert context.budget.truncated is False, "a complete document was truncated"
+
+
+def test_stops_when_the_deadline_has_expired(monkeypatch: pytest.MonkeyPatch) -> None:
+    clock = FakeMonotonicClock()
+    monkeypatch.setattr(deadline_module, "time", clock)
+    context = ExtractContext(budget=TextBudget(100), deadline=Deadline(1))
+    clock.advance(1.5)
+
+    with pytest.raises(DeadlineExceededError) as caught:
+        extract_xml_text(b"<root>late</root>", context=context)
+
+    expected_message = "processing deadline exceeded"
+    assert str(caught.value) == expected_message, "the expired deadline was ignored"

@@ -83,11 +83,11 @@ Goal: remove deprecated functionality, make the code base uniform with bot-oborm
   - ~~`tests/unit/common/`: `test_limited_upload.py`, `test_work_queue.py`, `test_deadline.py`, `test_request_id.py`, `test_subprocess_runner.py`.~~
 - Done when: the script passes with these files on the list; coverage did not drop.
 
-#### AD-08 Security tests: document engine
+#### ~~AD-08 Security tests: document engine~~
 
 - Needs: AD-06.
 - Scope:
-  - Same standard as AD-07 for `tests/unit/document_engine/`: `guards/test_zip_archive.py`, `guards/test_xml_safe.py`, `extractors/test_djvu.py`, `extractors/test_xml_text.py`, `extractors/test_csv_text.py`, `ocr/test_preprocessing.py`, `ocr/test_recognize.py`, `ocr/test_tesseract.py`, `test_ocr.py`.
+  - ~~Same standard as AD-07 for `tests/unit/document_engine/`: `guards/test_zip_archive.py`, `guards/test_xml_safe.py`, `extractors/test_djvu.py`, `extractors/test_xml_text.py`, `extractors/test_csv_text.py`, `ocr/test_preprocessing.py`, `ocr/test_recognize.py`, `ocr/test_tesseract.py`, `test_ocr.py`.~~
 - Done when: as AD-07.
 
 #### AD-09 Security tests: log filters, temporary files, installer
@@ -151,6 +151,11 @@ The scope is not defined yet.
 - The three integration tests define the same `_PytesseractModule` protocol; it could move to `tests/support/`.
 - An API key with non-ASCII characters can never authenticate: Starlette decodes the `Authorization` header as Latin-1, while `require_key` compares UTF-8 bytes. It fails closed. Decision: startup rejects such keys with a clear error message, and the documentation says that keys are ASCII.
 - `WorkQueue` keeps its lifecycle (open, draining, closed) in a `_closed` flag and an `_idle` event; an explicit state enum would make `start` and `shutdown` easier to reason about. Decision: replace them with an explicit state enum.
+- `extract_csv` lets `csv.Sniffer` pick any character as the delimiter, so a single-column file is split on a letter (in `single\ncolumn` the letter `n` becomes the delimiter, so the first row is `si | gle`). Restricting the sniffer to `,;\t|` would fix it; this changes behavior.
+- `extract_csv` raises `csv.Error` for a cell longer than `csv.field_size_limit()` (131072 characters); the pipeline reports it as a generic extraction failure.
+- `extract_xml_text` reads only `element.text` and drops tail text, so `<r><b>one</b>tail</r>` gives `one`.
+- The Tesseract proxy decodes the output as strict UTF-8, so invalid bytes raise `UnicodeDecodeError` instead of a client-safe OCR error; the pipeline reports a generic extraction failure.
+- An image whose header declares more than Pillow's decompression bomb threshold (about 179 million pixels) raises `PIL.Image.DecompressionBombError` in `extract_image_text` instead of `ImageTooLargeError`; the pipeline reports a generic extraction failure.
 
 ## Released
 

@@ -87,3 +87,24 @@ def test_detect_format_never_raises_for_random_bytes_and_names(
     detected = detect_format(data, filename)
 
     assert detected is None or isinstance(detected, str)
+
+
+def test_mimetype_member_is_read_with_a_fixed_200_byte_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("mimetype", b"0" * (4 * 1024 * 1024))
+
+    original_read = zipfile.ZipExtFile.read
+    requested_sizes = []
+
+    def tracked_read(self: zipfile.ZipExtFile, n: int = -1) -> bytes:
+        requested_sizes.append(n)
+        return original_read(self, n)
+
+    monkeypatch.setattr(zipfile.ZipExtFile, "read", tracked_read)
+    detect_format(output.getvalue(), "unknown.zip")
+
+    expected_sizes = [200]
+    assert requested_sizes == expected_sizes, "mimetype was read without a limit"
