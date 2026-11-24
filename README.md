@@ -16,7 +16,7 @@ Legacy Office formats (`.doc`, `.xls`, `.ppt`) and standalone images are unsuppo
 
 ## Requirements
 
-Python 3.11 or newer. On Debian/Ubuntu, install the native OCR and DJVU tools:
+Python 3.11.5 or newer. On Debian/Ubuntu, install the native OCR and DJVU tools:
 
 ```bash
 sudo apt update
@@ -27,7 +27,7 @@ sudo apt install -y python3 python3-venv python3-pip tesseract-ocr tesseract-ocr
 
 ### 1. Release installer
 
-The installer verifies release checksums and installs into `~/audiodoc/.venv` by default. It requires Linux with glibc, Python 3.11+, `venv`, `curl`, and `sha256sum` (Alpine is unsupported). Download and inspect it before running:
+The installer verifies release checksums and installs into `~/audiodoc/.venv` by default. It requires Linux with glibc, Python 3.11.5+, `venv`, `curl`, and `sha256sum` (Alpine is unsupported). Download and inspect it before running:
 
 ```bash
 curl -fsSLo install.sh https://raw.githubusercontent.com/WhlteAdmln/audiodoc/main/install.sh
@@ -57,7 +57,7 @@ cd audiodoc
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -r requirements-lock.txt
+python -m pip install --constraint requirements-lock.txt .
 cp .env.example .env
 chmod 600 .env
 ```

@@ -1,6 +1,6 @@
 # Contributing
 
-1. Use Python 3.11 or newer and GNU Make.
+1. Use Python 3.11.5 or newer and GNU Make.
 2. Create a focused branch for your change.
 3. Create a virtual environment with `make venv`.
 4. Install development dependencies with `make install-dev`.
@@ -51,6 +51,5 @@ Use the assignment expression `:=` only when the value is needed for the conditi
 
 ## Open questions
 
-- Raise the minimum Python version to 3.11.5: the lock already requires it, but `requires-python`, the installer, `audiodoc doctor` and the documentation still say 3.11.
 - Abandoned dependencies reported by Renovate (for example `odfpy`, `defusedxml`, `pytesseract`, `python-pptx`): review whether to replace them. Several of them parse untrusted files.
 - `max-try-statements = 1` in the pylint configuration is reported for existing long `try` blocks; they are split gradually.

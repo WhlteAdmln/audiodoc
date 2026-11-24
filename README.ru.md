@@ -16,7 +16,7 @@
 
 ## Требования
 
-Требуется Python 3.11 или новее. Для Debian/Ubuntu установите системные инструменты OCR и DJVU:
+Требуется Python 3.11.5 или новее. Для Debian/Ubuntu установите системные инструменты OCR и DJVU:
 
 ```bash
 sudo apt update
@@ -27,7 +27,7 @@ sudo apt install -y python3 python3-venv python3-pip tesseract-ocr tesseract-ocr
 
 ### 1. Установщик релиза
 
-Установщик проверяет контрольные суммы релиза и по умолчанию устанавливает audiodoc в `~/audiodoc/.venv`. Требуются Linux с glibc, Python 3.11+, `venv`, `curl` и `sha256sum` (Alpine не поддерживается). Перед запуском скачайте установщик и проверьте его содержимое:
+Установщик проверяет контрольные суммы релиза и по умолчанию устанавливает audiodoc в `~/audiodoc/.venv`. Требуются Linux с glibc, Python 3.11.5+, `venv`, `curl` и `sha256sum` (Alpine не поддерживается). Перед запуском скачайте установщик и проверьте его содержимое:
 
 ```bash
 curl -fsSLo install.sh https://raw.githubusercontent.com/WhlteAdmln/audiodoc/main/install.sh
@@ -57,7 +57,7 @@ cd audiodoc
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -r requirements-lock.txt
+python -m pip install --constraint requirements-lock.txt .
 cp .env.example .env
 chmod 600 .env
 ```

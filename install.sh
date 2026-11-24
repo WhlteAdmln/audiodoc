@@ -52,7 +52,7 @@ Environment:
   AUDIODOC_GITHUB_REPOSITORY  GitHub repository (default: WhlteAdmln/audiodoc).
   GITHUB_TOKEN                Optional GitHub API token.
 
-Requires Linux with glibc, Python 3.11+, venv, curl and sha256sum.
+Requires Linux with glibc, Python 3.11.5+, venv, curl and sha256sum.
 Alpine Linux is not supported because release wheels require glibc.
 EOF
 }
@@ -254,7 +254,7 @@ find_python() {
 	for candidate in python3.14 python3.13 python3.12 python3.11 python3; do
 		if command -v "$candidate" >/dev/null 2>&1; then
 			candidate_path=$(command -v "$candidate")
-			if "$candidate_path" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)' >/dev/null 2>&1; then
+			if "$candidate_path" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11, 5) else 1)' >/dev/null 2>&1; then
 				PYTHON_BIN=$candidate_path
 				return 0
 			fi
@@ -263,7 +263,7 @@ find_python() {
 	return 1
 }
 
-find_python || die "Python 3.11 or newer is required."
+find_python || die "Python 3.11.5 or newer is required."
 
 TMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/audiodoc-install.XXXXXX") ||
 	die "Could not create a temporary directory."
@@ -293,7 +293,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 "$PYTHON_BIN" -m venv "$TMP_DIR/venv-probe" >/dev/null 2>&1 ||
-	die "Python venv is unavailable. Install the venv package for Python 3.11+."
+	die "Python venv is unavailable. Install the venv package for Python 3.11.5+."
 
 "$TMP_DIR/venv-probe/bin/python" -m pip --version >/dev/null 2>&1 ||
 	die "Python venv does not provide pip. Install the matching venv package."

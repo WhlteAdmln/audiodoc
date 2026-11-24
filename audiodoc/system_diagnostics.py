@@ -35,17 +35,17 @@ class DiagnosticCheck:
 
 def check_python_version() -> DiagnosticCheck:
     """Check that the running Python version is supported."""
-    major, minor = sys.version_info[:2]
-    if (major, minor) < (3, 11):
+    major, minor, micro = sys.version_info[:3]
+    if (major, minor, micro) < (3, 11, 5):
         return DiagnosticCheck(
             "Python",
             "FAIL",
-            f"Python 3.11 or newer is required; found {major}.{minor}.",
+            f"Python 3.11.5 or newer is required; found {major}.{minor}.{micro}.",
         )
     return DiagnosticCheck(
         "Python",
         "OK",
-        f"Python {major}.{minor} is supported.",
+        f"Python {major}.{minor}.{micro} is supported.",
     )
 
 
