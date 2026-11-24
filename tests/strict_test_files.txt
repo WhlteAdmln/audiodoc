@@ -7,3 +7,12 @@ tests/unit/common/test_limited_upload.py
 tests/unit/common/test_request_id.py
 tests/unit/common/test_subprocess_runner.py
 tests/unit/common/test_work_queue.py
+tests/unit/document_engine/extractors/test_csv_text.py
+tests/unit/document_engine/extractors/test_djvu.py
+tests/unit/document_engine/extractors/test_xml_text.py
+tests/unit/document_engine/guards/test_xml_safe.py
+tests/unit/document_engine/guards/test_zip_archive.py
+tests/unit/document_engine/ocr/test_preprocessing.py
+tests/unit/document_engine/ocr/test_recognize.py
+tests/unit/document_engine/ocr/test_tesseract.py
+tests/unit/document_engine/test_ocr.py

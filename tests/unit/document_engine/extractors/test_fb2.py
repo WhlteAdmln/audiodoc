@@ -38,3 +38,16 @@ def test_fb2_result_respects_global_text_limit() -> None:
 
     text = extract_fb2(data)
     assert text == "x" * MAX_EXTRACTED_TEXT_LENGTH
+
+
+def test_fb2_rejects_entity_declarations() -> None:
+    data = (
+        b'<!DOCTYPE FictionBook [<!ENTITY x "expanded">]>'
+        b"<FictionBook><body><section><p>&x;</p></section></body></FictionBook>"
+    )
+
+    with pytest.raises(DocumentRejectedError) as caught:
+        extract_fb2(data)
+
+    expected_message = "XML содержит запрещённые конструкции"
+    assert str(caught.value) == expected_message, "FB2 entities were not rejected"
