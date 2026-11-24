@@ -31,11 +31,13 @@ from audiodoc.document_engine.detection.formats import (
         (b"\xff\xd8\xff", "image.jpg", None),
     ],
 )
-def test_detect_format(data: object, filename: object, expected: object) -> None:
+def test_detects_format_from_signature_and_extension(
+    data: object, filename: object, expected: object
+) -> None:
     assert detect_format(data, filename) == expected
 
 
-def test_detect_docx_by_zip_contents() -> None:
+def test_detects_docx_by_zip_contents() -> None:
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w") as archive:
         archive.writestr("word/document.xml", "<document />")
@@ -45,10 +47,10 @@ def test_detect_docx_by_zip_contents() -> None:
 
 
 def test_detection_package_exports_expected_format_collections() -> None:
-    expected_fragment = "pdf"
-    assert expected_fragment in SUPPORTED_FORMATS
-    expected_fragment = ".png"
-    assert expected_fragment in IMAGE_EXTENSIONS
+    document_format = "pdf"
+    assert document_format in SUPPORTED_FORMATS
+    image_extension = ".png"
+    assert image_extension in IMAGE_EXTENSIONS
     expected_markdown = "md"
     assert extension_map["markdown"] == expected_markdown
 

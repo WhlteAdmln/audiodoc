@@ -11,8 +11,8 @@ import threading
 import zipfile
 from io import BytesIO
 from pathlib import Path
-from types import SimpleNamespace
-from typing import IO, TYPE_CHECKING, Never, Self
+from types import MappingProxyType
+from typing import IO, TYPE_CHECKING, Never
 
 import aiohttp
 import pymupdf
@@ -45,13 +45,12 @@ from tests.support.builders import (
     create_xlsx,
 )
 from tests.support.extractor_matrix import MATRIX, Builder
+from tests.support.pymupdf_documents import FakeDocument, HugePdfPage
 from tests.support.server import fixture_live_server
 
 __all__ = ["fixture_live_server"]
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-
     from tests.support.server import LiveServer
 
 ZipEntry = tuple[str | zipfile.ZipInfo, bytes]
@@ -225,64 +224,39 @@ def _billion_laughs_payload() -> bytes:
     return document.encode()
 
 
-class _HugePdfPage:
-    rect = SimpleNamespace(width=72_000.0, height=72_000.0)
-
-    @staticmethod
-    def get_pixmap(**_kwargs: object) -> None:
-        """Provide the ``get_pixmap`` behaviour the test relies on."""
-        raise AssertionError
-
-    @staticmethod
-    def get_text(kind: str) -> str:
-        """Provide the ``get_text`` behaviour the test relies on."""
-        expected_kind = "text"
-        assert kind == expected_kind
-        return ""
-
-
-class _HugePdfDocument:
-    page_count = 1
-
-    def __enter__(self) -> Self:
-        return self
-
-    def __exit__(self, *_args: object) -> bool:
-        return False
-
-    def __iter__(self) -> Iterator[_HugePdfPage]:
-        return iter([_HugePdfPage()])
-
-
 UNICODE_TEXT = "Привет 😀"
 
 
 PRIVATE_DETAIL = "PRIVATE_PARSER_DETAIL"
 
 
-TOLERANT_FORMATS = {"txt", "md", "csv", "html", "rtf"}
+TOLERANT_FORMATS = frozenset({"txt", "md", "csv", "html", "rtf"})
 
 
-ARCHIVE_TEXT = {
-    "docx": "DOCX test",
-    "xlsx": "Document engine",
-    "pptx": "PPTX test",
-    "epub": "EPUB test",
-    "odt": "ODT test",
-    "ods": "Document engine",
-    "odp": "ODP test",
-}
+ARCHIVE_TEXT = MappingProxyType(
+    {
+        "docx": "DOCX test",
+        "xlsx": "Document engine",
+        "pptx": "PPTX test",
+        "epub": "EPUB test",
+        "odt": "ODT test",
+        "ods": "Document engine",
+        "odp": "ODP test",
+    }
+)
 
 
-ARCHIVE_CORRUPT_MEMBERS = {
-    "docx": "word/document.xml",
-    "xlsx": "xl/workbook.xml",
-    "pptx": "ppt/presentation.xml",
-    "epub": "META-INF/container.xml",
-    "odt": "content.xml",
-    "ods": "content.xml",
-    "odp": "content.xml",
-}
+ARCHIVE_CORRUPT_MEMBERS = MappingProxyType(
+    {
+        "docx": "word/document.xml",
+        "xlsx": "xl/workbook.xml",
+        "pptx": "ppt/presentation.xml",
+        "epub": "META-INF/container.xml",
+        "odt": "content.xml",
+        "ods": "content.xml",
+        "odp": "content.xml",
+    }
+)
 
 
 def _rewrite_archive(
@@ -355,11 +329,11 @@ def _pdf_with_unicode_actual_text(data: bytes) -> bytes:
 def _unicode_document(filetype: str, builder: Builder) -> bytes:
     """Create a document containing Cyrillic text and an emoji."""
     data = builder()
-    expected_filetype = "pdf"
-    if filetype == expected_filetype:
+    pdf_type = "pdf"
+    if filetype == pdf_type:
         return _pdf_with_unicode_actual_text(data)
-    expected_filetype = "djvu"
-    if filetype == expected_filetype:
+    djvu_type = "djvu"
+    if filetype == djvu_type:
         return data
     if filetype in ARCHIVE_TEXT:
         return _rewrite_archive(
@@ -367,8 +341,8 @@ def _unicode_document(filetype: str, builder: Builder) -> bytes:
             old_text=ARCHIVE_TEXT[filetype].encode("utf-8"),
             new_text=UNICODE_TEXT.encode("utf-8"),
         )
-    expected_filetype = "rtf"
-    if filetype == expected_filetype:
+    rtf_type = "rtf"
+    if filetype == rtf_type:
         return data.replace(b"RTF test", UNICODE_TEXT.encode("utf-8"))
 
     old_text = {
@@ -396,11 +370,11 @@ def _corrupt_document(filetype: str, builder: Builder) -> bytes:
             member_name=ARCHIVE_CORRUPT_MEMBERS[filetype],
             new_text=f"<broken>{PRIVATE_DETAIL}".encode(),
         )
-    expected_filetype = "pdf"
-    if filetype == expected_filetype:
+    pdf_type = "pdf"
+    if filetype == pdf_type:
         return f"%PDF-1.7\n{PRIVATE_DETAIL}".encode()
-    expected_filetype = "djvu"
-    if filetype == expected_filetype:
+    djvu_type = "djvu"
+    if filetype == djvu_type:
         return b"AT&TFORM\x00\x00\x00\x04BAD!"
     return {
         "fb2": f"<FictionBook><body><p>{PRIVATE_DETAIL}".encode(),
@@ -437,12 +411,12 @@ def _assert_clean_error(error: BackendError) -> None:
     """Ensure a public error does not expose parser details or a traceback."""
     message = str(error)
     assert PRIVATE_DETAIL not in message
-    expected_fragment = "Traceback"
-    assert expected_fragment not in message
+    traceback_marker = "Traceback"
+    assert traceback_marker not in message
     assert PRIVATE_DETAIL not in getattr(error, "public_message", "")
 
 
-CASES = [
+CASES = (
     (b"Hello! This is a TXT test.", "test.txt", "txt", "TXT test"),
     (
         b"# Test Markdown\n\nDocument engine works!",
@@ -464,27 +438,29 @@ CASES = [
     ),
     (b"Name,Value\nDocument engine,Works!\n", "test.csv", "csv", "Document engine"),
     (b"{\\rtf1 RTF test}", "test.rtf", "rtf", "RTF test"),
-]
+)
 
 
-EXPECTED_FORMATS = {
-    "pdf",
-    "docx",
-    "xlsx",
-    "pptx",
-    "epub",
-    "fb2",
-    "djvu",
-    "odt",
-    "ods",
-    "odp",
-    "txt",
-    "md",
-    "csv",
-    "html",
-    "xml",
-    "rtf",
-}
+EXPECTED_FORMATS = frozenset(
+    {
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "epub",
+        "fb2",
+        "djvu",
+        "odt",
+        "ods",
+        "odp",
+        "txt",
+        "md",
+        "csv",
+        "html",
+        "xml",
+        "rtf",
+    }
+)
 
 
 @pytest.mark.asyncio
@@ -577,7 +553,7 @@ async def test_huge_pdf_page_returns_clean_error_and_removes_upload(
     monkeypatch.setattr(
         pdf_module.pymupdf,
         "open",
-        lambda **_kwargs: _HugePdfDocument(),
+        lambda **_kwargs: FakeDocument([HugePdfPage()]),
     )
     opened = _track_upload_files(monkeypatch, live_server.temp_dir)
     status, result = await _post_document(live_server, b"fake-pdf", "huge.pdf")
@@ -596,14 +572,13 @@ async def test_huge_pdf_page_returns_clean_error_and_removes_upload(
     MATRIX,
     ids=[row[0] for row in MATRIX],
 )
-def test_registered_extractor_matrix(
+def test_registered_extractors_handle_valid_empty_corrupt_and_limited_input(
     filetype: str,
     extension: str,
     builder: Builder,
     expected_text: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Exercise normal, empty, malformed, Unicode, and limited input per format."""
     expected_filetype = "djvu"
     if filetype == expected_filetype:
         _mock_djvu(monkeypatch)
@@ -665,7 +640,7 @@ def test_registered_extractor_matrix(
         (create_pdf, "test.pdf", "pdf", "PDF document test"),
     ],
 )
-def test_office_and_pdf_formats(
+def test_extracts_text_from_office_and_pdf_formats(
     builder: object,
     filename: object,
     expected_format: object,
@@ -680,10 +655,10 @@ def test_office_and_pdf_formats(
 
     assert result["format"] == expected_format
     assert expected_text in result["text"]
-    expected_expected_format = "pptx"
-    if expected_format == expected_expected_format:
-        expected_fragment = "--- Слайд 1 ---"
-        assert expected_fragment in result["text"]
+    slide_format = "pptx"
+    if expected_format == slide_format:
+        slide_header = "--- Слайд 1 ---"
+        assert slide_header in result["text"]
     assert result["characters"] == len(result["text"])
 
 
@@ -691,7 +666,7 @@ def test_office_and_pdf_formats(
     ("data", "name", "expected_format", "expected_text"),
     CASES,
 )
-def test_text_formats(
+def test_extracts_text_from_text_formats(
     data: object,
     name: object,
     expected_format: object,
@@ -708,7 +683,7 @@ def test_text_formats(
     assert result["characters"] == len(result["text"])
 
 
-def test_fb2_extraction(tmp_path: Path) -> None:
+def test_extracts_fb2_chapter_text(tmp_path: Path) -> None:
     data = (
         b'<?xml version="1.0" encoding="UTF-8"?>\n'
         b'    <FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">\n'
@@ -725,10 +700,10 @@ def test_fb2_extraction(tmp_path: Path) -> None:
 
     expected_format = "fb2"
     assert result["format"] == expected_format
-    expected_fragment = "FB2 Test Chapter"
-    assert expected_fragment in result["text"]
-    expected_fragment = "Document engine works!"
-    assert expected_fragment in result["text"]
+    chapter_title = "FB2 Test Chapter"
+    assert chapter_title in result["text"]
+    chapter_text = "Document engine works!"
+    assert chapter_text in result["text"]
 
 
 def test_standalone_image_is_rejected_by_document_engine() -> None:
@@ -915,5 +890,5 @@ def test_pipeline_hides_unexpected_extractor_exception(
         "неподдерживаемую структуру"
     )
     assert error.value.public_message == expected_public_message
-    expected_fragment = "/private/path/to/parser-internal-error"
-    assert expected_fragment not in error.value.public_message
+    private_path = "/private/path/to/parser-internal-error"
+    assert private_path not in error.value.public_message

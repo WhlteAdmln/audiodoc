@@ -13,64 +13,23 @@ from audiodoc.document_engine.extractors.pdf import extract_pdf
 from audiodoc.document_engine.limits import MAX_DOCUMENT_PAGES
 from audiodoc.errors.documents import DocumentRejectedError
 from tests.support.builders import create_pdf
-
-
-class _FakePixmap:
-    @staticmethod
-    def tobytes(image_format: str) -> bytes:
-        """Provide the ``tobytes`` behaviour the test relies on."""
-        expected_image_format = "png"
-        assert image_format == expected_image_format
-        return b"fake-png"
-
-
-class _FakePage:
-    def __init__(self, text: str = "") -> None:
-        self.text = text
-        self.render_arguments = None
-        self.rect = SimpleNamespace(width=595.276, height=841.89)
-
-    def get_text(self, kind: str) -> str:
-        """Provide the ``get_text`` behaviour the test relies on."""
-        expected_kind = "text"
-        assert kind == expected_kind
-        return self.text
-
-    def get_pixmap(self, **kwargs: object) -> object:
-        """Provide the ``get_pixmap`` behaviour the test relies on."""
-        self.render_arguments = kwargs
-        return _FakePixmap()
-
-
-class _FakeDocument:
-    def __init__(self, pages: object, page_count: object | None = None) -> None:
-        self.pages = pages
-        self.page_count = len(pages) if page_count is None else page_count
-
-    def __enter__(self) -> object:
-        return self
-
-    def __exit__(self, *_args: object) -> object:
-        return False
-
-    def __iter__(self) -> object:
-        return iter(self.pages)
+from tests.support.pymupdf_documents import FakeDocument, FakePage
 
 
 def test_pdf_extracts_existing_text_layer() -> None:
     text = extract_pdf(create_pdf())
 
-    expected_fragment = "--- Страница 1 ---"
-    assert expected_fragment in text
-    expected_fragment = "PDF document test"
-    assert expected_fragment in text
+    page_header = "--- Страница 1 ---"
+    assert page_header in text
+    page_text = "PDF document test"
+    assert page_text in text
 
 
 def test_pdf_uses_ocr_for_page_without_text_layer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    page = _FakePage()
-    document = _FakeDocument([page])
+    page = FakePage()
+    document = FakeDocument([page])
     monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
     monkeypatch.setattr(
         pdf_module,
@@ -86,7 +45,7 @@ def test_pdf_uses_ocr_for_page_without_text_layer(
 
 
 def test_pdf_rejects_too_many_pages(monkeypatch: pytest.MonkeyPatch) -> None:
-    document = _FakeDocument([], page_count=MAX_DOCUMENT_PAGES + 1)
+    document = FakeDocument([], page_count=MAX_DOCUMENT_PAGES + 1)
     monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
 
     with pytest.raises(
@@ -99,9 +58,9 @@ def test_pdf_rejects_too_many_pages(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_pdf_reduces_render_dpi_for_oversized_page(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    page = _FakePage()
+    page = FakePage()
     page.rect = SimpleNamespace(width=200 * 72, height=200 * 72)
-    document = _FakeDocument([page])
+    document = FakeDocument([page])
     monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
     monkeypatch.setattr(
         pdf_module,
@@ -118,9 +77,9 @@ def test_pdf_reduces_render_dpi_for_oversized_page(
 def test_pdf_rejects_page_that_cannot_fit_even_at_minimum_dpi(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    page = _FakePage()
+    page = FakePage()
     page.rect = SimpleNamespace(width=1000 * 72, height=1000 * 72)
-    document = _FakeDocument([page])
+    document = FakeDocument([page])
     monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
     with pytest.raises(DocumentRejectedError, match="слишком велика"):
         extract_pdf(b"%PDF-giant")
@@ -129,7 +88,7 @@ def test_pdf_rejects_page_that_cannot_fit_even_at_minimum_dpi(
 def test_pdf_marks_output_incomplete_when_pages_remain_after_exact_fit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    document = _FakeDocument([_FakePage("abc"), _FakePage("def")])
+    document = FakeDocument([FakePage("abc"), FakePage("def")])
     monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
     first_page_text = "--- Страница 1 ---\nabc"
     budget = TextBudget(len(first_page_text))
@@ -142,7 +101,7 @@ def test_pdf_marks_output_incomplete_when_pages_remain_after_exact_fit(
 def test_pdf_exact_fit_on_last_page_is_not_truncated(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    document = _FakeDocument([_FakePage("abc")])
+    document = FakeDocument([FakePage("abc")])
     monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
     first_page_text = "--- Страница 1 ---\nabc"
     budget = TextBudget(len(first_page_text))

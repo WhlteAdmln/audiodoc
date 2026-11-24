@@ -78,7 +78,7 @@ def test_missing_keys_fail_closed_by_default() -> None:
         check_security_settings(configured_settings)
 
 
-def test_missing_keys_allowed_only_when_explicitly_enabled() -> None:
+def test_missing_keys_are_allowed_only_when_explicitly_enabled() -> None:
     configured_settings = SimpleNamespace(
         AUDIODOC_AUDIO_KEY="",
         AUDIODOC_DOCUMENT_KEY="",
@@ -135,35 +135,35 @@ def test_document_route_requires_its_own_key() -> None:
     client = TestClient(app)
     files = {"file": ("note.txt", b"short test", "text/plain")}
 
-    expected_status_code = 401
+    expected_missing_key_status = 401
     assert (
         client.post("/process-document", files=files).status_code
-        == expected_status_code
+        == expected_missing_key_status
     )
-    expected_status_code = 401
+    expected_wrong_key_status = 401
     assert (
         client.post(
             "/transcribe",
             files={"file": ("voice.ogg", b"fake audio", "audio/ogg")},
         ).status_code
-        == expected_status_code
+        == expected_wrong_key_status
     )
-    expected_status_code = 401
+    expected_audio_key_status = 401
     assert (
         client.post(
             "/process-document",
             files=files,
             headers={"Authorization": "Bearer wrong"},
         ).status_code
-        == expected_status_code
+        == expected_audio_key_status
     )
     response = client.post(
         "/process-document",
         files=files,
         headers={"Authorization": "Bearer document-test-key"},
     )
-    expected_status_code = 200
-    assert response.status_code == expected_status_code
+    expected_document_key_status = 200
+    assert response.status_code == expected_document_key_status
 
 
 def test_api_keys_are_scoped_to_each_application_settings() -> None:

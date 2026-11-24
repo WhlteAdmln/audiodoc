@@ -22,8 +22,8 @@ def test_secrets_filter_redacts_message_arguments_and_traceback() -> None:
     )
     assert secrets_filter.filter(record)
     assert sensitive_value not in record.getMessage()
-    expected_fragment = "[REDACTED]"
-    assert expected_fragment in record.getMessage()
+    redaction_marker = "[REDACTED]"
+    assert redaction_marker in record.getMessage()
 
     with pytest.raises(RuntimeError) as caught:
         _raise_upstream_error(sensitive_value)
@@ -40,8 +40,8 @@ def test_secrets_filter_redacts_message_arguments_and_traceback() -> None:
     secrets_filter.filter(error_record)
     exc_text = str(error_record.exc_text)
     assert sensitive_value not in exc_text
-    expected_fragment = "[REDACTED]"
-    assert expected_fragment in exc_text
+    redaction_marker = "[REDACTED]"
+    assert redaction_marker in exc_text
 
 
 def test_secrets_filter_redacts_telegram_and_bearer_tokens() -> None:

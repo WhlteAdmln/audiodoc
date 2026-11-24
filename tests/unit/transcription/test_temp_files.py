@@ -30,12 +30,12 @@ def test_temp_audio_file_is_private_and_removed(
         expected_suffix = ".ogg"
         assert path.suffix == expected_suffix
         assert path.exists()
-        expected_number = 0o700
-        assert path.parent.stat().st_mode & 0o777 == expected_number
+        expected_directory_mode = 0o700
+        assert path.parent.stat().st_mode & 0o777 == expected_directory_mode
         expected_name = "posix"
         if os.name == expected_name:
-            expected_number = 0o600
-            assert path.stat().st_mode & 0o777 == expected_number
+            expected_file_mode = 0o600
+            assert path.stat().st_mode & 0o777 == expected_file_mode
     assert not path.exists()
 
 

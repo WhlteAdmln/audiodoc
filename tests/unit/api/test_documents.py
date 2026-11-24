@@ -11,7 +11,11 @@ from fastapi.testclient import TestClient
 from audiodoc.main import create_app
 from tests.support.api_app import app_with_router, closed_queue
 
-client = TestClient(create_app())
+
+@pytest.fixture(name="client")
+def fixture_client() -> TestClient:
+    """Create a test client for a fresh application."""
+    return TestClient(create_app())
 
 
 class _UnexpectedUploadReadError(AssertionError):
@@ -22,7 +26,9 @@ class _UnexpectedUploadReadError(AssertionError):
         super().__init__("upload must not be read when the queue is full")
 
 
-def test_document_endpoint_accepts_optional_character_budget() -> None:
+def test_document_endpoint_accepts_optional_character_budget(
+    client: TestClient,
+) -> None:
     response = client.post(
         "/process-document",
         files={"file": ("note.txt", b"0123456789", "text/plain")},
@@ -38,7 +44,9 @@ def test_document_endpoint_accepts_optional_character_budget() -> None:
     }
 
 
-def test_document_endpoint_keeps_legacy_request_without_budget() -> None:
+def test_document_endpoint_keeps_legacy_request_without_budget(
+    client: TestClient,
+) -> None:
     response = client.post(
         "/process-document",
         files={"file": ("note.txt", b"hello", "text/plain")},
@@ -50,7 +58,7 @@ def test_document_endpoint_keeps_legacy_request_without_budget() -> None:
     assert response.json()["truncated"] is False
 
 
-def test_document_endpoint_validates_character_budget_range() -> None:
+def test_document_endpoint_validates_character_budget_range(client: TestClient) -> None:
     response = client.post(
         "/process-document",
         files={"file": ("note.txt", b"hello", "text/plain")},

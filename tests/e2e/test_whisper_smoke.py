@@ -48,7 +48,6 @@ def test_real_tiny_whisper_transcribes_generated_speech(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Recognize a known word using the cached tiny model on CPU."""
     espeak_ng = shutil.which("espeak-ng")
     assert espeak_ng is not None, "Install the espeak-ng package to run this test."
 

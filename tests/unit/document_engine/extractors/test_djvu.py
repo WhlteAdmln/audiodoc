@@ -170,11 +170,11 @@ def test_ocr_pages_renders_at_bounded_size_and_recognizes_each_page(
 
     def fake_run(args: object, *, timeout: object, max_output: object) -> object:
         calls.append((args, timeout, max_output))
-        expected_args = "/usr/bin/djvused"
-        if args[0] == expected_args:
+        djvused_path = "/usr/bin/djvused"
+        if args[0] == djvused_path:
             return 0, b"2", b""
-        expected_args = "/usr/bin/ddjvu"
-        if args[0] == expected_args:
+        ddjvu_path = "/usr/bin/ddjvu"
+        if args[0] == ddjvu_path:
             Path(args[-1]).write_bytes(b"TIFF-data")
             return 0, b"", b""
         raise _UnexpectedDjvuCommandError(args[0])
@@ -287,10 +287,8 @@ def test_ocr_pages_marks_remaining_pages_as_truncated_after_exact_fit(
         == page_text
     )
     assert budget.truncated is True
-    expected_count = 2
-    assert (
-        len(calls) == expected_count
-    )  # page count + first page; page two is not rendered
+    expected_subprocess_calls = 2
+    assert len(calls) == expected_subprocess_calls, "page two must not be rendered"
 
 
 def test_ocr_pages_exact_fit_on_last_page_is_not_truncated(

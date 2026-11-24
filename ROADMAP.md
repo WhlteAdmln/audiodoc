@@ -55,14 +55,14 @@ Goal: remove deprecated functionality, make the code base uniform with bot-oborm
   - ~~Keep the `Makefile` target names identical in both repositories.~~
 - Done when: `make check` is the one command that covers CI, and the CI job with the latest dependencies installs the extra instead of a hand-written list.
 
-#### AD-05 General test rules in audiodoc
+#### ~~AD-05 General test rules in audiodoc~~
 
 - Needs: AD-03.
 - Scope:
-  - Remove comments from test files (except tool pragmas with a reason), docstrings from test functions, classes defined inside test functions, `time.sleep` for waiting and temporary files outside `tmp_path`.
-  - Move every remaining fake to `tests/support/`; remove the one `unittest.mock` use.
-  - Rename tests whose names are not sentences with a verb, and mechanical names such as `expected_fragment` or `expected_text_2`.
-  - Remove shared mutable state and fixtures wider than `function` scope, except immutable data.
+  - ~~Remove comments from test files (except tool pragmas with a reason), docstrings from test functions, classes defined inside test functions, `time.sleep` for waiting and temporary files outside `tmp_path`.~~
+  - ~~Move every remaining fake to `tests/support/`; remove the one `unittest.mock` use.~~
+  - ~~Rename tests whose names are not sentences with a verb, and mechanical names such as `expected_fragment` or `expected_text_2`.~~
+  - ~~Remove shared mutable state and fixtures wider than `function` scope, except immutable data.~~
 - Done when: a throwaway scan finds none of the above; the test count did not fall; `make check` is green.
 
 #### AD-06 [shared] `scripts/check_test_rules.py`
@@ -147,6 +147,9 @@ The scope is not defined yet.
 - Add `scripts/docs_checks/markdown.py`, `links.py`, `russian.py` and their tests to the files checked by `scripts/check_vendored.py`; they are identical in both repositories since AD-03.
 - The CI job with the latest allowed dependencies installs `-c requirements-lock.txt`, so its runtime packages are the locked ones, not the latest allowed; decide whether it should drop the constraint, as bot-obormot does.
 - The CI test, integration and e2e steps repeat the skipped-test check in shell; they could call `make test-no-skips` and an equivalent target for the other markers.
+- `tests/unit/api/test_transcribe.py` and `tests/contract/test_bot_contract.py` still patch the private `ModelHolder._model`; they could load a fake model through `tests/support/whisper.py` (`loaded_model_holder`) instead.
+- The three integration tests define the same `_PytesseractModule` protocol; it could move to `tests/support/`.
+- `tests/unit/common/test_subprocess_runner.py` polls with `time.sleep` until an orphaned grandchild process disappears, because there is no portable notification for a process that is not a direct child. Revisit when the subprocess runner tests are reworked in AD-07.
 
 ## Released
 

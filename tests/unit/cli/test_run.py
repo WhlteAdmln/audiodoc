@@ -74,8 +74,8 @@ def test_run_loads_configuration_and_starts_uvicorn(
             ),
         ),
     ]
-    expected_fragment = "SECURITY WARNING"
-    assert expected_fragment in caplog.text
+    security_warning = "SECURITY WARNING"
+    assert security_warning in caplog.text
     assert all_interfaces_host in caplog.text
 
 

@@ -2,11 +2,11 @@
 """Tests for system configuration diagnostics."""
 
 from pathlib import Path
-from typing import Self
 
 import pytest
 
 from audiodoc import system_diagnostics as diagnostics
+from tests.support.sockets import FakeSocket
 
 
 def test_python_version_check_accepts_supported_version(
@@ -54,8 +54,8 @@ def test_env_file_check_rejects_insecure_permissions(
 
     expected_status = "FAIL"
     assert result.status == expected_status
-    expected_fragment = "Permissions"
-    assert expected_fragment in result.message
+    permissions_detail = "Permissions"
+    assert permissions_detail in result.message
 
 
 def test_env_file_check_rejects_missing_file(tmp_path: Path) -> None:
@@ -63,8 +63,8 @@ def test_env_file_check_rejects_missing_file(tmp_path: Path) -> None:
 
     expected_status = "FAIL"
     assert result.status == expected_status
-    expected_fragment = "Not found"
-    assert expected_fragment in result.message
+    missing_detail = "Not found"
+    assert missing_detail in result.message
 
 
 def test_env_file_check_rejects_non_regular_file(tmp_path: Path) -> None:
@@ -74,8 +74,8 @@ def test_env_file_check_rejects_non_regular_file(tmp_path: Path) -> None:
 
     expected_status = "FAIL"
     assert result.status == expected_status
-    expected_fragment = "regular file"
-    assert expected_fragment in result.message
+    regular_file_detail = "regular file"
+    assert regular_file_detail in result.message
 
 
 def test_env_file_check_reports_inspection_errors(
@@ -91,8 +91,8 @@ def test_env_file_check_reports_inspection_errors(
 
     expected_status = "FAIL"
     assert result.status == expected_status
-    expected_fragment = "Cannot inspect"
-    assert expected_fragment in result.message
+    inspection_detail = "Cannot inspect"
+    assert inspection_detail in result.message
 
 
 def test_api_key_check_accepts_distinct_keys() -> None:
@@ -199,26 +199,8 @@ def test_temp_directory_check_reports_unwritable_path(tmp_path: Path) -> None:
     assert result.status == expected_status
 
 
-class _FakeSocket:
-    def __init__(self, *, unavailable: bool = False) -> None:
-        self.unavailable = unavailable
-        self.address: tuple[str, int] | None = None
-
-    def __enter__(self) -> Self:
-        return self
-
-    def __exit__(self, *_args: object) -> None:
-        return None
-
-    def bind(self, address: tuple[str, int]) -> None:
-        """Provide the ``bind`` behaviour the test relies on."""
-        self.address = address
-        if self.unavailable:
-            raise OSError
-
-
 def test_port_check_accepts_available_port(monkeypatch: pytest.MonkeyPatch) -> None:
-    listener = _FakeSocket()
+    listener = FakeSocket()
     monkeypatch.setattr(diagnostics.socket, "socket", lambda *_args: listener)
 
     result = diagnostics.check_port({})
@@ -229,7 +211,7 @@ def test_port_check_accepts_available_port(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_port_check_rejects_port_in_use(monkeypatch: pytest.MonkeyPatch) -> None:
-    listener = _FakeSocket(unavailable=True)
+    listener = FakeSocket(unavailable=True)
     monkeypatch.setattr(diagnostics.socket, "socket", lambda *_args: listener)
 
     result = diagnostics.check_port({})
@@ -254,7 +236,7 @@ def test_collect_system_checks_returns_all_check_results(
     env_path = home / ".env"
     env_path.write_text("test\n", encoding="utf-8")
     env_path.chmod(0o600)
-    listener = _FakeSocket()
+    listener = FakeSocket()
     monkeypatch.setattr(diagnostics.sys, "version_info", (3, 11, 0))
     monkeypatch.setattr(diagnostics.socket, "socket", lambda *_args: listener)
 

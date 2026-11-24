@@ -20,13 +20,12 @@ from tests.support.odf_documents import load_document
 
 
 def test_odp_extracts_headings_and_truncates_slide_text() -> None:
-    """Cover ODP headings and truncation while extracting a slide."""
     document = load_odf(BytesIO(create_odp()))
     page = document.getElementsByType(Page)[0]
     page.addElement(H(outlinelevel=1, text="ODP heading"), check_grammar=False)
 
-    expected_fragment = "ODP heading"
-    assert expected_fragment in extract_odp(document)
+    heading = "ODP heading"
+    assert heading in extract_odp(document)
 
     budget = TextBudget(20)
     context = ExtractContext(budget=budget, deadline=Deadline(10))

@@ -30,8 +30,8 @@ def test_whisper_model_check_accepts_configured_local_model(
 
     expected_status = "OK"
     assert result.status == expected_status
-    expected_fragment = "present"
-    assert expected_fragment in result.message
+    present_detail = "present"
+    assert present_detail in result.message
 
 
 def test_whisper_model_check_rejects_missing_configured_path(
@@ -43,8 +43,8 @@ def test_whisper_model_check_rejects_missing_configured_path(
 
     expected_status = "FAIL"
     assert result.status == expected_status
-    expected_fragment = "missing or incomplete"
-    assert expected_fragment in result.message
+    missing_detail = "missing or incomplete"
+    assert missing_detail in result.message
 
 
 def test_whisper_model_check_accepts_cached_model(
@@ -68,8 +68,8 @@ def test_whisper_model_check_accepts_cached_model(
 
     expected_status = "OK"
     assert result.status == expected_status
-    expected_fragment = "local cache"
-    assert expected_fragment in result.message
+    cache_detail = "local cache"
+    assert cache_detail in result.message
     assert calls == [("small", True)]
 
 
@@ -90,8 +90,8 @@ def test_whisper_model_check_accepts_downloadable_model(
 
     expected_status = "OK"
     assert result.status == expected_status
-    expected_fragment = "downloaded on first startup"
-    assert expected_fragment in result.message
+    download_detail = "downloaded on first startup"
+    assert download_detail in result.message
 
 
 def test_whisper_model_check_rejects_missing_offline_model(
@@ -112,8 +112,8 @@ def test_whisper_model_check_rejects_missing_offline_model(
 
     expected_status = "FAIL"
     assert result.status == expected_status
-    expected_fragment = "WHISPER_OFFLINE"
-    assert expected_fragment in result.message
+    offline_setting = "WHISPER_OFFLINE"
+    assert offline_setting in result.message
 
 
 def test_whisper_model_check_requires_cached_model_when_forced_offline(
@@ -136,10 +136,10 @@ def test_whisper_model_check_requires_cached_model_when_forced_offline(
 
     expected_status = "FAIL"
     assert result.status == expected_status
-    expected_fragment = "local cache"
-    assert expected_fragment in result.message
-    expected_fragment = "offline mode"
-    assert expected_fragment in result.message
+    cache_detail = "local cache"
+    assert cache_detail in result.message
+    offline_detail = "offline mode"
+    assert offline_detail in result.message
 
 
 def test_whisper_model_check_rejects_unsupported_model(
@@ -158,8 +158,8 @@ def test_whisper_model_check_rejects_unsupported_model(
 
     expected_status = "FAIL"
     assert result.status == expected_status
-    expected_fragment = "Unsupported Whisper model"
-    assert expected_fragment in result.message
+    unsupported_detail = "Unsupported Whisper model"
+    assert unsupported_detail in result.message
 
 
 def test_whisper_model_check_rejects_missing_dependency(
@@ -178,8 +178,8 @@ def test_whisper_model_check_rejects_missing_dependency(
 
     expected_status = "FAIL"
     assert result.status == expected_status
-    expected_fragment = "not installed"
-    assert expected_fragment in result.message
+    missing_dependency_detail = "not installed"
+    assert missing_dependency_detail in result.message
 
 
 def test_cuda_check_is_not_required_for_cpu() -> None:
@@ -187,8 +187,8 @@ def test_cuda_check_is_not_required_for_cpu() -> None:
 
     expected_status = "OK"
     assert result.status == expected_status
-    expected_fragment = "not required"
-    assert expected_fragment in result.message
+    not_required_detail = "not required"
+    assert not_required_detail in result.message
 
 
 def test_cuda_check_accepts_visible_devices(
@@ -204,8 +204,8 @@ def test_cuda_check_accepts_visible_devices(
 
     expected_status = "OK"
     assert result.status == expected_status
-    expected_fragment = "2 CUDA device(s)"
-    assert expected_fragment in result.message
+    device_count_detail = "2 CUDA device(s)"
+    assert device_count_detail in result.message
 
 
 def test_cuda_check_rejects_no_visible_devices(
@@ -221,8 +221,8 @@ def test_cuda_check_rejects_no_visible_devices(
 
     expected_status = "FAIL"
     assert result.status == expected_status
-    expected_fragment = "no CUDA devices"
-    assert expected_fragment in result.message
+    no_device_detail = "no CUDA devices"
+    assert no_device_detail in result.message
 
 
 def test_cuda_check_rejects_unavailable_ctranslate2(
@@ -241,8 +241,8 @@ def test_cuda_check_rejects_unavailable_ctranslate2(
 
     expected_status = "FAIL"
     assert result.status == expected_status
-    expected_fragment = "ImportError"
-    assert expected_fragment in result.message
+    import_error_detail = "ImportError"
+    assert import_error_detail in result.message
 
 
 def test_collect_doctor_checks_reports_native_tool_success(
@@ -307,9 +307,9 @@ def test_collect_doctor_checks_reports_missing_native_tools(
 
     expected_status = "FAIL"
     assert checks[0].status == expected_status
-    expected_fragment = "rus"
-    assert expected_fragment in checks[0].message
+    missing_language = "rus"
+    assert missing_language in checks[0].message
     expected_status = "FAIL"
     assert checks[1].status == expected_status
-    expected_fragment = "djvutxt"
-    assert expected_fragment in checks[1].message
+    missing_tool = "djvutxt"
+    assert missing_tool in checks[1].message

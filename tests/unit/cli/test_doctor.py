@@ -48,21 +48,21 @@ def test_doctor_fails_and_prints_native_tool_install_commands(
     assert cli.main(["doctor"]) == 1
     output = capsys.readouterr().out
 
-    expected_fragment = "FAIL Tesseract: Executable not found."
-    assert expected_fragment in output
-    expected_fragment = "FAIL DjVuLibre: Executables not found."
-    assert expected_fragment in output
-    expected_fragment_2 = (
+    tesseract_failure = "FAIL Tesseract: Executable not found."
+    assert tesseract_failure in output
+    djvulibre_failure = "FAIL DjVuLibre: Executables not found."
+    assert djvulibre_failure in output
+    apt_command = (
         "sudo apt install tesseract-ocr tesseract-ocr-rus "
         "tesseract-ocr-eng djvulibre-bin"
     )
-    assert expected_fragment_2 in output
-    expected_fragment_2 = (
+    assert apt_command in output
+    dnf_command = (
         "sudo dnf install tesseract tesseract-langpack-rus "
         "tesseract-langpack-eng djvulibre"
     )
-    assert expected_fragment_2 in output
-    expected_fragment = (
+    assert dnf_command in output
+    pacman_command = (
         "sudo pacman -S tesseract tesseract-data-rus tesseract-data-eng djvulibre"
     )
-    assert expected_fragment in output
+    assert pacman_command in output

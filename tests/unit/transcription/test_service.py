@@ -4,7 +4,6 @@
 
 import asyncio
 import threading
-import time
 import wave
 from contextlib import closing
 from io import BytesIO
@@ -14,6 +13,7 @@ from types import SimpleNamespace
 import pytest
 
 import audiodoc.transcription.service as transcription_service
+from audiodoc.common import deadline as deadline_module
 from audiodoc.common.work_queue import WorkQueue
 from audiodoc.errors.transcription import (
     AudioTooLongError,
@@ -23,6 +23,7 @@ from audiodoc.errors.transcription import (
 )
 from audiodoc.transcription.model import ModelHolder
 from tests.support.builders import create_ocr_image, create_ogg_opus, create_wav
+from tests.support.clock import FakeMonotonicClock
 from tests.support.whisper import FakeWhisperModel, loaded_model_holder
 
 
@@ -175,8 +176,8 @@ def test_transcribe_file_decodes_real_audio_and_passes_whisper_settings(
 
     assert captured["audio"].size > 0
     assert captured["audio"].ndim == 1
-    expected_text = "float32"
-    assert str(captured["audio"].dtype) == expected_text
+    expected_dtype = "float32"
+    assert str(captured["audio"].dtype) == expected_dtype
     assert captured["kwargs"] == {
         "language": language,
         "beam_size": beam_size,
@@ -243,16 +244,18 @@ def test_transcribe_file_reports_deadline_exceeded_for_slow_model(
     path = tmp_path / "slow.wav"
     path.write_bytes(create_wav())
     called = threading.Event()
+    clock = FakeMonotonicClock()
 
     def transcribe(_audio: object, **_kwargs: object) -> object:
         called.set()
-        time.sleep(0.2)
+        clock.advance(0.2)
         return iter([]), SimpleNamespace(language="ru", duration=0.25)
 
     slow_model = SimpleNamespace(transcribe=transcribe)
 
     configured_model_holder = loaded_model_holder(slow_model)
     monkeypatch.setattr(transcription_service.settings, "WHISPER_TIMEOUT", 0.1)
+    monkeypatch.setattr(deadline_module, "time", clock)
 
     with pytest.raises(TranscriptionTimeoutError):
         asyncio.run(
@@ -268,43 +271,47 @@ def test_transcribe_file_reports_deadline_exceeded_for_slow_model(
 
 def test_transcriptions_respect_the_concurrency_semaphore(tmp_path: Path) -> None:
     queue = _test_queue(max_waiting=1)
-    lock = threading.Lock()
-    active = 0
-    maximum_active = 0
+    started = threading.Event()
+    release = threading.Event()
+    calls: list[str] = []
 
     def transcribe(_path: object, **_kwargs: object) -> object:
-        nonlocal active, maximum_active
-        with lock:
-            active += 1
-            maximum_active = max(maximum_active, active)
-        time.sleep(0.04)
-        with lock:
-            active -= 1
+        calls.append("started")
+        started.set()
+        release.wait(timeout=5)
         return iter([]), SimpleNamespace(language="ru", duration=1)
 
-    counting_model = SimpleNamespace(transcribe=transcribe)
+    blocking_model = SimpleNamespace(transcribe=transcribe)
 
-    configured_model_holder = loaded_model_holder(counting_model)
+    configured_model_holder = loaded_model_holder(blocking_model)
     paths = [tmp_path / "one.ogg", tmp_path / "two.ogg"]
     for path in paths:
         path.write_bytes(create_wav())
 
-    async def run_both() -> None:
-        await asyncio.gather(
-            transcription_service.transcribe_file(
-                paths[0],
-                configured_model_holder=configured_model_holder,
-                queue=queue,
-            ),
-            transcription_service.transcribe_file(
-                paths[1],
-                configured_model_holder=configured_model_holder,
-                queue=queue,
-            ),
-        )
+    async def run_both() -> int:
+        tasks = [
+            asyncio.create_task(
+                transcription_service.transcribe_file(
+                    path,
+                    configured_model_holder=configured_model_holder,
+                    queue=queue,
+                )
+            )
+            for path in paths
+        ]
+        await asyncio.to_thread(started.wait, 5)
+        for _ in tasks:
+            await asyncio.sleep(0)
+        waiting_while_first_runs = queue.waiting
+        release.set()
+        await asyncio.gather(*tasks)
+        return waiting_while_first_runs
 
-    asyncio.run(run_both())
-    assert maximum_active == 1
+    waiting_while_first_runs = asyncio.run(run_both())
+    expected_waiting = 1
+    assert waiting_while_first_runs == expected_waiting, (
+        "the second transcription must wait for the first one's slot"
+    )
 
 
 def test_cancelled_transcription_waits_for_worker_even_when_cancelled_twice(

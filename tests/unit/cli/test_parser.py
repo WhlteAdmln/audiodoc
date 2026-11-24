@@ -14,5 +14,5 @@ def test_rejects_out_of_range_run_port(
 
     expected_code = 2
     assert error.value.code == expected_code
-    expected_fragment = "between 1 and 65535"
-    assert expected_fragment in capsys.readouterr().err
+    range_message = "between 1 and 65535"
+    assert range_message in capsys.readouterr().err

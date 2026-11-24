@@ -13,13 +13,13 @@ def test_html_removes_non_content_elements() -> None:
     )
     text = extract_html(data)
 
-    expected_fragment = "Visible"
-    assert expected_fragment in text
-    expected_fragment = "Text"
-    assert expected_fragment in text
-    expected_fragment = "secret"
-    assert expected_fragment not in text
-    expected_fragment = "fallback"
-    assert expected_fragment not in text
-    expected_fragment = ".hidden"
-    assert expected_fragment not in text
+    visible_heading = "Visible"
+    assert visible_heading in text
+    visible_text = "Text"
+    assert visible_text in text
+    script_text = "secret"
+    assert script_text not in text
+    noscript_text = "fallback"
+    assert noscript_text not in text
+    style_rule = ".hidden"
+    assert style_rule not in text

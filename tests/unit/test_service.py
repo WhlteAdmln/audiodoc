@@ -80,13 +80,11 @@ WantedBy=multi-user.target
 
 
 def test_render_units_match_golden_strings() -> None:
-    """Keep both systemd unit modes stable."""
     assert render_service_unit(Path("/srv/audiodoc"), mode="user") == USER_GOLDEN
     assert render_service_unit(Path("/opt/audiodoc"), mode="system") == SYSTEM_GOLDEN
 
 
 def test_system_unit_limits_and_network_allowlist_are_parameters() -> None:
-    """Render host-specific resource and network limits."""
     unit = render_service_unit(
         Path("/opt/audiodoc"),
         mode="system",
@@ -94,10 +92,10 @@ def test_system_unit_limits_and_network_allowlist_are_parameters() -> None:
         memory_max="8G",
         ip_address_allow=("10.9.0.0/16", "127.0.0.1"),
     )
-    expected_fragment = "MemoryHigh=6G\nMemoryMax=8G\n"
-    assert expected_fragment in unit
-    expected_fragment = "IPAddressAllow=10.9.0.0/16 127.0.0.1\n"
-    assert expected_fragment in unit
+    memory_limits = "MemoryHigh=6G\nMemoryMax=8G\n"
+    assert memory_limits in unit
+    network_allowlist = "IPAddressAllow=10.9.0.0/16 127.0.0.1\n"
+    assert network_allowlist in unit
 
 
 @pytest.mark.parametrize(
@@ -114,7 +112,6 @@ def test_system_unit_limits_and_network_allowlist_are_parameters() -> None:
 def test_render_rejects_invalid_values(
     home: Path, mode: str, memory: str, addresses: tuple[str, ...], message: str
 ) -> None:
-    """Reject invalid paths, modes, limits, and IP allowlist values."""
     with pytest.raises(ValueError, match=message):
         render_service_unit(
             home,
@@ -127,7 +124,6 @@ def test_render_rejects_invalid_values(
 def test_install_refuses_overwrite_and_saves_backup_with_force(
     tmp_path: Path,
 ) -> None:
-    """Preserve existing units unless force is explicitly requested."""
     directory = tmp_path / "systemd"
     unit_path = directory / "audiodoc.service"
     directory.mkdir()
@@ -156,7 +152,6 @@ def test_install_refuses_overwrite_and_saves_backup_with_force(
 def test_install_uses_system_unit_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Use the systemd system directory for system mode."""
     monkeypatch.setattr(service, "SYSTEM_UNIT_DIRECTORY", tmp_path)
     assert install_service_unit(tmp_path / "app", mode="system") == (
         tmp_path / "audiodoc.service"
@@ -164,15 +159,14 @@ def test_install_uses_system_unit_directory(
 
 
 def test_deploy_example_and_installer_use_the_canonical_renderer() -> None:
-    """Prevent separate systemd unit sources in deployment and installation."""
     root = Path(__file__).resolve().parents[2]
     example = (root / "deploy/audiodoc.service.example").read_text(encoding="utf-8")
     installer = (root / "install.sh").read_text(encoding="utf-8")
-    expected_fragment = "audiodoc service install --system --print"
-    assert expected_fragment in example
-    expected_fragment = "[Service]"
-    assert expected_fragment not in example
-    expected_fragment = "-m audiodoc service install --user"
-    assert expected_fragment in installer
-    expected_fragment = 'cat >"$SYSTEMD_UNIT_FILE" <<EOF'
-    assert expected_fragment not in installer
+    system_print_command = "audiodoc service install --system --print"
+    assert system_print_command in example
+    service_section = "[Service]"
+    assert service_section not in example
+    user_install_command = "-m audiodoc service install --user"
+    assert user_install_command in installer
+    unit_heredoc = 'cat >"$SYSTEMD_UNIT_FILE" <<EOF'
+    assert unit_heredoc not in installer

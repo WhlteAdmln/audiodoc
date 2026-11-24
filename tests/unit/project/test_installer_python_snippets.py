@@ -19,19 +19,16 @@ def _snippets() -> list[str]:
 
 
 def test_installer_has_embedded_python_snippets() -> None:
-    """The installer embeds the snippets this module protects."""
     expected_count = 3
     assert len(_snippets()) >= expected_count
 
 
 @pytest.mark.parametrize("index", range(3))
 def test_every_embedded_snippet_is_valid_python(index: int) -> None:
-    """A shell command placed inside a here-document would break the snippet."""
     compile(_snippets()[index], f"<install.sh snippet {index}>", "exec")
 
 
 def test_no_shell_command_follows_a_here_document_operator() -> None:
-    """The right side of ``||`` after ``<<'PY'`` must come after the terminator."""
     lines = INSTALLER.read_text(encoding="utf-8").splitlines()
     for number, line in enumerate(lines):
         if re.search(r"<<'PY'\s*(\|\||&&)\s*$", line):
@@ -41,9 +38,8 @@ def test_no_shell_command_follows_a_here_document_operator() -> None:
 def test_release_metadata_snippet_extracts_tag_and_wheel_count(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The latest-release lookup parses a GitHub API response."""
-    expected_fragment = "release.get("
-    snippet = next(item for item in _snippets() if expected_fragment in item)
+    release_lookup = "release.get("
+    snippet = next(item for item in _snippets() if release_lookup in item)
     source = tmp_path / "release.json"
     destination = tmp_path / "info.txt"
     source.write_text(
@@ -69,8 +65,7 @@ def test_release_metadata_snippet_extracts_tag_and_wheel_count(
 
 
 def test_installer_messages_do_not_contain_broken_urls() -> None:
-    """A URL inside an error message must stay on one line."""
     text = INSTALLER.read_text(encoding="utf-8")
 
-    expected_fragment = "/insta\nll.sh"
-    assert expected_fragment not in text
+    split_url = "/insta\nll.sh"
+    assert split_url not in text

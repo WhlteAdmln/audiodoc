@@ -21,14 +21,14 @@ def test_text_budget_never_exceeds_limit_and_reports_exact_truncation(
     separator_length: int,
 ) -> None:
     budget = TextBudget(limit)
-    expected_truncated = False
+    truncated_so_far = False
 
     for chunk in chunks:
         piece = budget.add(chunk, separator_length=separator_length)
         if len(piece) < len(chunk):
-            expected_truncated = True
+            truncated_so_far = True
 
-        assert budget.truncated is expected_truncated
+        assert budget.truncated is truncated_so_far
         assert budget.used <= limit
 
 
@@ -55,8 +55,7 @@ def test_text_budget_rejects_invalid_limits_and_chunks() -> None:
     with pytest.raises(ValueError, match="limit must be a positive integer"):
         TextBudget(0)
     with pytest.raises(TypeError, match="text must be a string"):
-        # Bytes instead of text are the point of this check.
-        TextBudget(5).add(b"bytes")  # type: ignore[arg-type]
+        TextBudget(5).add(b"bytes")  # type: ignore[arg-type]  # wrong type on purpose
 
 
 def test_text_budget_is_not_truncated_when_text_exactly_fits() -> None:

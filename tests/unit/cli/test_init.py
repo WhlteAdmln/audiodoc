@@ -11,8 +11,8 @@ from audiodoc import cli
 def _read_env_values(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
-        expected_fragment = "="
-        if line and not line.lstrip().startswith("#") and expected_fragment in line:
+        separator = "="
+        if line and not line.lstrip().startswith("#") and separator in line:
             name, value = line.split("=", 1)
             values[name] = value
     return values

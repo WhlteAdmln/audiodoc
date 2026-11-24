@@ -6,6 +6,7 @@ from http import HTTPStatus
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from jsonschema import validate
 
@@ -19,9 +20,20 @@ FIXTURE_PATH = Path(__file__).parent / "fixtures" / "audiodoc_responses.json"
 CONTRACT = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
 OPENAPI_PATH = ROOT / "contract" / "openapi.json"
 OPENAPI = json.loads(OPENAPI_PATH.read_text(encoding="utf-8"))
-app = create_app()
-app.state.model_holder = ModelHolder()
-client = TestClient(app)
+
+
+@pytest.fixture(name="app")
+def fixture_app() -> FastAPI:
+    """Create an application with an unloaded model holder for one test."""
+    application = create_app()
+    application.state.model_holder = ModelHolder()
+    return application
+
+
+@pytest.fixture(name="client")
+def fixture_client(app: FastAPI) -> TestClient:
+    """Create a test client for the application of one test."""
+    return TestClient(app)
 
 
 def _assert_transcribe_shape(payload: dict) -> None:
@@ -42,6 +54,8 @@ def _assert_document_shape(payload: dict) -> None:
 
 def test_transcribe_response_matches_shared_bot_contract(
     monkeypatch: pytest.MonkeyPatch,
+    app: FastAPI,
+    client: TestClient,
 ) -> None:
     monkeypatch.setattr(app.state.model_holder, "_model", object())
 
@@ -68,7 +82,9 @@ def test_transcribe_response_matches_shared_bot_contract(
     _assert_transcribe_shape(response.json())
 
 
-def test_process_document_response_matches_shared_bot_contract() -> None:
+def test_process_document_response_matches_shared_bot_contract(
+    client: TestClient,
+) -> None:
     sample = CONTRACT["process_document"]["text"]
     response = client.post(
         "/process-document",
@@ -81,7 +97,7 @@ def test_process_document_response_matches_shared_bot_contract() -> None:
     assert payload == CONTRACT["process_document"]
 
 
-def test_unsupported_file_is_not_a_success() -> None:
+def test_unsupported_file_is_not_a_success(client: TestClient) -> None:
     response = client.post(
         "/process-document",
         files={"file": ("x.png", b"\x89PNG\r\n\x1a\n", "image/png")},
@@ -91,14 +107,12 @@ def test_unsupported_file_is_not_a_success() -> None:
 
 
 def test_openapi_snapshot_matches_application() -> None:
-    """Keep the checked-in OpenAPI snapshot synchronized with the app."""
     assert OPENAPI_PATH.read_text(encoding="utf-8") == render_openapi(), (
         "OpenAPI snapshot is out of date; run `make contract`"
     )
 
 
 def test_bot_examples_validate_against_openapi_schemas() -> None:
-    """Validate every shared bot response example against its response schema."""
     examples = {
         "transcribe": "/transcribe",
         "process_document": "/process-document",
@@ -115,7 +129,6 @@ def test_bot_examples_validate_against_openapi_schemas() -> None:
 
 
 def test_error_responses_publish_machine_readable_codes() -> None:
-    """Keep typed error responses and their codes in the public OpenAPI contract."""
     expected_codes = {
         "/transcribe": {
             "400": ("invalid_audio", "audio_too_long"),
@@ -160,7 +173,6 @@ def test_error_responses_publish_machine_readable_codes() -> None:
 
 
 def test_every_openapi_path_is_mentioned_in_api_docs() -> None:
-    """Require the API documentation to mention every OpenAPI path."""
     documentation = (ROOT / "docs" / "api.md").read_text(encoding="utf-8")
     for path in OPENAPI["paths"]:
         assert path in documentation, f"OpenAPI path {path} is missing from docs/api.md"

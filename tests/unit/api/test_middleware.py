@@ -33,11 +33,10 @@ def test_body_size_middleware_rejects_content_length_before_route() -> None:
 
 def test_body_size_middleware_counts_streamed_body_without_content_length() -> None:
     async def app(_scope: object, receive: object, send: object) -> None:
-        # Force the downstream app to consume the complete request body.
         while True:
             message = await receive()
-            expected_type = "http.request"
-            if message["type"] == expected_type and not message.get("more_body"):
+            request_message_type = "http.request"
+            if message["type"] == request_message_type and not message.get("more_body"):
                 break
         await send({"type": "http.response.start", "status": 200, "headers": []})
         await send({"type": "http.response.body", "body": b"ok"})
@@ -70,8 +69,8 @@ def test_body_size_middleware_counts_streamed_body_without_content_length() -> N
     }
     asyncio.run(middleware(scope, receive, send))
 
-    expected_type = "http.response.start"
-    start = next(message for message in sent if message["type"] == expected_type)
+    response_start_type = "http.response.start"
+    start = next(message for message in sent if message["type"] == response_start_type)
     expected_status = 413
     assert start["status"] == expected_status
 
@@ -254,10 +253,10 @@ def test_body_size_middleware_replaces_downstream_error_after_oversized_body() -
         )
     )
 
-    expected_type = "http.response.start"
-    start = next(message for message in sent if message["type"] == expected_type)
-    expected_type = "http.response.body"
-    body = next(message for message in sent if message["type"] == expected_type)
+    response_start_type = "http.response.start"
+    start = next(message for message in sent if message["type"] == response_start_type)
+    response_body_type = "http.response.body"
+    body = next(message for message in sent if message["type"] == response_body_type)
     expected_status = 413
     assert start["status"] == expected_status
     expected_body = b'{"detail":"Request body too large"}'
