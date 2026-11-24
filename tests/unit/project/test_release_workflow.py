@@ -180,24 +180,44 @@ def test_ci_jobs_use_the_required_make_targets() -> None:
         assert command in workflow
 
 
-def test_make_check_includes_documentation_and_fix_formats_code() -> None:
-    """Keep local aggregate checks aligned with the CI Makefile entry point."""
+def test_check_target_runs_every_local_ci_gate() -> None:
     makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
+    joined = makefile.replace("\\\n", " ")
+    check_line = next(line for line in joined.splitlines() if line.startswith("check:"))
+    gates = check_line.removeprefix("check:").split()
+    expected_gates = [
+        "lint",
+        "types",
+        "pylint",
+        "deptry",
+        "vulture",
+        "import-lint",
+        "pip-check",
+        "test-no-skips",
+        "audit",
+        "release-check",
+        "docs-check",
+    ]
+    assert gates == expected_gates, "make check must run every local CI gate"
 
-    expected_fragment = (
-        "check: lint types pylint deptry vulture import-lint test docs-check"
-    )
-    assert expected_fragment in makefile
+
+def test_docs_check_runs_script_and_pre_commit() -> None:
+    makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
     docs_check = (
         "docs-check:\n"
         "\t$(PYTHON) -m scripts.check_docs\n"
         "\t$(PYTHON) -m pre_commit run --all-files"
     )
-    assert docs_check in makefile
-    expected_fragment = "$(PYTHON) -m ruff check . --fix"
-    assert expected_fragment in makefile
-    expected_fragment = "$(PYTHON) -m ruff format ."
-    assert expected_fragment in makefile
+    assert docs_check in makefile, "docs-check must run the script and pre-commit"
+
+
+@pytest.mark.parametrize(
+    "fix_command",
+    ["$(PYTHON) -m ruff check . --fix", "$(PYTHON) -m ruff format ."],
+)
+def test_fix_target_runs_ruff(fix_command: str) -> None:
+    makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
+    assert fix_command in makefile, "make fix must run the ruff command"
 
 
 def test_lint_runs_tools_from_project_environment() -> None:

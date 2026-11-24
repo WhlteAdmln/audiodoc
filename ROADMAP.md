@@ -46,13 +46,13 @@ Goal: remove deprecated functionality, make the code base uniform with bot-oborm
   - ~~Replace the private `_settings_environment_names` import in `tests/unit/scripts/test_check_docs.py` of both repositories with a public name.~~
 - Done when: both `make docs-check` are green and no test imports a private name from the script.
 
-#### AD-04 [shared] `make check` runs every CI gate; one extra for test dependencies
+#### ~~AD-04 [shared] `make check` runs every CI gate; one extra for test dependencies~~
 
 - Needs: none.
 - Scope:
-  - Compare the jobs of `.github/workflows/ci.yml` with the `check` target of the `Makefile` in both repositories and add every gate that CI runs and `make check` does not.
-  - Add one extra (for example `test`) with the test dependencies, used by `dev` and by the CI job with the latest allowed dependencies, so the package lists cannot drift.
-  - Keep the `Makefile` target names identical in both repositories.
+  - ~~Compare the jobs of `.github/workflows/ci.yml` with the `check` target of the `Makefile` in both repositories and add every gate that CI runs and `make check` does not.~~
+  - ~~Add one extra (for example `test`) with the test dependencies, used by `dev` and by the CI job with the latest allowed dependencies, so the package lists cannot drift.~~
+  - ~~Keep the `Makefile` target names identical in both repositories.~~
 - Done when: `make check` is the one command that covers CI, and the CI job with the latest dependencies installs the extra instead of a hand-written list.
 
 #### AD-05 General test rules in audiodoc
@@ -145,6 +145,8 @@ The scope is not defined yet.
 ## Backlog
 
 - Add `scripts/docs_checks/markdown.py`, `links.py`, `russian.py` and their tests to the files checked by `scripts/check_vendored.py`; they are identical in both repositories since AD-03.
+- The CI job with the latest allowed dependencies installs `-c requirements-lock.txt`, so its runtime packages are the locked ones, not the latest allowed; decide whether it should drop the constraint, as bot-obormot does.
+- The CI test, integration and e2e steps repeat the skipped-test check in shell; they could call `make test-no-skips` and an equivalent target for the other markers.
 
 ## Released
 

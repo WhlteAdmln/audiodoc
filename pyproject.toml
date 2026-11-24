@@ -38,7 +38,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
+test = [
     "hypothesis==6.170.15",
     "jsonschema==4.26.0",
     "pytest==9.2.0",
@@ -47,6 +47,14 @@ dev = [
     "pytest-randomly==5.0.0",
     "pytest-timeout==2.4.0",
     "aiohttp==3.14.5",
+    "packaging==26.3",
+    "httpx2==2.16.0",
+    "setuptools==84.2.1",
+    "wheel==0.48.0",
+    "build>=1.2,<2.0",
+]
+dev = [
+    "audiodoc[test]",
     "deptry==0.25.1",
     "import-linter==2.16",
     "vulture==2.16",
@@ -57,11 +65,6 @@ dev = [
     "pre-commit==4.7.0",
     "shfmt-py==4.0.0",
     "shellcheck-py==0.11.0.1",
-    "packaging==26.3",
-    "httpx2==2.16.0",
-    "setuptools==84.2.1",
-    "wheel==0.48.0",
-    "build>=1.2,<2.0",
 ]
 
 [project.scripts]
@@ -229,7 +232,7 @@ exclude_also = [
 ]
 
 [tool.deptry]
-optional_dependencies_dev_groups = ["dev"]
+optional_dependencies_dev_groups = ["dev", "test"]
 known_first_party = ["audiodoc"]
 extend_exclude = ["scripts"]
 

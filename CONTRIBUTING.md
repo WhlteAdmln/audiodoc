@@ -12,6 +12,12 @@
 10. LLM agents must also follow the rules in [AGENTS.md](AGENTS.md) and [CLAUDE.md](CLAUDE.md). Planned work is listed in [ROADMAP.md](ROADMAP.md); one task is one session.
 11. Open a pull request describing the change and the checks you ran. Do not include secrets, local environments, or generated build artifacts.
 
+## Checks and CI
+
+`make check` runs every CI gate that needs only Python and network access: lint and documentation checks, mypy, pylint, deptry, vulture, import contracts, `pip check`, unit tests with coverage that fail when a test is skipped (`make test-no-skips`), `pip-audit` of the lock (`make audit`) and a release build with verified checksums (`make release-check`). The test dependencies are the `test` extra of `pyproject.toml`; the `dev` extra includes it, and the CI job with the latest allowed dependencies installs it.
+
+Only CI runs the jobs that need system tools or services: integration tests with Tesseract and DjVuLibre (`make integration`), the real Whisper test (`make e2e`), the Docker image (`make docker`), the installer smoke test against a locally served release, and the systemd, UFW and nginx examples.
+
 ## Files shared with bot-obormot
 
 `.editorconfig`, `.pre-commit-config.yaml`, `.github/renovate.json5`, `.markdownlint-cli2.yaml`, `AGENTS.md`, `CLAUDE.md`,
