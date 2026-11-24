@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `audiodoc doctor` no longer reports the API port as failed while the audiodoc service runs on it: when the port is in use, doctor asks `/health` on that address and reports the port as used by the running service if audiodoc answers.
 - `install.sh --upgrade` points the staged environment at `.venv` before the swap, so scripts, `activate`, `pyvenv.cfg` and bytecode no longer refer to `.venv.new` and the systemd service starts after an upgrade.
 
 ## [0.3.0] - 2026-11-24
