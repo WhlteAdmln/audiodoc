@@ -22,6 +22,12 @@ class UnsupportedFormatError(DocumentRejectedError):
     public_message = ERROR_MESSAGES["unsupported_format"]
 
 
+class CsvFieldTooLargeError(DocumentRejectedError):
+    """A CSV cell exceeds the field size limit of the csv module (HTTP 400)."""
+
+    public_message = ERROR_MESSAGES["csv_field_too_large"]
+
+
 class PayloadTooLargeError(AppError):
     """The uploaded payload exceeds the configured byte limit (HTTP 413)."""
 

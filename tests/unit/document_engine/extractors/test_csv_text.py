@@ -2,6 +2,8 @@
 
 """Tests for extractors csv text."""
 
+import csv
+
 import pytest
 
 from audiodoc.common import deadline as deadline_module
@@ -9,6 +11,7 @@ from audiodoc.common.deadline import Deadline, DeadlineExceededError
 from audiodoc.common.text_budget import TextBudget
 from audiodoc.document_engine.extractors.base import ExtractContext
 from audiodoc.document_engine.extractors.csv_text import extract_csv
+from audiodoc.errors.documents import CsvFieldTooLargeError
 from tests.support.clock import FakeMonotonicClock
 
 
@@ -108,3 +111,28 @@ def test_stops_when_the_deadline_has_expired(monkeypatch: pytest.MonkeyPatch) ->
 
     expected_message = "processing deadline exceeded"
     assert str(caught.value) == expected_message, "the expired deadline was ignored"
+
+
+def test_rejects_a_cell_longer_than_the_csv_field_limit() -> None:
+    oversized_cell = "ж" * (csv.field_size_limit() + 7)
+    data = f"заголовок;{oversized_cell}\n".encode()
+
+    with pytest.raises(CsvFieldTooLargeError) as caught:
+        extract_csv(data)
+
+    expected_message = "Ячейка CSV слишком большая"
+    assert caught.value.public_message == expected_message, (
+        "an oversized cell was not reported with its own client message"
+    )
+
+
+def test_reraises_other_csv_errors() -> None:
+    data = b"first,second\rstray,cell\n"
+
+    with pytest.raises(csv.Error) as caught:
+        extract_csv(data)
+
+    expected_message = "new-line character seen in unquoted field"
+    assert str(caught.value).startswith(expected_message), (
+        "a csv error unrelated to the field limit changed its type"
+    )

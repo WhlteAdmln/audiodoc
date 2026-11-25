@@ -3,12 +3,16 @@
 
 import csv
 import io
+from collections.abc import Iterator
 
 from audiodoc.document_engine.extractors.base import (
     ExtractContext,
     add_chunk,
     make_context,
 )
+from audiodoc.errors.documents import CsvFieldTooLargeError
+
+_FIELD_LIMIT_ERROR_PREFIX = "field larger than field limit"
 
 
 def extract_csv(data: bytes, *, context: ExtractContext | None = None) -> str:
@@ -21,7 +25,7 @@ def extract_csv(data: bytes, *, context: ExtractContext | None = None) -> str:
         dialect = csv.excel
 
     result: list[str] = []
-    for row in csv.reader(io.StringIO(text), dialect):
+    for row in _read_rows(text, dialect):
         ctx.check()
         line = " | ".join(row).strip()
         if line:
@@ -29,3 +33,14 @@ def extract_csv(data: bytes, *, context: ExtractContext | None = None) -> str:
         if ctx.budget.truncated:
             break
     return "\n".join(result)
+
+
+def _read_rows(
+    text: str, dialect: type[csv.Dialect] | csv.Dialect
+) -> Iterator[list[str]]:
+    try:
+        yield from csv.reader(io.StringIO(text), dialect)
+    except csv.Error as error:
+        if str(error).startswith(_FIELD_LIMIT_ERROR_PREFIX):
+            raise CsvFieldTooLargeError from error
+        raise

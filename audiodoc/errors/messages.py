@@ -30,6 +30,7 @@ ERROR_MESSAGES: dict[str, str] = {
         "\u041d\u0435 удалось прочитать документ: файл повреждён или имеет "
         "неподдерживаемую структуру"
     ),
+    "csv_field_too_large": "Ячейка CSV слишком большая",
     "djvu_output_too_large": "Результат программы DjVuLibre слишком большой",
     "djvu_processing_timeout": "Превышено время обработки DJVU",
     "djvu_page_count_unavailable": (
