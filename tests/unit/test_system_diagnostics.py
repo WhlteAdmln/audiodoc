@@ -276,6 +276,12 @@ def test_classifies_unauthenticated_setting(value: str, expected_status: str) ->
         ({"AUDIODOC_HOST": "   "}, "Server binds to 127.0.0.1."),
         ({"AUDIODOC_HOST": "192.168.17.4"}, "Server binds to 192.168.17.4."),
         ({"AUDIODOC_HOST": "::1"}, "Server binds to ::1."),
+        ({"AUDIODOC_HOST": "localhost"}, "Server binds to localhost."),
+        ({"AUDIODOC_HOST": "fe80::7%lo0"}, "Server binds to fe80::7%lo0."),
+        (
+            {"AUDIODOC_HOST": "x" * 70 + ".example"},
+            f"Server binds to {'x' * 70}.example.",
+        ),
     ],
 )
 def test_accepts_specific_bind_address(
@@ -293,6 +299,11 @@ def test_accepts_specific_bind_address(
         str(ipaddress.IPv4Address(0)),
         str(ipaddress.IPv6Address(0)),
         f" {ipaddress.IPv4Address(0)}\t",
+        "0",
+        "::0",
+        "0:0:0:0:0:0:0:0",
+        "000.0",
+        "0x0",
     ],
 )
 def test_warns_on_all_interfaces_bind_address(host: str) -> None:
