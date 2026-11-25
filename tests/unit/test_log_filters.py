@@ -173,3 +173,34 @@ def test_filter_keeps_values_that_do_not_look_like_telegram_tokens(text: str) ->
     message = _filtered_message([], record)
 
     assert message == text, "a short id or tail must not be taken for a token"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            (
+                "GET https://api.telegram.org/bot7301958246:"
+                "AAHq_Zr-9xLmPb4TnVw2KcYe8UoJd3FsQgN/getMe"
+            ),
+            "GET https://api.telegram.org/bot[REDACTED]/getMe",
+        ),
+        (
+            "files/5821094736:QwErTy_uIoP-aSdFgHjKlZxCvBnM_12345678-/photo.jpg",
+            "files/[REDACTED]/photo.jpg",
+        ),
+        (
+            "rejected token 4401928375:Mn8_vB7cX6zL5kJ4hG3fD2sA1pO0iU9yT8r-",
+            "rejected token [REDACTED]",
+        ),
+    ],
+    ids=["bot-api-url", "dash-before-slash", "dash-at-end"],
+)
+def test_filter_redacts_a_telegram_token_glued_to_other_text(
+    text: str, expected: str
+) -> None:
+    record = _record(text)
+
+    message = _filtered_message([], record)
+
+    assert message == expected, "a token inside a URL or path must be redacted"
