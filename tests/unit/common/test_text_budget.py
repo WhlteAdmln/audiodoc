@@ -34,7 +34,8 @@ def test_text_budget_never_exceeds_limit_and_reports_exact_truncation(
 
 def test_text_budget_truncates_a_single_oversized_chunk() -> None:
     budget = TextBudget(10)
-    assert budget.add("a" * 20) == "a" * 10
+    expected_piece = "Длинный_те"
+    assert budget.add("Длинный_текст №20!!") == expected_piece
     expected_used = 10
     assert budget.used == expected_used
     assert budget.exhausted is True
@@ -43,8 +44,8 @@ def test_text_budget_truncates_a_single_oversized_chunk() -> None:
 
 def test_text_budget_accounts_for_newline_between_chunks() -> None:
     budget = TextBudget(5)
-    parts = [budget.add("abc"), budget.add("def")]
-    expected_text = "abc\nd"
+    parts = [budget.add("Чай"), budget.add("Tee!")]
+    expected_text = "Чай\nT"
     assert "\n".join(part for part in parts if part) == expected_text
     expected_used = 5
     assert budget.used == expected_used

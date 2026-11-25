@@ -149,7 +149,9 @@ def test_passes_non_http_scopes_through_untouched() -> None:
 
 
 def test_filter_adds_the_current_request_id_to_log_records() -> None:
-    record = logging.LogRecord("audit", logging.INFO, __file__, 1, "hello", (), None)
+    record = logging.LogRecord(
+        "audit", logging.INFO, __file__, 1, "запрос принят", (), None
+    )
     token = request_id_var.set("request-test-0001")
     try:
         RequestIdFilter().filter(record)
@@ -161,7 +163,9 @@ def test_filter_adds_the_current_request_id_to_log_records() -> None:
 
 
 def test_filter_marks_records_outside_a_request() -> None:
-    record = logging.LogRecord("startup", logging.WARNING, __file__, 9, "x", (), None)
+    record = logging.LogRecord(
+        "startup", logging.WARNING, __file__, 9, "Listening on :8443", (), None
+    )
     RequestIdFilter().filter(record)
 
     expected_request_id = "-"
@@ -169,7 +173,9 @@ def test_filter_marks_records_outside_a_request() -> None:
 
 
 def test_filter_keeps_every_record() -> None:
-    record = logging.LogRecord("noisy", logging.DEBUG, __file__, 3, "%s", ("x",), None)
+    record = logging.LogRecord(
+        "noisy", logging.DEBUG, __file__, 3, "%s", ("Ничего не найдено",), None
+    )
 
     kept = RequestIdFilter().filter(record)
 

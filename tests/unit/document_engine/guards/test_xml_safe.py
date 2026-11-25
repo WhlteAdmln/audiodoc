@@ -74,10 +74,10 @@ def test_honours_the_declared_encoding() -> None:
 def test_does_not_expand_xinclude() -> None:
     data = (
         b'<r xmlns:xi="http://www.w3.org/2001/XInclude">'
-        b'<xi:include href="/etc/passwd" parse="text"/>ok</r>'
+        b'<xi:include href="/etc/passwd" parse="text"/>s3cr3t-Data</r>'
     )
 
     root = parse_xml(data)
 
-    expected_text = "ok"
+    expected_text = "s3cr3t-Data"
     assert "".join(root.itertext()) == expected_text, "XInclude was expanded"

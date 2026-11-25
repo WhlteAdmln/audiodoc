@@ -136,7 +136,7 @@ def test_rejects_members_whose_declared_total_exceeds_the_limit(
 
 
 def test_rejects_nonempty_member_with_zero_compressed_size() -> None:
-    archive = lying_zip([ZipMember("Отчёт.txt", b"z", declared_compress_size=0)])
+    archive = lying_zip([ZipMember("Отчёт.txt", b"\xd0\x96", declared_compress_size=0)])
 
     message = _rejection(archive)
 

@@ -16,6 +16,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Changed
 
+- [#103](https://github.com/WhlteAdmln/audiodoc/issues/103) Unit tests use irregular inputs such as non-ASCII text and binary bytes instead of placeholders like `"abc"` and `"hello"`.
 - [#117](https://github.com/WhlteAdmln/audiodoc/issues/117) `WorkQueue` keeps its lifecycle in an explicit open, draining and closed state instead of a flag and an idle event.
 - [#105](https://github.com/WhlteAdmln/audiodoc/issues/105) `WorkQueue` drops an unused attribute and its `too-many-instance-attributes` suppression; `Settings` keeps the suppression with an inline reason.
 - [#123](https://github.com/WhlteAdmln/audiodoc/issues/123) The `log_safe`, extractor registry and runner tests live in the test files that mirror their modules.

@@ -156,7 +156,7 @@ def test_cleanup_stale_files_removes_only_old_managed_files(
 ) -> None:
     private_dir.mkdir()
     path = private_dir / name
-    path.write_bytes(b"data")
+    path.write_bytes(b"OggS\x00\x02")
     if stale:
         _age(path)
 

@@ -88,9 +88,9 @@ def test_pdf_rejects_page_that_cannot_fit_even_at_minimum_dpi(
 def test_pdf_marks_output_incomplete_when_pages_remain_after_exact_fit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    document = FakeDocument([FakePage("abc"), FakePage("def")])
+    document = FakeDocument([FakePage("Пролог\tI"), FakePage("Epilogue ii")])
     monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
-    first_page_text = "--- Страница 1 ---\nabc"
+    first_page_text = "--- Страница 1 ---\nПролог\tI"
     budget = TextBudget(len(first_page_text))
     context = ExtractContext(budget=budget, deadline=Deadline(10))
 
@@ -101,9 +101,9 @@ def test_pdf_marks_output_incomplete_when_pages_remain_after_exact_fit(
 def test_pdf_exact_fit_on_last_page_is_not_truncated(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    document = FakeDocument([FakePage("abc")])
+    document = FakeDocument([FakePage("Kapitel ZWÖLF")])
     monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
-    first_page_text = "--- Страница 1 ---\nabc"
+    first_page_text = "--- Страница 1 ---\nKapitel ZWÖLF"
     budget = TextBudget(len(first_page_text))
     context = ExtractContext(budget=budget, deadline=Deadline(10))
 
