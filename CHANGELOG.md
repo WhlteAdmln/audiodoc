@@ -13,6 +13,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Fixed
 
+- [#148](https://github.com/WhlteAdmln/audiodoc/issues/148) `audiodoc doctor` fails the API keys check for a key with non-ASCII characters, as startup does.
 - [#108](https://github.com/WhlteAdmln/audiodoc/issues/108) Startup rejects an API key with non-ASCII characters with a clear error instead of accepting a key that can never authenticate.
 - [#112](https://github.com/WhlteAdmln/audiodoc/issues/112) OCR reports Tesseract output that is not valid UTF-8 as a failed page recognition instead of a generic extraction failure.
 - [#110](https://github.com/WhlteAdmln/audiodoc/issues/110) CSV extraction reports a cell longer than 131072 characters with its own client message instead of a generic extraction failure.

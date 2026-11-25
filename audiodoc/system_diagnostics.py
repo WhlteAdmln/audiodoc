@@ -96,7 +96,7 @@ def _key_values(environ: Mapping[str, str], name: str) -> set[str]:
 
 
 def check_api_keys(environ: Mapping[str, str]) -> DiagnosticCheck:
-    """Check that both API keys exist and do not share values."""
+    """Check that both API keys exist, are ASCII and do not share values."""
     audio_keys = _key_values(environ, "AUDIODOC_AUDIO_KEY")
     document_keys = _key_values(environ, "AUDIODOC_DOCUMENT_KEY")
     missing = [
@@ -112,6 +112,19 @@ def check_api_keys(environ: Mapping[str, str]) -> DiagnosticCheck:
             "API keys",
             "FAIL",
             "Missing API keys: " + ", ".join(missing) + ".",
+        )
+    non_ascii = [
+        name
+        for name in ("AUDIODOC_AUDIO_KEY", "AUDIODOC_DOCUMENT_KEY")
+        if not environ.get(name, "").isascii()
+    ]
+    if non_ascii:
+        return DiagnosticCheck(
+            "API keys",
+            "FAIL",
+            "API keys must contain only ASCII characters: "
+            + ", ".join(non_ascii)
+            + ".",
         )
     if audio_keys & document_keys:
         return DiagnosticCheck(
