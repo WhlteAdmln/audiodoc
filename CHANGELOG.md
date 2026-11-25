@@ -13,6 +13,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Changed
 
+- [#121](https://github.com/WhlteAdmln/audiodoc/issues/121) The bot contract test loads a fake Whisper model through `loaded_model_holder` instead of patching a private attribute.
 - [#122](https://github.com/WhlteAdmln/audiodoc/issues/122) The OCR integration tests share the `PytesseractModule` protocol from `tests/support/tesseract.py`.
 
 ### Fixed

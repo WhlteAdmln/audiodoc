@@ -14,6 +14,7 @@ from audiodoc.common.work_queue import WorkQueue
 from audiodoc.main import create_app
 from audiodoc.transcription.model import ModelHolder
 from scripts.export_openapi import render_openapi
+from tests.support.whisper import FakeWhisperModel, loaded_model_holder
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "audiodoc_responses.json"
@@ -57,7 +58,7 @@ def test_transcribe_response_matches_shared_bot_contract(
     app: FastAPI,
     client: TestClient,
 ) -> None:
-    monkeypatch.setattr(app.state.model_holder, "_model", object())
+    app.state.model_holder = loaded_model_holder(FakeWhisperModel())
 
     async def fake_transcribe_file(
         _path: Path,
