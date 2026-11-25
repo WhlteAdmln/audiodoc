@@ -64,7 +64,7 @@ chmod 600 .env
 
 ## Настройка
 
-Задайте разные длинные случайные значения для `AUDIODOC_AUDIO_KEY` и `AUDIODOC_DOCUMENT_KEY`; вне локальной разработки оставляйте `ALLOW_UNAUTHENTICATED=false`. Ключ можно создать командой `python -c "import secrets; print(secrets.token_urlsafe(32))"`. Все настройки, значения по умолчанию, примеры и команду `audiodoc pair` см. в [руководстве по конфигурации](docs/configuration.md). Настройки бота описаны в [руководстве подключения](docs/connecting-the-bot.ru.md).
+Задайте разные длинные случайные значения для `AUDIODOC_AUDIO_KEY` и `AUDIODOC_DOCUMENT_KEY` только из ASCII-символов (с не-ASCII ключом сервис не запустится); вне локальной разработки оставляйте `ALLOW_UNAUTHENTICATED=false`. Ключ можно создать командой `python -c "import secrets; print(secrets.token_urlsafe(32))"`. Все настройки, значения по умолчанию, примеры и команду `audiodoc pair` см. в [руководстве по конфигурации](docs/configuration.md). Настройки бота описаны в [руководстве подключения](docs/connecting-the-bot.ru.md).
 
 ## Запуск и проверка
 

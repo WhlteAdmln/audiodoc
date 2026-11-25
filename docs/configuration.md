@@ -8,7 +8,7 @@ Generate independent keys for audio and documents:
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-Set the generated values in `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`. The keys must be different. `AUDIODOC_HOME` is read from the process environment before the `.env` file is loaded; it selects the application home containing `.env`, `.venv`, `tmp/`, and `models/`.
+Set the generated values in `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`. The keys must be different and contain only ASCII characters; the service refuses to start with a non-ASCII key, because HTTP clients cannot send it in the `Authorization` header in a form the service can match. `AUDIODOC_HOME` is read from the process environment before the `.env` file is loaded; it selects the application home containing `.env`, `.venv`, `tmp/`, and `models/`.
 
 ## Environment settings
 

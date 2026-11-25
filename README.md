@@ -64,7 +64,7 @@ chmod 600 .env
 
 ## Configuration
 
-Set different, long random values for `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`; keep `ALLOW_UNAUTHENTICATED=false` outside local development. Generate a key with `python -c "import secrets; print(secrets.token_urlsafe(32))"`. See [Configuration](docs/configuration.md) for every setting, defaults, examples, and the `audiodoc pair` command. See the [bot connection guide](docs/connecting-the-bot.md) for bot-side settings.
+Set different, long random values for `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`, using ASCII characters only (the service refuses to start with a non-ASCII key); keep `ALLOW_UNAUTHENTICATED=false` outside local development. Generate a key with `python -c "import secrets; print(secrets.token_urlsafe(32))"`. See [Configuration](docs/configuration.md) for every setting, defaults, examples, and the `audiodoc pair` command. See the [bot connection guide](docs/connecting-the-bot.md) for bot-side settings.
 
 ## Run and verify
 
