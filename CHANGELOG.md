@@ -13,6 +13,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Fixed
 
+- [#113](https://github.com/WhlteAdmln/audiodoc/issues/113) OCR reports an image whose header exceeds Pillow's decompression bomb limit as too large.
 - [#109](https://github.com/WhlteAdmln/audiodoc/issues/109) CSV extraction only detects `,`, `;`, tab or `|` as the delimiter, so a single-column file is no longer split on a letter.
 - [#111](https://github.com/WhlteAdmln/audiodoc/issues/111) XML extraction keeps the text that follows a child element.
 - [#107](https://github.com/WhlteAdmln/audiodoc/issues/107) `audiodoc doctor` no longer reports the API port as failed while the service is running.
