@@ -11,6 +11,10 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 - [#130](https://github.com/WhlteAdmln/audiodoc/issues/130) CI reports the number of changed lines of a pull request against the 256-line limit without failing.
 - [#129](https://github.com/WhlteAdmln/audiodoc/issues/129) Contributors can read the shared development principles in `docs/development-principles.md` and its Russian twin.
 
+### Changed
+
+- [#122](https://github.com/WhlteAdmln/audiodoc/issues/122) The OCR integration tests share the `PytesseractModule` protocol from `tests/support/tesseract.py`.
+
 ### Fixed
 
 - [#148](https://github.com/WhlteAdmln/audiodoc/issues/148) `audiodoc doctor` fails the API keys check for a key with non-ASCII characters, as startup does.

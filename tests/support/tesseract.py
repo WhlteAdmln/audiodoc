@@ -4,6 +4,7 @@
 import json
 import sys
 from pathlib import Path
+from typing import Protocol
 
 _SCRIPT = """#!{python}
 import json
@@ -33,6 +34,15 @@ pages = config["pages"]
 sys.stdout.buffer.write(bytes.fromhex(pages[min(index, len(pages) - 1)]))
 sys.exit(config["exit_code"])
 """
+
+
+class PytesseractModule(Protocol):
+    """The part of the ``pytesseract`` module that the integration tests use."""
+
+    TesseractError: type[Exception]
+
+    def get_languages(self, config: str = "") -> list[str]:
+        """Return the languages that the installed Tesseract recognizes."""
 
 
 class FakeTesseract:
