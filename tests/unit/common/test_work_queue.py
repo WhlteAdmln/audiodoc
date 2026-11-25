@@ -61,6 +61,33 @@ async def _rejection_after_shutdown(queue: WorkQueue) -> type[BaseException]:
     return await _entry_error(queue)
 
 
+async def _hold_and_record(
+    queue: WorkQueue, release: asyncio.Event, events: list[str]
+) -> None:
+    await _hold(queue, release)
+    events.append("work finished")
+
+
+async def _shut_down_and_record(queue: WorkQueue, events: list[str]) -> None:
+    await queue.shutdown()
+    events.append("shutdown finished")
+
+
+async def _completion_order(queue: WorkQueue, shutdowns: int) -> list[str]:
+    events: list[str] = []
+    release = asyncio.Event()
+    holder = asyncio.create_task(_hold_and_record(queue, release, events))
+    await asyncio.sleep(0)
+    closers = [
+        asyncio.create_task(_shut_down_and_record(queue, events))
+        for _ in range(shutdowns)
+    ]
+    await asyncio.sleep(0)
+    release.set()
+    await asyncio.gather(holder, *closers)
+    return events
+
+
 async def _restart_while_busy(queue: WorkQueue) -> str:
     release = asyncio.Event()
     holder = asyncio.create_task(_hold(queue, release))
@@ -126,6 +153,16 @@ def test_rejects_new_work_after_shutdown() -> None:
     rejected = asyncio.run(_rejection_after_shutdown(queue))
 
     assert rejected is ServerBusyError, "a shut down queue accepted work"
+
+
+@pytest.mark.parametrize("shutdowns", [1, 3])
+def test_shutdown_waits_until_admitted_work_finishes(shutdowns: int) -> None:
+    queue = WorkQueue(workers=3, max_waiting=7)
+
+    order = asyncio.run(_completion_order(queue, shutdowns))
+
+    expected_order = ["work finished"] + ["shutdown finished"] * shutdowns
+    assert order == expected_order, "shutdown returned before admitted work finished"
 
 
 def test_refuses_restart_while_work_is_admitted() -> None:
