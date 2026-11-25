@@ -45,8 +45,7 @@ class QueueFullError(RuntimeError):
     """Neutral common-layer signal that no active or waiting slot is available."""
 
 
-# The eight attributes are the state of one bounded queue and change together.
-class WorkQueue:  # pylint: disable=too-many-instance-attributes
+class WorkQueue:
     """Limit active workers and the number of tasks allowed to wait.
 
     Admission is reserved before the first await in ``slot``. A caller that
@@ -70,7 +69,6 @@ class WorkQueue:  # pylint: disable=too-many-instance-attributes
             raise _InvalidErrorFactoryError
 
         self._semaphore = asyncio.Semaphore(workers)
-        self._workers = workers
         self._max_waiting = max_waiting
         self._waiting = 0
         self._active = 0
