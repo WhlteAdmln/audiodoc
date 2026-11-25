@@ -17,6 +17,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Changed
 
+- [#119](https://github.com/WhlteAdmln/audiodoc/issues/119) The CI test job that installs the package with its `test` extra under the lock is named `package` instead of `latest`.
 - [#104](https://github.com/WhlteAdmln/audiodoc/issues/104) Ruff and pylint exempt only test functions from docstrings, and test packages and modules have docstrings.
 - [#102](https://github.com/WhlteAdmln/audiodoc/issues/102) Every test has exactly one assert with a failure message, and `scripts/check_test_rules.py` checks all test files in strict mode.
 - [#103](https://github.com/WhlteAdmln/audiodoc/issues/103) Unit tests use irregular inputs such as non-ASCII text and binary bytes instead of placeholders like `"abc"` and `"hello"`.
