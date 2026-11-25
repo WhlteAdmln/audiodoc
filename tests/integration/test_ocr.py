@@ -1,20 +1,17 @@
 # Copyright (c) 2026 Nikolai Zelensky
 import importlib
 import shutil
-from typing import Protocol, cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
 from audiodoc.document_engine.ocr import extract_image_text
 from tests.support.builders import create_ocr_image
 
+if TYPE_CHECKING:
+    from tests.support.tesseract import PytesseractModule
+
 pytestmark = pytest.mark.integration
-
-
-class _PytesseractModule(Protocol):
-    TesseractError: type[Exception]
-
-    def get_languages(self, config: str = "") -> list[str]: ...
 
 
 def test_ocr_recognizes_text_from_image() -> None:
@@ -23,7 +20,7 @@ def test_ocr_recognizes_text_from_image() -> None:
 
     try:
         pytesseract = cast(
-            "_PytesseractModule",
+            "PytesseractModule",
             importlib.import_module("pytesseract"),
         )
     except ImportError as error:

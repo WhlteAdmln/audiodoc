@@ -4,7 +4,7 @@ import shutil
 import subprocess
 from io import BytesIO
 from pathlib import Path
-from typing import Protocol, cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from PIL import Image
@@ -12,13 +12,10 @@ from PIL import Image
 from audiodoc.document_engine.extractors.djvu import extract_djvu
 from tests.support.builders import create_ocr_image
 
+if TYPE_CHECKING:
+    from tests.support.tesseract import PytesseractModule
+
 pytestmark = pytest.mark.integration
-
-
-class _PytesseractModule(Protocol):
-    TesseractError: type[Exception]
-
-    def get_languages(self, config: str = "") -> list[str]: ...
 
 
 def test_scanned_djvu_is_processed_with_ocr(tmp_path: Path) -> None:
@@ -35,7 +32,7 @@ def test_scanned_djvu_is_processed_with_ocr(tmp_path: Path) -> None:
 
     try:
         pytesseract = cast(
-            "_PytesseractModule",
+            "PytesseractModule",
             importlib.import_module("pytesseract"),
         )
     except ImportError as error:
