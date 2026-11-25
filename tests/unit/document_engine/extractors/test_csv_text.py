@@ -41,6 +41,13 @@ def test_falls_back_to_the_excel_dialect_when_no_delimiter_is_found() -> None:
     assert text == expected_text, "a single column was not read"
 
 
+def test_keeps_a_single_column_that_a_letter_could_split() -> None:
+    text = extract_csv(b"single\ncolumn\n")
+
+    expected_text = "single\ncolumn"
+    assert text == expected_text, "a letter was used as the delimiter"
+
+
 def test_strips_the_byte_order_mark() -> None:
     data = "\N{BYTE ORDER MARK}имя;значение\nа;б\n".encode()
 

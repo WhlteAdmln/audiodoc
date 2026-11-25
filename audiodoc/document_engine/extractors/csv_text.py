@@ -16,7 +16,7 @@ def extract_csv(data: bytes, *, context: ExtractContext | None = None) -> str:
     ctx = make_context(context)
     text = data.decode("utf-8-sig", errors="replace")
     try:
-        dialect = csv.Sniffer().sniff(text[:8192])
+        dialect = csv.Sniffer().sniff(text[:8192], delimiters=",;\t|")
     except csv.Error:
         dialect = csv.excel
 
