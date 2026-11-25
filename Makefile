@@ -13,7 +13,7 @@ LOCK_MIN_RELEASE_AGE_DAYS ?= 14
 .PHONY: venv install-dev lint fix types pylint deptry vulture import-lint test \
         test-integration test-e2e integration e2e audit build docker installer \
         cov docs-check lock contract check clean pip-check test-no-skips \
-        release-check
+        test-integration-no-skips test-e2e-no-skips release-check
 
 venv:
 	@set -eu; \
@@ -126,16 +126,28 @@ check: lint types pylint deptry vulture import-lint pip-check test-no-skips audi
 pip-check:
 	$(PYTHON) -m pip check
 
+# $(call run_without_skips,<target>,<kind>) runs a test target and fails when
+# pytest reports a skipped test.
+define run_without_skips
+@log="$$(mktemp)"; status=0; \
+$(MAKE) --no-print-directory $(1) >"$$log" 2>&1 || status=$$?; \
+cat "$$log"; \
+if grep -q '^SKIPPED' "$$log"; then \
+	echo "$(2) tests must not be skipped." >&2; \
+	status=1; \
+fi; \
+rm -f "$$log"; \
+exit $$status
+endef
+
 test-no-skips:
-	@log="$$(mktemp)"; status=0; \
-	$(MAKE) --no-print-directory test >"$$log" 2>&1 || status=$$?; \
-	cat "$$log"; \
-	if grep -q '^SKIPPED' "$$log"; then \
-		echo "Unit tests must not be skipped." >&2; \
-		status=1; \
-	fi; \
-	rm -f "$$log"; \
-	exit $$status
+	$(call run_without_skips,test,Unit)
+
+test-integration-no-skips:
+	$(call run_without_skips,test-integration,Integration)
+
+test-e2e-no-skips:
+	$(call run_without_skips,test-e2e,E2E)
 
 release-check:
 	PATH="$(PYTHON_SCRIPTS_DIR):$$PATH" bash scripts/build_release.sh "$(PROJECT_VERSION)"

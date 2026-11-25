@@ -89,14 +89,7 @@ jobs:
       - name: Check installed dependencies
         run: python -m pip check
       - name: Run unit tests with coverage (skips are failures)
-        shell: bash
-        run: |
-          set -o pipefail
-          make test 2>&1 | tee pytest.log
-          if grep -q '^SKIPPED' pytest.log; then
-            echo "::error::Unit tests must not be skipped in CI."
-            exit 1
-          fi
+        run: make test-no-skips
       - name: Write coverage summary
         if: matrix.deps == 'lock' && matrix.python-version == '3.12'
         run: python -m coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
@@ -139,14 +132,7 @@ jobs:
       - name: Check installed dependencies
         run: python -m pip check
       - name: Run integration tests (skips are failures)
-        shell: bash
-        run: |
-          set -o pipefail
-          make integration 2>&1 | tee pytest.log
-          if grep -q '^SKIPPED' pytest.log; then
-            echo "::error::Integration tests must not be skipped in CI."
-            exit 1
-          fi
+        run: make test-integration-no-skips
 
       - name: Install deployment validators
         run: |
@@ -252,15 +238,8 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
       - name: Check installed dependencies
         run: python -m pip check
-      - name: Run real Whisper e2e test
-        shell: bash
-        run: |
-          set -o pipefail
-          make e2e 2>&1 | tee pytest.log
-          if grep -q '^SKIPPED' pytest.log; then
-            echo "::error::E2E tests must not be skipped in CI."
-            exit 1
-          fi
+      - name: Run real Whisper e2e test (skips are failures)
+        run: make test-e2e-no-skips
 
   pr-size:
     name: Pull request size (report only)
