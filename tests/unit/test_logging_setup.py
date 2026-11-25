@@ -44,6 +44,19 @@ def test_configure_logging_does_not_stack_filters_when_called_again() -> None:
     assert _filter_types() == expected, "a second call must not add filters"
 
 
+def test_configure_logging_redacts_a_key_passed_in_a_later_call(
+    stream: io.StringIO,
+) -> None:
+    earlier_value = "ранний-ключ-7351"
+    later_value = "поздний-ключ-9024"
+    configure_logging("INFO", [earlier_value])
+    configure_logging("INFO", [later_value])
+
+    logging.getLogger("audiodoc.test").warning("rejected key %s", later_value)
+
+    assert later_value not in stream.getvalue(), "a later key must be redacted"
+
+
 def test_configure_logging_redacts_a_configured_key_in_output(
     stream: io.StringIO,
 ) -> None:
