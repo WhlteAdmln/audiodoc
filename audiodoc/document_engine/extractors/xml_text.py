@@ -14,10 +14,10 @@ def extract_xml_text(data: bytes, *, context: ExtractContext | None = None) -> s
     ctx = make_context(context)
     root = parse_xml(data)
     result: list[str] = []
-    for element in root.iter():
+    for text in root.itertext():
         ctx.check()
-        if element.text and element.text.strip():
-            add_chunk(result, ctx, element.text.strip())
+        if text.strip():
+            add_chunk(result, ctx, text.strip())
         if ctx.budget.truncated:
             break
     return "\n".join(result)
