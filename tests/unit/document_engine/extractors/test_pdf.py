@@ -16,18 +16,9 @@ from tests.support.builders import create_pdf
 from tests.support.pymupdf_documents import FakeDocument, FakePage
 
 
-def test_pdf_extracts_existing_text_layer() -> None:
-    text = extract_pdf(create_pdf())
-
-    page_header = "--- Страница 1 ---"
-    assert page_header in text
-    page_text = "PDF document test"
-    assert page_text in text
-
-
-def test_pdf_uses_ocr_for_page_without_text_layer(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.fixture(name="ocr_page")
+def fixture_ocr_page(monkeypatch: pytest.MonkeyPatch) -> FakePage:
+    """Open a one-page PDF without a text layer whose OCR returns padded text."""
     page = FakePage()
     document = FakeDocument([page])
     monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
@@ -36,23 +27,49 @@ def test_pdf_uses_ocr_for_page_without_text_layer(
         "extract_image_text",
         lambda _image_data, **_kwargs: " OCR result ",
     )
+    return page
 
+
+@pytest.mark.parametrize(
+    "expected_fragment",
+    ["--- Страница 1 ---", "PDF document test"],
+)
+def test_pdf_extracts_existing_text_layer(expected_fragment: str) -> None:
+    text = extract_pdf(create_pdf())
+
+    assert expected_fragment in text, "the text layer and its page header must remain"
+
+
+@pytest.mark.usefixtures("ocr_page")
+def test_pdf_uses_ocr_for_page_without_text_layer() -> None:
     text = extract_pdf(b"fake-pdf")
 
     expected_text = "--- Страница 1 ---\nOCR result"
-    assert text == expected_text
-    assert page.render_arguments == {"dpi": 200, "alpha": False}
+    assert text == expected_text, "a page without a text layer must be recognized"
+
+
+def test_pdf_renders_page_without_text_layer_at_default_dpi(
+    ocr_page: FakePage,
+) -> None:
+    extract_pdf(b"fake-pdf")
+
+    expected_render_arguments = {"dpi": 200, "alpha": False}
+    assert ocr_page.render_arguments == expected_render_arguments, (
+        "an A4 page must be rendered at the default DPI"
+    )
 
 
 def test_pdf_rejects_too_many_pages(monkeypatch: pytest.MonkeyPatch) -> None:
     document = FakeDocument([], page_count=MAX_DOCUMENT_PAGES + 1)
     monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
 
-    with pytest.raises(
-        DocumentRejectedError,
-        match="\u0412 PDF слишком много страниц",
-    ):
+    with pytest.raises(DocumentRejectedError) as error:
         extract_pdf(b"fake-pdf")
+
+    expected_message = "\u0412 PDF слишком много страниц"
+    assert str(error.value) == expected_message, (
+        "a PDF over the page limit must be rejected"
+    )
 
 
 def test_pdf_reduces_render_dpi_for_oversized_page(
@@ -81,8 +98,12 @@ def test_pdf_rejects_page_that_cannot_fit_even_at_minimum_dpi(
     page.rect = SimpleNamespace(width=1000 * 72, height=1000 * 72)
     document = FakeDocument([page])
     monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
-    with pytest.raises(DocumentRejectedError, match="слишком велика"):
+    with pytest.raises(DocumentRejectedError) as error:
         extract_pdf(b"%PDF-giant")
+    expected_message = "Страница PDF слишком велика для безопасного OCR"
+    assert str(error.value) == expected_message, (
+        "a page too large for the minimum DPI must be rejected"
+    )
 
 
 def test_pdf_marks_output_incomplete_when_pages_remain_after_exact_fit(
@@ -94,8 +115,12 @@ def test_pdf_marks_output_incomplete_when_pages_remain_after_exact_fit(
     budget = TextBudget(len(first_page_text))
     context = ExtractContext(budget=budget, deadline=Deadline(10))
 
-    assert extract_pdf(b"fake-pdf", context=context) == first_page_text
-    assert budget.truncated is True
+    text = extract_pdf(b"fake-pdf", context=context)
+
+    expected_result = (first_page_text, True)
+    assert (text, budget.truncated) == expected_result, (
+        "the first page must fill the budget and the remaining page must truncate it"
+    )
 
 
 def test_pdf_exact_fit_on_last_page_is_not_truncated(
@@ -107,5 +132,9 @@ def test_pdf_exact_fit_on_last_page_is_not_truncated(
     budget = TextBudget(len(first_page_text))
     context = ExtractContext(budget=budget, deadline=Deadline(10))
 
-    assert extract_pdf(b"fake-pdf", context=context) == first_page_text
-    assert budget.truncated is False
+    text = extract_pdf(b"fake-pdf", context=context)
+
+    expected_result = (first_page_text, False)
+    assert (text, budget.truncated) == expected_result, (
+        "a last page that exactly fits must be complete and not truncated"
+    )

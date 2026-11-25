@@ -18,11 +18,7 @@ def test_ods_stops_at_configured_row_and_column_caps(
     monkeypatch.setattr(ods_module, "MAX_SHEET_COLUMNS", 1)
     text = extract_odf(create_ods(), "ods")
     expected_text = "--- Лист: Test sheet ---\nName"
-    assert text == expected_text
-    header_cell = "Value"
-    assert header_cell not in text
-    first_cell = "Document engine"
-    assert first_cell not in text
+    assert text == expected_text, "the row and column caps were not applied"
 
 
 def test_ods_extracts_sheet_names_and_rows() -> None:
@@ -30,5 +26,13 @@ def test_ods_extracts_sheet_names_and_rows() -> None:
     text = extract_odf(data, "ods")
 
     expected_text = "--- Лист: Test sheet ---\nName | Value\nDocument engine | Works!"
-    assert text == expected_text
-    assert extract_ods(load_document(data)) == text
+    assert text == expected_text, "wrong sheet text from the ODF dispatcher"
+
+
+def test_ods_extracts_sheet_names_and_rows_from_loaded_document() -> None:
+    data = create_ods()
+
+    text = extract_ods(load_document(data))
+
+    expected_text = "--- Лист: Test sheet ---\nName | Value\nDocument engine | Works!"
+    assert text == expected_text, "wrong sheet text from a loaded document"

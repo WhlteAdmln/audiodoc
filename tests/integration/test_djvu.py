@@ -61,5 +61,6 @@ def test_scanned_djvu_is_processed_with_ocr(tmp_path: Path) -> None:
 
     text = extract_djvu(djvu_path.read_bytes())
 
-    assert "Document Engine" in text
-    assert "Hello" in text
+    missing_words = [word for word in ("Document Engine", "Hello") if word not in text]
+    expected_missing: list[str] = []
+    assert missing_words == expected_missing, "OCR lost words of the scanned page"

@@ -2,24 +2,32 @@
 
 """Tests for extractors html."""
 
+import pytest
+
 from audiodoc.document_engine.extractors.html import extract_html
 
 
-def test_html_removes_non_content_elements() -> None:
+@pytest.fixture(name="extracted_text")
+def fixture_extracted_text() -> str:
+    """Extract text from a page with content and non-content elements."""
     data = (
         b"<html><body><h1>Visible</h1><script>secret()</script>"
         b"<style>.hidden{}</style><noscript>fallback</noscript>"
         b"<p>Text</p></body></html>"
     )
-    text = extract_html(data)
+    return extract_html(data)
 
-    visible_heading = "Visible"
-    assert visible_heading in text
-    visible_text = "Text"
-    assert visible_text in text
-    script_text = "secret"
-    assert script_text not in text
-    noscript_text = "fallback"
-    assert noscript_text not in text
-    style_rule = ".hidden"
-    assert style_rule not in text
+
+@pytest.mark.parametrize("visible_text", ["Visible", "Text"])
+def test_html_keeps_content_elements(extracted_text: str, visible_text: str) -> None:
+    assert visible_text in extracted_text, f"content text {visible_text!r} is missing"
+
+
+@pytest.mark.parametrize("hidden_text", ["secret", "fallback", ".hidden"])
+def test_html_removes_non_content_elements(
+    extracted_text: str,
+    hidden_text: str,
+) -> None:
+    assert hidden_text not in extracted_text, (
+        f"non-content text {hidden_text!r} was extracted"
+    )

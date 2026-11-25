@@ -9,9 +9,16 @@ from tests.support.odf_documents import load_document
 
 
 def test_odt_extracts_headings_and_paragraphs() -> None:
-    data = create_odt()
-    text = extract_odf(data, "odt")
+    text = extract_odf(create_odt(), "odt")
 
     expected_text = "ODT test\nDocument engine works!"
-    assert text == expected_text
-    assert extract_odt(load_document(data)) == text
+    assert text == expected_text, "ODF dispatch lost headings or paragraphs"
+
+
+def test_extract_odt_reads_a_loaded_document() -> None:
+    document = load_document(create_odt())
+
+    text = extract_odt(document)
+
+    expected_text = "ODT test\nDocument engine works!"
+    assert text == expected_text, "the ODT extractor lost headings or paragraphs"

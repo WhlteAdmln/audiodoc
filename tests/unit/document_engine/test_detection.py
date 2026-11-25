@@ -34,7 +34,9 @@ from audiodoc.document_engine.detection.formats import (
 def test_detects_format_from_signature_and_extension(
     data: object, filename: object, expected: object
 ) -> None:
-    assert detect_format(data, filename) == expected
+    assert detect_format(data, filename) == expected, (
+        f"{filename!r} was not detected as {expected!r}"
+    )
 
 
 def test_detects_docx_by_zip_contents() -> None:
@@ -43,25 +45,39 @@ def test_detects_docx_by_zip_contents() -> None:
         archive.writestr("word/document.xml", "<document />")
 
     expected_detect_format = "docx"
-    assert detect_format(output.getvalue(), "renamed.bin") == expected_detect_format
+    assert detect_format(output.getvalue(), "renamed.bin") == expected_detect_format, (
+        "a ZIP archive with word/document.xml was not detected as DOCX"
+    )
 
 
-def test_detection_package_exports_expected_format_collections() -> None:
+def test_exports_supported_document_formats() -> None:
     document_format = "pdf"
-    assert document_format in SUPPORTED_FORMATS
+    assert document_format in SUPPORTED_FORMATS, "PDF is not a supported format"
+
+
+def test_exports_image_extensions() -> None:
     image_extension = ".png"
-    assert image_extension in IMAGE_EXTENSIONS
+    assert image_extension in IMAGE_EXTENSIONS, "PNG is not an image extension"
+
+
+def test_exports_extension_map() -> None:
     expected_markdown = "md"
-    assert extension_map["markdown"] == expected_markdown
+    assert extension_map["markdown"] == expected_markdown, (
+        "the markdown extension does not map to md"
+    )
 
 
 def test_image_extension_check_still_precedes_file_signature() -> None:
-    assert detect_format(b"%PDF-1.7 payload", "payload.png") is None
+    assert detect_format(b"%PDF-1.7 payload", "payload.png") is None, (
+        "a PDF signature overrode the image extension"
+    )
 
 
 def test_signature_check_still_precedes_other_extension() -> None:
     expected_detect_format = "pdf"
-    assert detect_format(b"%PDF-1.7 payload", "payload.txt") == expected_detect_format
+    assert (
+        detect_format(b"%PDF-1.7 payload", "payload.txt") == expected_detect_format
+    ), "the text extension overrode the PDF signature"
 
 
 def test_text_extension_mapping_is_preserved() -> None:
@@ -69,7 +85,7 @@ def test_text_extension_mapping_is_preserved() -> None:
     assert (
         detect_format(b"not really markdown", "payload.markdown")
         == expected_detect_format
-    )
+    ), "the markdown extension was not mapped to md"
 
 
 @given(
@@ -86,7 +102,9 @@ def test_detect_format_never_raises_for_random_bytes_and_names(
 ) -> None:
     detected = detect_format(data, filename)
 
-    assert detected is None or isinstance(detected, str)
+    assert detected is None or isinstance(detected, str), (
+        f"detect_format returned {detected!r} instead of a format name or None"
+    )
 
 
 def test_mimetype_member_is_read_with_a_fixed_200_byte_limit(

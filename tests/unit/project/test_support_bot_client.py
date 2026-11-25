@@ -27,14 +27,16 @@ async def test_bot_client_uploads_document_with_document_key(
         max_characters=11264,
     )
 
-    expected_status = 200
-    assert status == expected_status
-    expected_format = "txt"
-    assert payload["format"] == expected_format
     expected_text = "Bot-compatible document."
-    assert payload["text"] == expected_text
-    assert payload["characters"] == len(payload["text"])
-    assert payload["truncated"] is False
+    expected_response = (200, "txt", expected_text, len(expected_text), False)
+    actual_response = (
+        status,
+        payload["format"],
+        payload["text"],
+        payload["characters"],
+        payload["truncated"],
+    )
+    assert actual_response == expected_response, "the document upload failed"
 
 
 @pytest.mark.asyncio
@@ -51,10 +53,8 @@ async def test_bot_client_uploads_audio_with_whisper_key(
         live_server.whisper_api_key,
     )
 
-    expected_status = 200
-    assert status == expected_status
-    assert payload == {
-        "text": "Test transcription",
-        "language": "ru",
-        "duration": 1.0,
-    }
+    expected_response = (
+        200,
+        {"text": "Test transcription", "language": "ru", "duration": 1.0},
+    )
+    assert (status, payload) == expected_response, "the audio upload failed"

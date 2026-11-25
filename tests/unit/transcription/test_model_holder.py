@@ -11,11 +11,19 @@ from audiodoc.config import Settings
 from audiodoc.transcription.model import ModelHolder
 
 
-def test_model_holder_reports_not_loaded_and_raises_from_get() -> None:
+def test_model_holder_reports_not_loaded_before_load() -> None:
     holder = ModelHolder()
-    assert holder.is_loaded is False
-    with pytest.raises(RuntimeError, match="Whisper model is not loaded"):
+    assert holder.is_loaded is False, "a new holder must not report a loaded model"
+
+
+def test_model_holder_raises_from_get_before_load() -> None:
+    holder = ModelHolder()
+    with pytest.raises(RuntimeError, match="not loaded") as error:
         holder.get()
+    expected_message = "Whisper model is not loaded"
+    assert str(error.value) == expected_message, (
+        "get must fail while no model is loaded"
+    )
 
 
 def test_model_holder_loads_once_from_factory(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -31,9 +39,10 @@ def test_model_holder_loads_once_from_factory(monkeypatch: pytest.MonkeyPatch) -
 
     holder.load()
 
-    assert holder.is_loaded is True
-    assert holder.get() is created
-    assert calls == [True]
+    expected_state = (True, True, [True])
+    assert (holder.is_loaded, holder.get() is created, calls) == expected_state, (
+        "load must build the model once and expose it"
+    )
 
 
 def test_model_holder_passes_application_settings_to_factory(
@@ -55,8 +64,10 @@ def test_model_holder_passes_application_settings_to_factory(
 
     holder.load()
 
-    assert holder.get() is created
-    assert received_settings == [configured_settings]
+    expected_state = (True, [configured_settings])
+    assert (holder.get() is created, received_settings) == expected_state, (
+        "the factory must receive the holder settings and its model be exposed"
+    )
 
 
 def test_build_model_uses_supplied_application_settings(
@@ -86,10 +97,13 @@ def test_build_model_uses_supplied_application_settings(
 
     model_module.ModelHolder(configured_settings).load()
 
-    assert captured == {
+    expected_arguments = {
         "model_path": "/models/custom",
         "device": "cuda",
         "compute_type": "float16",
         "cpu_threads": 3,
         "local_files_only": True,
     }
+    assert captured == expected_arguments, (
+        "WhisperModel must receive the supplied settings"
+    )

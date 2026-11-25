@@ -5,6 +5,8 @@
 import ast
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).parents[3]
 
 
@@ -30,11 +32,12 @@ def _audiodoc_packages(path: Path) -> set[str]:
     }
 
 
-def test_api_handlers_depend_on_the_application_services() -> None:
-    document_api = _audiodoc_packages(AUDIODOC_ROOT / "api" / "documents.py")
-    transcription_api = _audiodoc_packages(AUDIODOC_ROOT / "api" / "transcribe.py")
-
-    document_service = "document_engine"
-    assert document_service in document_api
-    transcription_service = "transcription"
-    assert transcription_service in transcription_api
+@pytest.mark.parametrize(
+    ("handler", "service"),
+    [("documents.py", "document_engine"), ("transcribe.py", "transcription")],
+)
+def test_api_handlers_depend_on_the_application_services(
+    handler: str, service: str
+) -> None:
+    packages = _audiodoc_packages(AUDIODOC_ROOT / "api" / handler)
+    assert service in packages, f"api/{handler} must use the {service} service"

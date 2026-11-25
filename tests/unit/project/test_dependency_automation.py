@@ -23,36 +23,44 @@ def renovate_config_fixture() -> dict[str, Any]:
 
 def test_renovate_extends_best_practices(renovate_config: dict[str, Any]) -> None:
     best_practices_preset = "config:best-practices"
-    assert best_practices_preset in renovate_config["extends"]
+    assert best_practices_preset in renovate_config["extends"], (
+        "Renovate does not extend the best-practices preset"
+    )
 
 
 def test_renovate_merges_pull_requests_itself(
     renovate_config: dict[str, Any],
 ) -> None:
-    assert renovate_config["automerge"] is True
+    assert renovate_config["automerge"] is True, "Renovate does not merge pull requests"
 
 
 def test_renovate_does_not_use_platform_automerge(
     renovate_config: dict[str, Any],
 ) -> None:
-    assert renovate_config["platformAutomerge"] is False
+    assert renovate_config["platformAutomerge"] is False, (
+        "Renovate uses platform automerge"
+    )
 
 
 def test_renovate_waits_for_status_checks(renovate_config: dict[str, Any]) -> None:
-    assert renovate_config["ignoreTests"] is False
+    assert renovate_config["ignoreTests"] is False, "Renovate ignores status checks"
 
 
 def test_renovate_requires_fourteen_day_old_releases(
     renovate_config: dict[str, Any],
 ) -> None:
     expected_minimumreleaseage = "14 days"
-    assert renovate_config["minimumReleaseAge"] == expected_minimumreleaseage
+    assert renovate_config["minimumReleaseAge"] == expected_minimumreleaseage, (
+        "Renovate does not wait fourteen days for new releases"
+    )
 
 
 def test_renovate_security_fixes_skip_the_release_age(
     renovate_config: dict[str, Any],
 ) -> None:
-    assert renovate_config["vulnerabilityAlerts"]["minimumReleaseAge"] is None
+    assert renovate_config["vulnerabilityAlerts"]["minimumReleaseAge"] is None, (
+        "security fixes wait for the release age"
+    )
 
 
 def test_renovate_never_automerges_major_updates(
@@ -64,13 +72,18 @@ def test_renovate_never_automerges_major_updates(
         if rule.get("matchUpdateTypes") == ["major"]
     ]
 
-    assert [rule["automerge"] for rule in major_rules] == [False]
+    expected_automerge = [False]
+    assert [rule["automerge"] for rule in major_rules] == expected_automerge, (
+        "major updates are merged automatically"
+    )
 
 
 def test_renovate_generic_lock_maintenance_is_off(
     renovate_config: dict[str, Any],
 ) -> None:
-    assert renovate_config["lockFileMaintenance"]["enabled"] is False
+    assert renovate_config["lockFileMaintenance"]["enabled"] is False, (
+        "generic lock file maintenance is on"
+    )
 
 
 def test_renovate_lock_refresh_runs_monthly(
@@ -82,9 +95,10 @@ def test_renovate_lock_refresh_runs_monthly(
         if rule.get("matchUpdateTypes") == ["lockFileMaintenance"]
     ]
 
-    assert [rule["schedule"] for rule in refresh_rules] == [
-        ["before 6am on the first day of the month"]
-    ]
+    expected_schedules = [["before 6am on the first day of the month"]]
+    assert [rule["schedule"] for rule in refresh_rules] == expected_schedules, (
+        "the lock refresh does not run monthly"
+    )
 
 
 def test_renovate_lock_refresh_rule_blocks_automerge(
@@ -96,21 +110,28 @@ def test_renovate_lock_refresh_rule_blocks_automerge(
         if rule.get("matchUpdateTypes") == ["lockFileMaintenance"]
     ]
 
-    assert [rule["automerge"] for rule in refresh_rules] == [False]
+    expected_automerge = [False]
+    assert [rule["automerge"] for rule in refresh_rules] == expected_automerge, (
+        "the lock refresh is merged automatically"
+    )
 
 
 def test_renovate_regenerates_the_lock_with_pip_compile(
     renovate_config: dict[str, Any],
 ) -> None:
     lock_command = "pip-compile"
-    assert lock_command in renovate_config["enabledManagers"]
+    assert lock_command in renovate_config["enabledManagers"], (
+        "Renovate does not regenerate the lock with pip-compile"
+    )
 
 
 def test_renovate_does_not_edit_the_lock_line_by_line(
     renovate_config: dict[str, Any],
 ) -> None:
     line_manager = "pip_requirements"
-    assert line_manager not in renovate_config["enabledManagers"]
+    assert line_manager not in renovate_config["enabledManagers"], (
+        "Renovate edits the lock line by line"
+    )
 
 
 def test_renovate_python_version_changes_are_left_to_humans(
@@ -122,21 +143,28 @@ def test_renovate_python_version_changes_are_left_to_humans(
         if rule.get("matchDepNames") == ["python"]
     ]
 
-    assert [rule["enabled"] for rule in python_rules] == [False]
+    expected_enabled = [False]
+    assert [rule["enabled"] for rule in python_rules] == expected_enabled, (
+        "Renovate changes the Python version"
+    )
 
 
 def test_lock_command_writes_options_with_equal_signs() -> None:
     makefile = (ROOT_DIR / "Makefile").read_text("utf-8")
 
     python_version_option = "--python-version=$(LOCK_PYTHON_VERSION)"
-    assert python_version_option in makefile
+    assert python_version_option in makefile, (
+        "the lock command does not write the Python version with an equal sign"
+    )
 
 
 def test_lock_command_names_the_output_file_with_an_equal_sign() -> None:
     makefile = (ROOT_DIR / "Makefile").read_text("utf-8")
 
     output_file_option = "--output-file=requirements-lock.txt"
-    assert output_file_option in makefile
+    assert output_file_option in makefile, (
+        "the lock command does not name the output file with an equal sign"
+    )
 
 
 def test_renovate_updates_pydantic_and_its_core_together(
@@ -149,7 +177,10 @@ def test_renovate_updates_pydantic_and_its_core_together(
         if group_name_key in rule
     }
 
-    assert {"pydantic", "pydantic-core"} <= groups["pydantic"]
+    expected_packages = {"pydantic", "pydantic-core"}
+    assert expected_packages <= groups["pydantic"], (
+        "pydantic and pydantic-core are not updated together"
+    )
 
 
 def test_renovate_digest_pins_skip_the_release_age(
@@ -162,7 +193,10 @@ def test_renovate_digest_pins_skip_the_release_age(
         if digest_pin_type in rule.get("matchUpdateTypes", [])
     ]
 
-    assert [rule["minimumReleaseAge"] for rule in digest_rules] == [None]
+    expected_release_ages = [None]
+    assert [rule["minimumReleaseAge"] for rule in digest_rules] == (
+        expected_release_ages
+    ), "digest pins wait for the release age"
 
 
 def test_renovate_leaves_workflow_actions_to_humans(
@@ -174,7 +208,10 @@ def test_renovate_leaves_workflow_actions_to_humans(
         if rule.get("matchManagers") == ["github-actions"]
     ]
 
-    assert [rule["automerge"] for rule in action_rules] == [False]
+    expected_automerge = [False]
+    assert [rule["automerge"] for rule in action_rules] == expected_automerge, (
+        "workflow action updates are merged automatically"
+    )
 
 
 def test_renovate_leaves_pre_commit_hooks_to_humans(
@@ -186,7 +223,10 @@ def test_renovate_leaves_pre_commit_hooks_to_humans(
         if rule.get("matchManagers") == ["pre-commit"]
     ]
 
-    assert [rule["automerge"] for rule in hook_rules] == [False]
+    expected_automerge = [False]
+    assert [rule["automerge"] for rule in hook_rules] == expected_automerge, (
+        "pre-commit hook updates are merged automatically"
+    )
 
 
 def test_renovate_leaves_build_tooling_to_humans(
@@ -199,15 +239,21 @@ def test_renovate_leaves_build_tooling_to_humans(
         if build_tool in rule.get("matchPackageNames", [])
     ]
 
-    assert [rule["automerge"] for rule in build_rules] == [False]
+    expected_automerge = [False]
+    assert [rule["automerge"] for rule in build_rules] == expected_automerge, (
+        "build tooling updates are merged automatically"
+    )
 
 
 def test_renovate_vulnerability_alerts_use_only_supported_options(
     renovate_config: dict[str, Any],
 ) -> None:
     unsupported_option = "prPriority"
-    assert unsupported_option not in renovate_config["vulnerabilityAlerts"]
+    assert unsupported_option not in renovate_config["vulnerabilityAlerts"], (
+        "vulnerability alerts use an unsupported option"
+    )
 
 
 def test_dependabot_version_updates_are_removed() -> None:
-    assert not (ROOT_DIR / ".github" / "dependabot.yml").exists()
+    dependabot_config = ROOT_DIR / ".github" / "dependabot.yml"
+    assert not dependabot_config.exists(), "the Dependabot configuration still exists"

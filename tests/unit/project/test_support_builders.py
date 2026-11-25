@@ -16,27 +16,58 @@ from PIL import ImageFont
 from tests.support import builders
 
 
-def test_text_builders_create_valid_content() -> None:
-    txt_content = b"TXT test"
-    assert txt_content in builders.create_txt()
-    markdown_heading = b"# Markdown test"
-    assert markdown_heading in builders.create_md()
-    html_start = b"<html"
-    assert html_start in builders.create_html()
-    rtf_header = b"{\\rtf1"
-    assert rtf_header in builders.create_rtf()
+@pytest.mark.parametrize(
+    ("builder", "marker"),
+    [
+        (builders.create_txt, b"TXT test"),
+        (builders.create_md, b"# Markdown test"),
+        (builders.create_html, b"<html"),
+        (builders.create_rtf, b"{\\rtf1"),
+    ],
+)
+def test_text_builders_create_valid_content(
+    builder: Callable[[], bytes],
+    marker: bytes,
+) -> None:
+    assert marker in builder(), "the text document lacks its marker content"
 
+
+def test_xml_builder_creates_titled_document() -> None:
     xml_root = ElementTree.fromstring(builders.create_xml())
-    expected_findtext = "XML test"
-    assert xml_root.findtext("title") == expected_findtext
 
+    expected_findtext = "XML test"
+    assert xml_root.findtext("title") == expected_findtext, "wrong XML title"
+
+
+def test_csv_builder_creates_header_and_data_row() -> None:
     csv_rows = list(
         csv.reader(StringIO(builders.create_csv().decode("utf-8"))),
     )
-    assert csv_rows == [
+
+    expected_rows = [
         ["Name", "Value"],
         ["Document engine", "Works!"],
     ]
+    assert csv_rows == expected_rows, "wrong CSV rows"
+
+
+@pytest.mark.parametrize(
+    "builder",
+    [
+        builders.create_docx,
+        builders.create_xlsx,
+        builders.create_pptx,
+        builders.create_odt,
+        builders.create_ods,
+        builders.create_odp,
+        builders.create_epub,
+    ],
+)
+def test_archive_builders_create_intact_zip_archives(
+    builder: Callable[[], bytes],
+) -> None:
+    with ZipFile(BytesIO(builder())) as archive:
+        assert archive.testzip() is None, "the archive has a corrupt member"
 
 
 @pytest.mark.parametrize(
@@ -56,61 +87,100 @@ def test_archive_builders_create_valid_packages(
     member: str,
 ) -> None:
     with ZipFile(BytesIO(builder())) as archive:
-        assert archive.testzip() is None
-        assert member in archive.namelist()
+        assert member in archive.namelist(), "the package lacks its main member"
 
 
 def test_fb2_builder_creates_valid_xml() -> None:
     document = ElementTree.fromstring(builders.create_fb2())
     book_title = "FB2 test"
-    assert book_title in "".join(document.itertext())
+    assert book_title in "".join(document.itertext()), "the FB2 title is missing"
 
 
-def test_pdf_builders_create_text_and_image_documents() -> None:
-    with pymupdf.open(
-        stream=builders.create_pdf(),
-        filetype="pdf",
-    ) as document:
-        text_page = "PDF document test"
-        assert text_page in document[0].get_text()
+def test_pdf_builder_creates_text_document() -> None:
+    with pymupdf.open(stream=builders.create_pdf(), filetype="pdf") as document:
+        text = document[0].get_text()
 
+    text_page = "PDF document test"
+    assert text_page in text, "the PDF page lacks its text"
+
+
+def test_image_only_pdf_builder_creates_page_without_text() -> None:
     with pymupdf.open(
         stream=builders.create_image_only_pdf(),
         filetype="pdf",
     ) as document:
-        page = document[0]
-        expected_empty = ""
-        assert page.get_text().strip() == expected_empty, "expected an empty string"
-        assert page.get_images(full=True)
+        text = document[0].get_text().strip()
 
+    expected_empty = ""
+    assert text == expected_empty, "the image-only PDF page has text"
+
+
+def test_image_only_pdf_builder_creates_page_with_image() -> None:
+    with pymupdf.open(
+        stream=builders.create_image_only_pdf(),
+        filetype="pdf",
+    ) as document:
+        images = document[0].get_images(full=True)
+
+    assert images, "the image-only PDF page has no image"
+
+
+def test_scanned_pdf_builder_creates_text_first_page() -> None:
     with pymupdf.open(
         stream=builders.create_scanned_pdf(),
         filetype="pdf",
     ) as document:
-        normal_page = "normal PDF text page"
-        assert normal_page in document[0].get_text()
-        assert document[1].get_images(full=True)
+        text = document[0].get_text()
+
+    normal_page = "normal PDF text page"
+    assert normal_page in text, "the first scanned PDF page lacks its text"
 
 
-def test_audio_builders_create_decodable_audio() -> None:
+def test_scanned_pdf_builder_creates_image_second_page() -> None:
+    with pymupdf.open(
+        stream=builders.create_scanned_pdf(),
+        filetype="pdf",
+    ) as document:
+        images = document[1].get_images(full=True)
+
+    assert images, "the second scanned PDF page has no image"
+
+
+def test_wav_builder_creates_non_empty_mono_16_khz_audio() -> None:
     with wave.open(BytesIO(builders.create_wav()), "rb") as audio:
-        assert audio.getnchannels() == 1
-        expected_getframerate = 16_000
-        assert audio.getframerate() == expected_getframerate
-        assert audio.getnframes() > 0
+        actual = (audio.getnchannels(), audio.getframerate(), audio.getnframes() > 0)
 
+    expected = (1, 16_000, True)
+    assert actual == expected, "wrong WAV channels, frame rate or frame count"
+
+
+def test_ogg_opus_builder_creates_opus_stream() -> None:
+    expected_type = "audio"
+    with av.open(BytesIO(builders.create_ogg_opus()), mode="r") as container:
+        codec_names = [
+            stream.codec_context.name
+            for stream in container.streams
+            if stream.type == expected_type
+        ]
+
+    expected_names = ["opus"]
+    assert codec_names == expected_names, "the OGG file has no single Opus stream"
+
+
+def test_ogg_opus_builder_creates_decodable_audio() -> None:
     with av.open(BytesIO(builders.create_ogg_opus()), mode="r") as container:
         expected_type = "audio"
         audio_stream = next(
             stream for stream in container.streams if stream.type == expected_type
         )
-        expected_name = "opus"
-        assert audio_stream.codec_context.name == expected_name
-        assert list(container.decode(audio=audio_stream.index))
+        frames = list(container.decode(audio=audio_stream.index))
+
+    assert frames, "the Opus stream decodes to no frames"
 
 
 def test_ocr_image_builder_creates_png_data() -> None:
-    assert builders.create_ocr_image().startswith(b"\x89PNG\r\n\x1a\n")
+    png_signature = b"\x89PNG\r\n\x1a\n"
+    assert builders.create_ocr_image().startswith(png_signature), "not a PNG image"
 
 
 def test_ocr_image_builder_uses_large_fallback_font(
@@ -142,4 +212,5 @@ def test_ocr_image_builder_uses_large_fallback_font(
 
     builders.create_ocr_image()
 
-    assert requested_sizes == [48]
+    expected_sizes = [48]
+    assert requested_sizes == expected_sizes, "the fallback font is not size 48"

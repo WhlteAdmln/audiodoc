@@ -43,53 +43,19 @@ def test_find_coverage_gaps_combines_statement_and_branch_coverage(
         """,
     )
 
-    assert find_coverage_gaps(report) == [
+    expected_gaps = [
         (50.0, "audiodoc/plain.py"),
         (60.0, "audiodoc/branchy.py"),
     ]
+    assert find_coverage_gaps(report) == expected_gaps, "wrong coverage gaps"
 
 
-def test_find_coverage_gaps_returns_at_most_fifteen_files(tmp_path: Path) -> None:
-    report = tmp_path / "coverage.xml"
-    classes = "".join(
-        f'<class name="file_{index:02d}.py" filename="file_{index:02d}.py">'
-        '<lines><line number="1" hits="0"/></lines></class>'
-        for index in range(16)
-    )
-    _write_report(report, classes)
-
-    results = find_coverage_gaps(report)
-
-    expected_count = 15
-    assert len(results) == expected_count
-    assert [filename for _, filename in results] == [
-        f"audiodoc/file_{index:02d}.py" for index in range(15)
-    ]
-
-
-def test_find_coverage_gaps_rejects_invalid_branch_coverage(tmp_path: Path) -> None:
-    report = tmp_path / "coverage.xml"
-    _write_report(
-        report,
-        """
-        <class name="branchy.py" filename="branchy.py">
-            <lines>
-                <line number="1" hits="1" branch="true"
-                      condition-coverage="invalid"/>
-            </lines>
-        </class>
-        """,
-    )
-
-    with pytest.raises(ValueError, match="Invalid branch coverage metadata"):
-        find_coverage_gaps(report)
-
-
-def test_main_rejects_dtd_declarations(
+@pytest.fixture(name="dtd_report_arguments")
+def fixture_dtd_report_arguments(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
+    """Point the command line at a report with a DTD declaration."""
     report = tmp_path / "coverage.xml"
     report.write_text(
         '<!DOCTYPE coverage [<!ENTITY payload "value">]>'
@@ -101,15 +67,13 @@ def test_main_rejects_dtd_declarations(
         ["coverage_gaps.py", "--xml", str(report)],
     )
 
-    assert main() == 1
-    assert capsys.readouterr().err.startswith("ERROR:")
 
-
-def test_main_prints_requested_number_of_files(
+@pytest.fixture(name="limited_report_arguments")
+def fixture_limited_report_arguments(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
+    """Point the command line at a one-file report with a limit of one."""
     report = tmp_path / "coverage.xml"
     _write_report(
         report,
@@ -127,6 +91,72 @@ def test_main_prints_requested_number_of_files(
         ["coverage_gaps.py", "--xml", str(report), "--limit", "1"],
     )
 
-    assert main() == 0
+
+def test_find_coverage_gaps_returns_at_most_fifteen_files(tmp_path: Path) -> None:
+    report = tmp_path / "coverage.xml"
+    classes = "".join(
+        f'<class name="file_{index:02d}.py" filename="file_{index:02d}.py">'
+        '<lines><line number="1" hits="0"/></lines></class>'
+        for index in range(16)
+    )
+    _write_report(report, classes)
+
+    results = find_coverage_gaps(report)
+
+    expected_filenames = [f"audiodoc/file_{index:02d}.py" for index in range(15)]
+    assert [filename for _, filename in results] == expected_filenames, (
+        "wrong number or order of reported files"
+    )
+
+
+def test_find_coverage_gaps_rejects_invalid_branch_coverage(tmp_path: Path) -> None:
+    report = tmp_path / "coverage.xml"
+    _write_report(
+        report,
+        """
+        <class name="branchy.py" filename="branchy.py">
+            <lines>
+                <line number="1" hits="1" branch="true"
+                      condition-coverage="invalid"/>
+            </lines>
+        </class>
+        """,
+    )
+
+    with pytest.raises(ValueError, match="Invalid branch coverage") as error:
+        find_coverage_gaps(report)
+
+    expected_message = "Invalid branch coverage metadata"
+    assert str(error.value) == expected_message, "wrong invalid metadata error"
+
+
+@pytest.mark.usefixtures("dtd_report_arguments")
+def test_main_rejects_dtd_declarations() -> None:
+    expected_code = 1
+    assert main() == expected_code, "a DTD declaration was accepted"
+
+
+@pytest.mark.usefixtures("dtd_report_arguments")
+def test_main_reports_rejected_dtd_declarations_as_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    main()
+
+    error_prefix = "ERROR:"
+    assert capsys.readouterr().err.startswith(error_prefix), "no error was printed"
+
+
+@pytest.mark.usefixtures("limited_report_arguments")
+def test_main_succeeds_with_a_file_limit() -> None:
+    expected_code = 0
+    assert main() == expected_code, "the report command did not succeed"
+
+
+@pytest.mark.usefixtures("limited_report_arguments")
+def test_main_prints_requested_number_of_files(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    main()
+
     expected_out = "Files with lowest coverage (up to 1):\n 50.000% audiodoc/plain.py\n"
-    assert capsys.readouterr().out == expected_out
+    assert capsys.readouterr().out == expected_out, "wrong report output"

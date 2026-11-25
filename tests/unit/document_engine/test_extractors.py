@@ -8,10 +8,20 @@ from audiodoc.document_engine.extractors import REGISTRY
 from tests.support.extractor_matrix import MATRIX
 
 
-def test_registered_formats_have_matrix_rows() -> None:
+def test_matrix_lists_each_format_once() -> None:
     matrix_formats = [row[0] for row in MATRIX]
-    assert len(matrix_formats) == len(set(matrix_formats))
-    assert set(REGISTRY) == set(matrix_formats)
+    duplicates = sorted(
+        {kind for kind in matrix_formats if matrix_formats.count(kind) > 1}
+    )
+
+    expected_empty: list[str] = []
+    assert duplicates == expected_empty, "the matrix lists a format more than once"
+
+
+def test_registered_formats_have_matrix_rows() -> None:
+    matrix_formats = {row[0] for row in MATRIX}
+
+    assert set(REGISTRY) == matrix_formats, "the matrix rows differ from the registry"
 
 
 def test_registry_contains_all_supported_document_formats() -> None:

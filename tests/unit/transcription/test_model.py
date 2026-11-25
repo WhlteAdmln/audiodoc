@@ -33,10 +33,11 @@ def test_whisper_model_factory_uses_configurable_device_and_offline_options(
 
     model_module.ModelHolder().load()
 
-    assert captured == {
+    expected_options = {
         "model_path": "/opt/models/whisper-small",
         "device": "cuda",
         "compute_type": "float16",
         "cpu_threads": 6,
         "local_files_only": True,
     }
+    assert captured == expected_options, "the model factory ignored the settings"

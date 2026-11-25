@@ -13,9 +13,9 @@ from tests.support.builders import create_xlsx
 from tests.support.openpyxl_workbooks import FakeSheet, FakeWorkbook
 
 
-def test_xlsx_passes_fixed_row_and_column_caps_to_openpyxl(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.fixture(name="capped_workbook")
+def fixture_capped_workbook(monkeypatch: pytest.MonkeyPatch) -> FakeWorkbook:
+    """Serve a three-row workbook to the extractor with two-row and column caps."""
     sheet = FakeSheet(
         "Capped", [("one", "two"), ("three", "four"), ("must not be read",)]
     )
@@ -25,31 +25,53 @@ def test_xlsx_passes_fixed_row_and_column_caps_to_openpyxl(
     monkeypatch.setattr(
         xlsx_module, "load_workbook", lambda *_args, **_kwargs: workbook
     )
+    return workbook
 
-    text = extract_xlsx(
-        b"workbook", context=ExtractContext(TextBudget(100), Deadline(10))
-    )
-    assert {**sheet.read_arguments, "closed": workbook.closed} == {
+
+def test_xlsx_passes_fixed_row_and_column_caps_to_openpyxl(
+    capped_workbook: FakeWorkbook,
+) -> None:
+    extract_xlsx(b"workbook", context=ExtractContext(TextBudget(100), Deadline(10)))
+
+    sheet = capped_workbook.worksheets[0]
+    expected_arguments = {
         "max_row": 2,
         "max_col": 2,
         "values_only": True,
         "closed": True,
     }
-    first_row = "one | two"
-    assert first_row in text
-    second_row = "three | four"
-    assert second_row in text
-    capped_row = "must not be read"
-    assert capped_row not in text
+    assert {
+        **sheet.read_arguments,
+        "closed": capped_workbook.closed,
+    } == expected_arguments, "the caps must reach openpyxl and the workbook close"
 
 
-def test_xlsx_extracts_sheet_name_and_rows() -> None:
+@pytest.mark.usefixtures("capped_workbook")
+@pytest.mark.parametrize(
+    ("row", "expected_count"),
+    [("one | two", 1), ("three | four", 1), ("must not be read", 0)],
+)
+def test_xlsx_extracts_only_rows_within_caps(row: str, expected_count: int) -> None:
+    text = extract_xlsx(
+        b"workbook", context=ExtractContext(TextBudget(100), Deadline(10))
+    )
+
+    assert text.count(row) == expected_count, (
+        "only rows within the caps must be extracted"
+    )
+
+
+def test_xlsx_extracts_text_as_string() -> None:
     text = extract_xlsx(create_xlsx())
 
-    assert isinstance(text, str)
-    sheet_header = "--- Лист: Test sheet ---"
-    assert sheet_header in text
-    header_row = "Name | Value"
-    assert header_row in text
-    data_row = "Document engine | Works!"
-    assert data_row in text
+    assert isinstance(text, str), "the extractor must return text"
+
+
+@pytest.mark.parametrize(
+    "expected_fragment",
+    ["--- Лист: Test sheet ---", "Name | Value", "Document engine | Works!"],
+)
+def test_xlsx_extracts_sheet_name_and_rows(expected_fragment: str) -> None:
+    text = extract_xlsx(create_xlsx())
+
+    assert expected_fragment in text, "the sheet header and rows must be extracted"
