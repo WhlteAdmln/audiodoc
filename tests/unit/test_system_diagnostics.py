@@ -203,7 +203,7 @@ def test_reports_env_file_inspection_error(
             "AUDIODOC_DOCUMENT_KEY": "document-one",
         },
         {"AUDIODOC_AUDIO_KEY": "Key-7Ab", "AUDIODOC_DOCUMENT_KEY": "key-7ab"},
-        {"AUDIODOC_AUDIO_KEY": " ключ-один ,, ", "AUDIODOC_DOCUMENT_KEY": "ключ-два"},
+        {"AUDIODOC_AUDIO_KEY": " aud-8x ,, ", "AUDIODOC_DOCUMENT_KEY": "doc~42"},
     ],
 )
 def test_accepts_distinct_api_keys(environ: dict[str, str]) -> None:
@@ -238,15 +238,33 @@ def test_accepts_distinct_api_keys(environ: dict[str, str]) -> None:
             {"AUDIODOC_AUDIO_KEY": "s3cr3t", "AUDIODOC_DOCUMENT_KEY": "  s3cr3t  "},
             "The audio and document API keys share at least one value.",
         ),
+        (
+            {"AUDIODOC_AUDIO_KEY": "aud-K3", "AUDIODOC_DOCUMENT_KEY": "doc-ключ-7"},
+            "API keys must contain only ASCII characters: AUDIODOC_DOCUMENT_KEY.",
+        ),
+        (
+            {"AUDIODOC_AUDIO_KEY": " ключ-один ,, ", "AUDIODOC_DOCUMENT_KEY": "dоc-5"},
+            (
+                "API keys must contain only ASCII characters: "
+                "AUDIODOC_AUDIO_KEY, AUDIODOC_DOCUMENT_KEY."
+            ),
+        ),
+        (
+            {"AUDIODOC_AUDIO_KEY": "naïve, naïve", "AUDIODOC_DOCUMENT_KEY": "naïve"},
+            (
+                "API keys must contain only ASCII characters: "
+                "AUDIODOC_AUDIO_KEY, AUDIODOC_DOCUMENT_KEY."
+            ),
+        ),
     ],
 )
-def test_rejects_missing_or_shared_api_keys(
+def test_rejects_missing_non_ascii_or_shared_api_keys(
     environ: dict[str, str], expected_message: str
 ) -> None:
     result = diagnostics.check_api_keys(environ)
 
     expected = DiagnosticCheck("API keys", "FAIL", expected_message)
-    assert result == expected, "missing or shared keys must fail"
+    assert result == expected, "missing, non-ASCII or shared keys must fail"
 
 
 @pytest.mark.parametrize(
