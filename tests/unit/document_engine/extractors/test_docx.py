@@ -16,13 +16,8 @@ from tests.support.builders import create_docx
 def test_docx_extracts_paragraphs_and_table_cells() -> None:
     text = extract_docx(create_docx())
 
-    assert isinstance(text, str)
-    title = "DOCX test"
-    assert title in text
-    paragraph = "Document engine works!"
-    assert paragraph in text
-    table_row = "Name | Value"
-    assert table_row in text
+    expected_text = "DOCX test\nDocument engine works!\nName | Value"
+    assert text == expected_text, "paragraphs or table cells were not extracted"
 
 
 def test_docx_marks_truncation_when_another_paragraph_follows_an_exact_fit() -> None:
@@ -36,9 +31,12 @@ def test_docx_marks_truncation_when_another_paragraph_follows_an_exact_fit() -> 
     budget = TextBudget(len(first_paragraph))
     context = ExtractContext(budget=budget, deadline=Deadline(10))
 
-    expected_extract_docx = "Ёлка №3"
-    assert extract_docx(output.getvalue(), context=context) == expected_extract_docx
-    assert budget.truncated is True
+    text = extract_docx(output.getvalue(), context=context)
+
+    expected = ("Ёлка №3", True)
+    assert (text, budget.truncated) == expected, (
+        "an exact fit followed by more text must be marked as truncated"
+    )
 
 
 def test_docx_exact_fit_at_end_of_document_is_not_truncated() -> None:
@@ -51,9 +49,12 @@ def test_docx_exact_fit_at_end_of_document_is_not_truncated() -> None:
     budget = TextBudget(len(last_paragraph))
     context = ExtractContext(budget=budget, deadline=Deadline(10))
 
-    expected_extract_docx = "Fin. ½"
-    assert extract_docx(output.getvalue(), context=context) == expected_extract_docx
-    assert budget.truncated is False
+    text = extract_docx(output.getvalue(), context=context)
+
+    expected = ("Fin. ½", False)
+    assert (text, budget.truncated) == expected, (
+        "an exact fit at the end of the document must not be truncated"
+    )
 
 
 def test_docx_skips_empty_content_and_truncates_table_rows() -> None:
@@ -69,6 +70,9 @@ def test_docx_skips_empty_content_and_truncates_table_rows() -> None:
     budget = TextBudget(3)
     context = ExtractContext(budget=budget, deadline=Deadline(10))
 
-    expected_extract_docx = "Σίσ"
-    assert extract_docx(output.getvalue(), context=context) == expected_extract_docx
-    assert budget.truncated is True
+    text = extract_docx(output.getvalue(), context=context)
+
+    expected = ("Σίσ", True)
+    assert (text, budget.truncated) == expected, (
+        "empty content was kept or the table row was not truncated"
+    )

@@ -36,5 +36,6 @@ def test_ocr_recognizes_text_from_image() -> None:
 
     text = extract_image_text(create_ocr_image())
 
-    assert "Document Engine" in text
-    assert "Hello" in text
+    expected_phrases = ["Document Engine", "Hello"]
+    recognized_phrases = [phrase for phrase in expected_phrases if phrase in text]
+    assert recognized_phrases == expected_phrases, f"OCR missed phrases in {text!r}"

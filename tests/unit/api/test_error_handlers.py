@@ -3,7 +3,9 @@
 """Tests for api error handlers."""
 
 import logging
+from collections.abc import Awaitable, Callable
 from importlib import import_module
+from types import SimpleNamespace
 from typing import Never
 
 import pytest
@@ -127,14 +129,22 @@ def test_typed_errors_return_status_code_detail_and_headers(
     app.include_router(router)
     response = TestClient(app).get("/error")
 
-    assert response.status_code == status_code
-    assert response.json() == {"detail": detail, "code": code}
-    assert response.headers.get("retry-after") == headers.get("Retry-After")
+    actual = (
+        response.status_code,
+        response.json(),
+        response.headers.get("retry-after"),
+    )
+    expected = (
+        status_code,
+        {"detail": detail, "code": code},
+        headers.get("Retry-After"),
+    )
+    assert actual == expected, "the typed error was mapped to the wrong response"
 
 
-def test_unexpected_exception_returns_generic_message_without_details(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
+@pytest.fixture(name="unexpected_error_call")
+def fixture_unexpected_error_call(caplog: pytest.LogCaptureFixture) -> SimpleNamespace:
+    """Call a route that raises an unexpected exception; return response and log."""
     app = FastAPI()
     register_error_handlers(app)
     router = APIRouter()
@@ -146,79 +156,142 @@ def test_unexpected_exception_returns_generic_message_without_details(
     app.include_router(router)
     caplog.set_level(logging.ERROR)
     response = TestClient(app, raise_server_exceptions=False).get("/explode")
-
-    expected_status_code = 500
-    assert response.status_code == expected_status_code
-    assert response.json() == {
-        "detail": "Internal server error",
-        "code": "internal_error",
-    }
-    private_file_name = "secret.txt"
-    assert private_file_name not in response.text
-    private_error_detail = "private /srv/audiodoc/secret.txt"
-    assert private_error_detail in caplog.text
+    return SimpleNamespace(response=response, log=caplog.text)
 
 
-def test_document_filename_is_sanitized_before_logging(
-    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+def test_unexpected_exception_returns_generic_message_without_details(
+    unexpected_error_call: SimpleNamespace,
 ) -> None:
+    response = unexpected_error_call.response
+    actual = (response.status_code, response.json())
+    expected = (500, {"detail": "Internal server error", "code": "internal_error"})
+    assert actual == expected, "the unexpected error response is not generic"
+
+
+def test_unexpected_exception_hides_private_file_name_from_response(
+    unexpected_error_call: SimpleNamespace,
+) -> None:
+    private_file_name = "secret.txt"
+    assert private_file_name not in unexpected_error_call.response.text, (
+        "the response leaked a private file name"
+    )
+
+
+def test_unexpected_exception_logs_private_error_detail(
+    unexpected_error_call: SimpleNamespace,
+) -> None:
+    private_error_detail = "private /srv/audiodoc/secret.txt"
+    assert private_error_detail in unexpected_error_call.log, (
+        "the error detail was not logged"
+    )
+
+
+def _upload_document(
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    process_document: Callable[..., Awaitable[object]],
+    filename: str,
+) -> SimpleNamespace:
     documents = import_module("audiodoc.api.documents")
+    monkeypatch.setattr(documents, "process_document", process_document)
+    app = FastAPI()
+    app.state.document_queue = WorkQueue(1, 4, error_factory=ServerBusyError)
+    register_error_handlers(app)
+    app.include_router(documents.router)
+    response = TestClient(app).post(
+        "/process-document",
+        files={"file": (filename, b"plain text", "text/plain")},
+    )
+    return SimpleNamespace(response=response, log=caplog.text)
+
+
+def _log_lines_starting_with(log: str, prefix: str) -> list[str]:
+    return [line for line in log.splitlines() if line.startswith(prefix)]
+
+
+@pytest.fixture(name="accepted_upload")
+def fixture_accepted_upload(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> SimpleNamespace:
+    """Upload a document whose name has a newline; return response and log."""
 
     async def fake_process_document(*_args: object, **_kwargs: object) -> object:
         return _document_result()
 
-    monkeypatch.setattr(documents, "process_document", fake_process_document)
-
-    app = FastAPI()
-    app.state.document_queue = WorkQueue(1, 4, error_factory=ServerBusyError)
-    register_error_handlers(app)
-    app.include_router(documents.router)
     caplog.set_level(logging.INFO)
-
-    response = TestClient(app).post(
-        "/process-document",
-        files={"file": ("note\nINJECTED.log.txt", b"plain text", "text/plain")},
-    )
-
-    expected_status_code = 200
-    assert response.status_code == expected_status_code
-    escaped_filename = "filename=note%0AINJECTED.log.txt"
-    assert escaped_filename in caplog.text
-    assert not any(
-        line.startswith("INJECTED.log.txt") for line in caplog.text.splitlines()
+    return _upload_document(
+        caplog, monkeypatch, fake_process_document, "note\nINJECTED.log.txt"
     )
 
 
-def test_typed_document_rejection_is_logged_without_raw_filename(
-    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+def test_document_with_newline_in_filename_is_accepted(
+    accepted_upload: SimpleNamespace,
 ) -> None:
-    documents = import_module("audiodoc.api.documents")
+    expected_status_code = 200
+    assert accepted_upload.response.status_code == expected_status_code, (
+        "the document was not accepted"
+    )
+
+
+def test_document_filename_is_sanitized_before_logging(
+    accepted_upload: SimpleNamespace,
+) -> None:
+    escaped_filename = "filename=note%0AINJECTED.log.txt"
+    assert escaped_filename in accepted_upload.log, (
+        "the file name was not escaped in the log"
+    )
+
+
+def test_document_filename_does_not_start_a_forged_log_line(
+    accepted_upload: SimpleNamespace,
+) -> None:
+    forged_lines = _log_lines_starting_with(accepted_upload.log, "INJECTED.log.txt")
+    expected_empty: list[str] = []
+    assert forged_lines == expected_empty, "the file name forged a log line"
+
+
+@pytest.fixture(name="rejected_upload")
+def fixture_rejected_upload(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> SimpleNamespace:
+    """Upload a rejected document whose name has a newline; return response, log."""
 
     async def reject_document(*_args: object, **_kwargs: object) -> Never:
         raise DocumentRejectedError
 
-    monkeypatch.setattr(documents, "process_document", reject_document)
-    app = FastAPI()
-    app.state.document_queue = WorkQueue(1, 4, error_factory=ServerBusyError)
-    register_error_handlers(app)
-    app.include_router(documents.router)
     caplog.set_level(logging.WARNING)
+    return _upload_document(caplog, monkeypatch, reject_document, "bad\nFORGED.log.txt")
 
-    response = TestClient(app).post(
-        "/process-document",
-        files={"file": ("bad\nFORGED.log.txt", b"plain text", "text/plain")},
+
+def test_typed_document_rejection_returns_rejection_response(
+    rejected_upload: SimpleNamespace,
+) -> None:
+    response = rejected_upload.response
+    actual = (response.status_code, response.json())
+    expected = (
+        400,
+        {"detail": "Документ не может быть обработан", "code": "document_rejected"},
     )
+    assert actual == expected, "the rejection was mapped to the wrong response"
 
-    expected_status_code = 400
-    assert response.status_code == expected_status_code
-    assert response.json() == {
-        "detail": "Документ не может быть обработан",
-        "code": "document_rejected",
-    }
+
+def test_typed_document_rejection_is_logged(rejected_upload: SimpleNamespace) -> None:
     rejection_message = "Document rejected"
-    assert rejection_message in caplog.text
+    assert rejection_message in rejected_upload.log, "the rejection was not logged"
+
+
+def test_typed_document_rejection_is_logged_without_raw_filename(
+    rejected_upload: SimpleNamespace,
+) -> None:
     escaped_filename = "filename=bad%0AFORGED.log.txt"
-    assert escaped_filename in caplog.text
-    assert not any(
-        line.startswith("FORGED.log.txt") for line in caplog.text.splitlines()
+    assert escaped_filename in rejected_upload.log, (
+        "the file name was not escaped in the log"
     )
+
+
+def test_typed_document_rejection_does_not_start_a_forged_log_line(
+    rejected_upload: SimpleNamespace,
+) -> None:
+    forged_lines = _log_lines_starting_with(rejected_upload.log, "FORGED.log.txt")
+    expected_empty: list[str] = []
+    assert forged_lines == expected_empty, "the file name forged a log line"

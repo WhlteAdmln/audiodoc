@@ -19,7 +19,11 @@ async def test_live_server_starts_real_app_with_fake_model(
     ):
         payload = await response.json()
 
-    expected_status = 200
-    assert response.status == expected_status
-    assert payload["loaded"] is True
-    assert live_server.temp_dir.is_dir()
+    expected_health = (200, True)
+    assert (response.status, payload["loaded"]) == expected_health, (
+        "the live server does not report a loaded model"
+    )
+
+
+def test_live_server_creates_its_temp_dir(live_server: LiveServer) -> None:
+    assert live_server.temp_dir.is_dir(), "the live server has no temp directory"

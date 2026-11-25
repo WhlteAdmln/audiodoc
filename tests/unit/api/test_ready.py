@@ -66,11 +66,10 @@ def test_check_native_tools_handles_tesseract_language_errors(
 
     status = diagnostics_module.check_native_tools()
 
-    expected_tesseract = "/usr/bin/tesseract"
-    assert status.tesseract == expected_tesseract
-    expected_empty = ()
-    assert status.languages == expected_empty, "expected an empty tuple"
-    assert status.djvulibre
+    expected = ("/usr/bin/tesseract", (), True)
+    assert (status.tesseract, status.languages, status.djvulibre) == expected, (
+        "a Tesseract language error must leave the tools and no languages"
+    )
 
 
 def test_check_native_tools_reports_available_tools(
@@ -84,15 +83,19 @@ def test_check_native_tools_reports_available_tools(
 
     status = diagnostics_module.check_native_tools()
 
-    expected_tesseract = "/usr/bin/tesseract"
-    assert status.tesseract == expected_tesseract
-    assert status.languages == ("eng", "rus")
-    assert status.djvu_tools == DjvuTools(
-        "/usr/bin/djvutxt",
-        "/usr/bin/djvused",
-        "/usr/bin/ddjvu",
+    expected = (
+        "/usr/bin/tesseract",
+        ("eng", "rus"),
+        DjvuTools("/usr/bin/djvutxt", "/usr/bin/djvused", "/usr/bin/ddjvu"),
+        True,
     )
-    assert status.djvulibre
+    actual = (
+        status.tesseract,
+        status.languages,
+        status.djvu_tools,
+        status.djvulibre,
+    )
+    assert actual == expected, "available tools or sorted languages are wrong"
 
 
 def test_check_native_tools_handles_missing_pytesseract(
@@ -103,11 +106,10 @@ def test_check_native_tools_handles_missing_pytesseract(
 
     status = diagnostics_module.check_native_tools()
 
-    expected_tesseract = "/usr/bin/tesseract"
-    assert status.tesseract == expected_tesseract
-    expected_empty = ()
-    assert status.languages == expected_empty, "expected an empty tuple"
-    assert status.djvulibre
+    expected = ("/usr/bin/tesseract", (), True)
+    assert (status.tesseract, status.languages, status.djvulibre) == expected, (
+        "a missing pytesseract must leave the tools and no languages"
+    )
 
 
 def test_check_native_tools_propagates_unexpected_tesseract_errors(
@@ -119,8 +121,10 @@ def test_check_native_tools_propagates_unexpected_tesseract_errors(
     _install_fake_pytesseract(monkeypatch, fail_get_languages)
     _set_native_tool_lookup(monkeypatch)
 
-    with pytest.raises(_UnexpectedTesseractError):
+    with pytest.raises(_UnexpectedTesseractError) as caught:
         diagnostics_module.check_native_tools()
+
+    assert caught.type is _UnexpectedTesseractError, "the error was wrapped"
 
 
 def test_check_native_tools_reports_missing_tesseract(
@@ -131,10 +135,10 @@ def test_check_native_tools_reports_missing_tesseract(
 
     status = diagnostics_module.check_native_tools()
 
-    assert status.tesseract is None
-    expected_empty = ()
-    assert status.languages == expected_empty, "expected an empty tuple"
-    assert status.djvulibre
+    expected = (None, (), True)
+    assert (status.tesseract, status.languages, status.djvulibre) == expected, (
+        "a missing tesseract must be reported without languages"
+    )
 
 
 @pytest.mark.parametrize("missing_tool", ["djvutxt", "djvused", "ddjvu"])
@@ -147,10 +151,13 @@ def test_check_native_tools_reports_each_missing_djvu_tool(
 
     status = diagnostics_module.check_native_tools()
 
-    expected_tesseract = "/usr/bin/tesseract"
-    assert status.tesseract == expected_tesseract
-    assert status.djvulibre is False
-    assert getattr(status.djvu_tools, missing_tool) is None
+    expected = ("/usr/bin/tesseract", False, None)
+    actual = (
+        status.tesseract,
+        status.djvulibre,
+        getattr(status.djvu_tools, missing_tool),
+    )
+    assert actual == expected, f"missing {missing_tool} is not reported"
 
 
 def _create_ready_app() -> object:
@@ -179,14 +186,18 @@ def test_ready_is_public_and_reports_native_dependencies(
 
     response = client.get("/ready")
 
-    expected_status_code = 200
-    assert response.status_code == expected_status_code
-    assert response.json() == {
-        "tesseract": True,
-        "languages": ["eng", "rus"],
-        "djvulibre": True,
-        "model_loaded": True,
-    }
+    expected = (
+        200,
+        {
+            "tesseract": True,
+            "languages": ["eng", "rus"],
+            "djvulibre": True,
+            "model_loaded": True,
+        },
+    )
+    assert (response.status_code, response.json()) == expected, (
+        "an unauthenticated readiness request did not report the dependencies"
+    )
 
 
 def test_ready_reports_missing_programs_without_raising(
@@ -210,14 +221,18 @@ def test_ready_reports_missing_programs_without_raising(
         headers={"Authorization": "Bearer document-ready-test-key"},
     )
 
-    expected_status_code = 200
-    assert response.status_code == expected_status_code
-    assert response.json() == {
-        "tesseract": False,
-        "languages": [],
-        "djvulibre": False,
-        "model_loaded": False,
-    }
+    expected = (
+        200,
+        {
+            "tesseract": False,
+            "languages": [],
+            "djvulibre": False,
+            "model_loaded": False,
+        },
+    )
+    assert (response.status_code, response.json()) == expected, (
+        "missing programs were not reported as unavailable"
+    )
 
 
 def test_ready_reports_unloaded_model_after_model_load_failure(

@@ -16,7 +16,7 @@ from tests.support.builders import (
 )
 
 
-def test_pptx_extracts_table_rows_and_truncates_table_text() -> None:
+def _build_table_pptx() -> bytes:
     presentation = Presentation()
     slide = presentation.slides.add_slide(presentation.slide_layouts[6])
     table = slide.shapes.add_table(1, 2, 0, 0, 3_000_000, 500_000).table
@@ -24,24 +24,30 @@ def test_pptx_extracts_table_rows_and_truncates_table_text() -> None:
     table.cell(0, 1).text = "Value"
     output = BytesIO()
     presentation.save(output)
-    data = output.getvalue()
+    return output.getvalue()
+
+
+def test_pptx_extracts_table_rows() -> None:
+    data = _build_table_pptx()
+
+    text = process_document_sync(data, "table.pptx")["text"]
 
     table_row = "Name | Value"
-    assert table_row in process_document_sync(data, "table.pptx")["text"]
+    assert table_row in text, "the table row was not extracted"
 
+
+def test_pptx_truncates_table_text() -> None:
+    data = _build_table_pptx()
     budget = TextBudget(20)
     context = ExtractContext(budget=budget, deadline=Deadline(10))
+
     extract_pptx(data, context=context)
-    assert budget.truncated is True
+
+    assert budget.truncated is True, "table text over the budget was not truncated"
 
 
 def test_pptx_extracts_slide_heading_and_text() -> None:
     text = extract_pptx(create_pptx())
 
-    assert isinstance(text, str)
-    slide_header = "--- Слайд 1 ---"
-    assert slide_header in text
-    slide_title = "PPTX test"
-    assert slide_title in text
-    slide_text = "Document engine works!"
-    assert slide_text in text
+    expected_text = "--- Слайд 1 ---\nPPTX test\nDocument engine works!"
+    assert text == expected_text, "the slide heading or text was not extracted"

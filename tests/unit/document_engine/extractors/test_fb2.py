@@ -12,21 +12,18 @@ from tests.support.builders import create_fb2
 def test_fb2_extracts_titles_paragraphs_and_nested_text() -> None:
     text = extract_fb2(create_fb2())
 
-    book_title = "FB2 test"
-    assert book_title in text
-    paragraph = "Document engine works!"
-    assert paragraph in text
-    emphasized_text = "Text with emphasis preserved."
-    assert emphasized_text in text
+    expected_text = "FB2 test\nDocument engine works!\nText with emphasis preserved."
+    assert text == expected_text, "titles, paragraphs or nested text were lost"
 
 
 def test_fb2_without_body_is_rejected() -> None:
     data = b"<FictionBook><description /></FictionBook>"
 
-    with pytest.raises(
-        DocumentRejectedError, match="\u0412 FB2 не найдено содержимое книги"
-    ):
+    with pytest.raises(DocumentRejectedError) as caught:
         extract_fb2(data)
+
+    expected_message = "\u0412 FB2 не найдено содержимое книги"
+    assert str(caught.value) == expected_message, "FB2 without a body was accepted"
 
 
 def test_fb2_result_respects_global_text_limit() -> None:
@@ -37,7 +34,9 @@ def test_fb2_result_respects_global_text_limit() -> None:
     )
 
     text = extract_fb2(data)
-    assert text == "x" * MAX_EXTRACTED_TEXT_LENGTH
+
+    expected_text = "x" * MAX_EXTRACTED_TEXT_LENGTH
+    assert text == expected_text, "the FB2 text exceeds the global limit"
 
 
 def test_fb2_rejects_entity_declarations() -> None:

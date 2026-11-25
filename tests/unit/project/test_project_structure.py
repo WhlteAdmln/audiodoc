@@ -3,6 +3,8 @@
 
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).parents[3]
 
 
@@ -12,13 +14,16 @@ def test_document_engine_processor_shim_is_removed() -> None:
 
 
 def test_project_root_has_no_stray_test_scripts_or_working_folders() -> None:
-    expected_empty = []
+    expected_empty: list[Path] = []
     assert list(PROJECT_ROOT.glob("test_*.py")) == expected_empty, (
-        "expected an empty list"
+        "a stray test script is in the project root"
     )
-    assert not (PROJECT_ROOT / "test_documents").exists()
-    assert not (PROJECT_ROOT / "uploads").exists()
+
+
+@pytest.mark.parametrize("folder", ["test_documents", "uploads"])
+def test_project_root_has_no_working_folder(folder: str) -> None:
+    assert not (PROJECT_ROOT / folder).exists(), "a working folder is in the root"
 
 
 def test_uvicorn_app_module_shim_is_removed() -> None:
-    assert not (PROJECT_ROOT / "app.py").exists()
+    assert not (PROJECT_ROOT / "app.py").exists(), "the legacy app module is back"

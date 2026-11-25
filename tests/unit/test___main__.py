@@ -19,4 +19,4 @@ def test_invokes_cli_main_and_exits_with_its_code(
         runpy.run_path(str(entry_point), run_name="__main__")
 
     expected_code = 7
-    assert error.value.code == expected_code
+    assert error.value.code == expected_code, "wrong exit code"

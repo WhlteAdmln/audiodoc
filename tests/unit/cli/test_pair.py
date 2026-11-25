@@ -16,19 +16,25 @@ def test_pair_prints_exact_shared_settings_from_env_file(
 ) -> None:
     home = tmp_path / "home"
     monkeypatch.setenv("AUDIODOC_HOME", str(home))
-    assert cli.main(["init"]) == 0
+    init_code = cli.main(["init"])
     capsys.readouterr()
     values = dotenv_values(home / ".env")
     monkeypatch.setenv("AUDIODOC_AUDIO_KEY", "environment-audio-key")
     monkeypatch.setenv("AUDIODOC_DOCUMENT_KEY", "environment-document-key")
 
-    assert cli.main(["pair", "--url", "http://10.8.0.1:8000"]) == 0
+    pair_code = cli.main(["pair", "--url", "http://10.8.0.1:8000"])
 
-    assert capsys.readouterr().out.splitlines() == [
-        "AUDIODOC_URL=http://10.8.0.1:8000",
-        f"AUDIODOC_AUDIO_KEY={values['AUDIODOC_AUDIO_KEY']}",
-        f"AUDIODOC_DOCUMENT_KEY={values['AUDIODOC_DOCUMENT_KEY']}",
-    ]
+    actual = (init_code, pair_code, capsys.readouterr().out.splitlines())
+    expected = (
+        0,
+        0,
+        [
+            "AUDIODOC_URL=http://10.8.0.1:8000",
+            f"AUDIODOC_AUDIO_KEY={values['AUDIODOC_AUDIO_KEY']}",
+            f"AUDIODOC_DOCUMENT_KEY={values['AUDIODOC_DOCUMENT_KEY']}",
+        ],
+    )
+    assert actual == expected, "pair must print the settings of the env file"
 
 
 def test_pair_uses_host_and_port_from_env_when_url_is_omitted(
@@ -37,15 +43,15 @@ def test_pair_uses_host_and_port_from_env_when_url_is_omitted(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setenv("AUDIODOC_HOME", str(tmp_path / "home"))
-    assert cli.main(["init", "--host", "10.8.0.1", "--port", "8123"]) == 0
+    init_code = cli.main(["init", "--host", "10.8.0.1", "--port", "8123"])
     capsys.readouterr()
 
-    assert cli.main(["pair"]) == 0
-    output = capsys.readouterr().out
-    expected_splitlines = "AUDIODOC_URL=http://10.8.0.1:8123"
-    assert output.splitlines()[0] == expected_splitlines
-    expected_count = 3
-    assert len(output.splitlines()) == expected_count
+    pair_code = cli.main(["pair"])
+    lines = capsys.readouterr().out.splitlines()
+
+    actual = (init_code, pair_code, lines[0], len(lines))
+    expected = (0, 0, "AUDIODOC_URL=http://10.8.0.1:8123", 3)
+    assert actual == expected, "pair must build the URL from the env host and port"
 
 
 @pytest.mark.parametrize(

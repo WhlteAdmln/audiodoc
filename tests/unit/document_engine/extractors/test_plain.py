@@ -7,9 +7,13 @@ from audiodoc.document_engine.extractors.plain import extract_plain
 
 def test_plain_extracts_utf8_and_removes_bom() -> None:
     expected_extract_plain = "Hello\nworld"
-    assert extract_plain(b"\xef\xbb\xbfHello\nworld") == expected_extract_plain
+    assert extract_plain(b"\xef\xbb\xbfHello\nworld") == expected_extract_plain, (
+        "the BOM must be removed from UTF-8 text"
+    )
 
 
 def test_plain_replaces_invalid_utf8_bytes() -> None:
     expected_extract_plain = "hello\ufffdworld"
-    assert extract_plain(b"hello\xffworld") == expected_extract_plain
+    assert extract_plain(b"hello\xffworld") == expected_extract_plain, (
+        "invalid UTF-8 bytes must become replacement characters"
+    )

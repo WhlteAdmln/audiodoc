@@ -15,6 +15,20 @@ from scripts.release_notes import extract_release_notes
 ROOT_DIR = Path(__file__).resolve().parents[3]
 
 
+def _read_project_file(*parts: str) -> str:
+    return ROOT_DIR.joinpath(*parts).read_text(encoding="utf-8")
+
+
+def _release_entry(changelog: str, version: str) -> str:
+    return changelog.split(f"## [{version}] - ", maxsplit=1)[1].split(
+        "\n## [", maxsplit=1
+    )[0]
+
+
+def _first_line(path: Path) -> str:
+    return path.read_text(encoding="utf-8").splitlines()[0]
+
+
 def test_extract_release_notes_selects_only_the_requested_version() -> None:
     changelog = (
         "# Changelog\n\n"
@@ -28,105 +42,110 @@ def test_extract_release_notes_selects_only_the_requested_version() -> None:
     )
 
     expected_extract_release_notes = "### Added\n\n- Release feature.\n"
-    assert extract_release_notes(changelog, "1.2.3") == expected_extract_release_notes
+    assert (
+        extract_release_notes(changelog, "1.2.3") == expected_extract_release_notes
+    ), "release notes must contain only the requested version entry"
 
 
 def test_extract_release_notes_rejects_a_missing_version() -> None:
-    with pytest.raises(ValueError, match="Missing release entry"):
-        extract_release_notes("# Changelog\n\n## [Unreleased]\n", "1.0.0")
+    changelog = "# Changelog\n\n## [Unreleased]\n"
+    expected_message = "Missing release entry."
+
+    with pytest.raises(ValueError, match="Missing release entry") as error:
+        extract_release_notes(changelog, "1.0.0")
+
+    assert str(error.value) == expected_message, "a missing version must be reported"
 
 
 def test_extract_release_notes_rejects_an_empty_version_entry() -> None:
     changelog = "## [1.0.0] - 2026-11-06\n\n## [0.9.0] - 2026-10-01\n"
+    expected_message = "Empty release entry."
 
-    with pytest.raises(ValueError, match="Empty release entry"):
+    with pytest.raises(ValueError, match="Empty release entry") as error:
         extract_release_notes(changelog, "1.0.0")
 
-
-def test_release_workflow_requires_e2e_and_defaults_to_dry_run() -> None:
-    workflow = (ROOT_DIR / ".github" / "workflows" / "release.yml").read_text(
-        encoding="utf-8"
-    )
-
-    e2e_dependency = "needs: e2e"
-    assert e2e_dependency in workflow
-    dry_run_input = "dry_run:"
-    assert dry_run_input in workflow
-    dry_run_default = "default: true"
-    assert dry_run_default in workflow
-    main_branch_guard = 'GITHUB_REF" != "refs/heads/main"'
-    assert main_branch_guard in workflow
-    version_check = "project_version"
-    assert version_check in workflow
-    tag_check = "git ls-remote"
-    assert tag_check in workflow
-    notes_script = "python scripts/release_notes.py"
-    assert notes_script in workflow
-    upload_action = "actions/upload-artifact@"
-    assert upload_action in workflow
-    artifact_name = "name: release-assets-${{ inputs.version }}"
-    assert artifact_name in workflow
-    attest_action = "actions/attest@"
-    assert attest_action in workflow
-    provenance_file = "dist/build-provenance.sigstore.json"
-    assert provenance_file in workflow
+    assert str(error.value) == expected_message, "an empty entry must be reported"
 
 
-def test_non_dry_release_creates_a_draft_and_publishes_versioned_image() -> None:
-    workflow = (ROOT_DIR / ".github" / "workflows" / "release.yml").read_text(
-        encoding="utf-8"
-    )
+@pytest.mark.parametrize(
+    "fragment",
+    [
+        "needs: e2e",
+        "dry_run:",
+        "default: true",
+        'GITHUB_REF" != "refs/heads/main"',
+        "project_version",
+        "git ls-remote",
+        "python scripts/release_notes.py",
+        "actions/upload-artifact@",
+        "name: release-assets-${{ inputs.version }}",
+        "actions/attest@",
+        "dist/build-provenance.sigstore.json",
+    ],
+)
+def test_release_workflow_requires_e2e_and_defaults_to_dry_run(fragment: str) -> None:
+    workflow = _read_project_file(".github", "workflows", "release.yml")
+    assert fragment in workflow, f"release.yml must contain {fragment!r}"
 
-    non_dry_condition = "if: inputs.dry_run == false"
-    assert non_dry_condition in workflow
-    release_create = 'gh release create "$tag" dist/*'
-    assert release_create in workflow
-    notes_option = '--notes-file "$RUNNER_TEMP/release-notes.md"'
-    assert notes_option in workflow
-    draft_option = "--draft"
-    assert draft_option in workflow
-    versioned_push = 'docker push "${image}:${RELEASE_VERSION}"'
-    assert versioned_push in workflow
+
+@pytest.mark.parametrize(
+    "fragment",
+    [
+        "if: inputs.dry_run == false",
+        'gh release create "$tag" dist/*',
+        '--notes-file "$RUNNER_TEMP/release-notes.md"',
+        "--draft",
+        'docker push "${image}:${RELEASE_VERSION}"',
+    ],
+)
+def test_non_dry_release_creates_a_draft_and_publishes_versioned_image(
+    fragment: str,
+) -> None:
+    workflow = _read_project_file(".github", "workflows", "release.yml")
+    assert fragment in workflow, f"release.yml must contain {fragment!r}"
+
+
+def test_non_dry_release_uses_the_changelog_instead_of_generated_notes() -> None:
+    workflow = _read_project_file(".github", "workflows", "release.yml")
     generated_notes_option = "--generate-notes"
-    assert generated_notes_option not in workflow
+    assert generated_notes_option not in workflow, "release notes must not be generated"
 
 
-def test_release_build_produces_sdist_wheel_and_checksums() -> None:
-    script = (ROOT_DIR / "scripts" / "build_release.sh").read_text(encoding="utf-8")
+@pytest.mark.parametrize(
+    "fragment",
+    [
+        "python3 -m build --sdist --wheel --outdir dist .",
+        'sdists=("dist/${DIST_NAME}"-*.tar.gz)',
+        'wheels=("dist/${DIST_NAME}"-*.whl)',
+        'tar -tzf "${sdists[0]}"',
+        '"${SDIST_ROOT}/.env.example"',
+        '"${SDIST_ROOT}/.env"',
+        'sha256sum "${sdists[0]##*/}" "${wheels[0]##*/}" constraints.txt > SHA256SUMS',
+    ],
+)
+def test_release_build_produces_sdist_wheel_and_checksums(fragment: str) -> None:
+    script = _read_project_file("scripts", "build_release.sh")
+    assert fragment in script, f"build_release.sh must contain {fragment!r}"
 
-    build_command = "python3 -m build --sdist --wheel --outdir dist ."
-    assert build_command in script
-    sdist_glob = 'sdists=("dist/${DIST_NAME}"-*.tar.gz)'
-    assert sdist_glob in script
-    wheel_glob = 'wheels=("dist/${DIST_NAME}"-*.whl)'
-    assert wheel_glob in script
-    sdist_listing = 'tar -tzf "${sdists[0]}"'
-    assert sdist_listing in script
-    env_example_entry = '"${SDIST_ROOT}/.env.example"'
-    assert env_example_entry in script
-    env_entry = '"${SDIST_ROOT}/.env"'
-    assert env_entry in script
-    checksum_command = (
-        'sha256sum "${sdists[0]##*/}" "${wheels[0]##*/}" constraints.txt > SHA256SUMS'
-    )
-    assert checksum_command in script
+
+def test_release_build_does_not_use_git_archive() -> None:
+    script = _read_project_file("scripts", "build_release.sh")
     git_archive = "git archive"
-    assert git_archive not in script
+    assert git_archive not in script, "build_release.sh must not use git archive"
 
 
-def test_ci_build_job_verifies_both_release_distribution_formats() -> None:
-    workflow = (ROOT_DIR / ".github" / "workflows" / "ci.yml").read_text(
-        encoding="utf-8"
-    )
-
-    build_step = "Build source distribution, wheel and checksums"
-    assert build_step in workflow
-    sdist_glob = "sdists=(dist/audiodoc-*.tar.gz)"
-    assert sdist_glob in workflow
-    wheel_glob = "wheels=(dist/audiodoc-*.whl)"
-    assert wheel_glob in workflow
-    checksum_check = "sha256sum --check --status SHA256SUMS"
-    assert checksum_check in workflow
+@pytest.mark.parametrize(
+    "fragment",
+    [
+        "Build source distribution, wheel and checksums",
+        "sdists=(dist/audiodoc-*.tar.gz)",
+        "wheels=(dist/audiodoc-*.whl)",
+        "sha256sum --check --status SHA256SUMS",
+    ],
+)
+def test_ci_build_job_verifies_both_release_distribution_formats(fragment: str) -> None:
+    workflow = _read_project_file(".github", "workflows", "ci.yml")
+    assert fragment in workflow, f"ci.yml must contain {fragment!r}"
 
 
 def test_ci_lint_job_runs_every_static_analysis_gate() -> None:
@@ -135,7 +154,7 @@ def test_ci_lint_job_runs_every_static_analysis_gate() -> None:
     )
 
     lint_command = "run: make types pylint deptry vulture import-lint"
-    assert lint_command in workflow
+    assert lint_command in workflow, "the lint job must run every static gate"
 
 
 @pytest.mark.parametrize(
@@ -233,9 +252,9 @@ def test_fix_target_runs_ruff(fix_command: str) -> None:
     assert fix_command in makefile, "make fix must run the ruff command"
 
 
-def test_lint_runs_tools_from_project_environment() -> None:
-    makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
-    for command in (
+@pytest.mark.parametrize(
+    "command",
+    [
         "$(PYTHON_SCRIPTS_DIR)/shfmt -i 0 -d install.sh",
         "$(PYTHON_SCRIPTS_DIR)/shellcheck $(shell git ls-files '*.sh' '*.sh.example')",
         (
@@ -250,91 +269,103 @@ def test_lint_runs_tools_from_project_environment() -> None:
             "find deploy -type f -name '*.sh.example' -exec "
             "$(PYTHON_SCRIPTS_DIR)/shfmt -i 2 -sr -d {} +"
         ),
-    ):
-        assert command in makefile
+    ],
+)
+def test_lint_runs_tools_from_project_environment(command: str) -> None:
+    makefile = _read_project_file("Makefile")
+    assert command in makefile, f"make lint must run {command!r}"
 
-    pre_commit_config = (ROOT_DIR / ".pre-commit-config.yaml").read_text(
-        encoding="utf-8"
+
+@pytest.mark.parametrize(
+    "fragment",
+    [
+        "language: system",
+        "entry: shfmt",
+        "entry: ruff",
+        "entry: shellcheck",
+        "shellcheck-py",
+    ],
+)
+def test_pre_commit_does_not_run_tools_from_the_system(fragment: str) -> None:
+    pre_commit_config = _read_project_file(".pre-commit-config.yaml")
+    assert fragment not in pre_commit_config, (
+        f".pre-commit-config.yaml must not contain {fragment!r}"
     )
-    system_language = "language: system"
-    assert system_language not in pre_commit_config
-    shfmt_entry = "entry: shfmt"
-    assert shfmt_entry not in pre_commit_config
-    ruff_entry = "entry: ruff"
-    assert ruff_entry not in pre_commit_config
-    shellcheck_entry = "entry: shellcheck"
-    assert shellcheck_entry not in pre_commit_config
-    shellcheck_package = "shellcheck-py"
-    assert shellcheck_package not in pre_commit_config
-    pyproject = (ROOT_DIR / "pyproject.toml").read_text(encoding="utf-8")
+
+
+def test_pyproject_pins_the_shellcheck_package() -> None:
+    pyproject = _read_project_file("pyproject.toml")
     shellcheck_pin = '"shellcheck-py==0.11.0.1"'
-    assert shellcheck_pin in pyproject
+    assert shellcheck_pin in pyproject, "pyproject.toml must pin shellcheck-py"
 
 
-def test_venv_requires_configured_python_version() -> None:
-    makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
-
-    python_version = "PYTHON_VERSION ?= 3.13"
-    assert python_version in makefile
-    bootstrap_python = "PYTHON_BOOTSTRAP ?= python$(PYTHON_VERSION)"
-    assert bootstrap_python in makefile
-    venv_python = (
-        "PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)"
-    )
-    assert venv_python in makefile
-    version_check = 'expected="$(PYTHON_VERSION)"'
-    assert version_check in makefile
-    bootstrap_lookup = 'command -v "$(PYTHON_BOOTSTRAP)"'
-    assert bootstrap_lookup in makefile
-    venv_probe = ".venv/bin/python -c"
-    assert venv_probe in makefile
-    venv_removal = "rm -rf .venv"
-    assert venv_removal in makefile
-    venv_creation = '"$(PYTHON_BOOTSTRAP)" -m venv .venv'
-    assert venv_creation in makefile
+@pytest.mark.parametrize(
+    "fragment",
+    [
+        "PYTHON_VERSION ?= 3.13",
+        "PYTHON_BOOTSTRAP ?= python$(PYTHON_VERSION)",
+        "PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)",
+        'expected="$(PYTHON_VERSION)"',
+        'command -v "$(PYTHON_BOOTSTRAP)"',
+        ".venv/bin/python -c",
+        "rm -rf .venv",
+        '"$(PYTHON_BOOTSTRAP)" -m venv .venv',
+    ],
+)
+def test_venv_requires_configured_python_version(fragment: str) -> None:
+    makefile = _read_project_file("Makefile")
+    assert fragment in makefile, f"Makefile must contain {fragment!r}"
 
 
 def test_sdist_manifest_includes_only_the_safe_environment_template() -> None:
-    manifest = (ROOT_DIR / "MANIFEST.in").read_text(encoding="utf-8").splitlines()
-
-    assert manifest == ["include .env.example", "exclude .env"]
+    manifest = _read_project_file("MANIFEST.in").splitlines()
+    expected_manifest = ["include .env.example", "exclude .env"]
+    assert manifest == expected_manifest, "MANIFEST.in must ship only .env.example"
 
 
 def test_project_vendored_files_have_required_headers() -> None:
-    for relative_path in VENDORED_FILES:
-        path = ROOT_DIR / relative_path
-        first_line = path.read_text(encoding="utf-8").splitlines()[0]
-        assert first_line == VENDORED_HEADER
+    headers = {path: _first_line(ROOT_DIR / path) for path in VENDORED_FILES}
+    expected_headers = dict.fromkeys(VENDORED_FILES, VENDORED_HEADER)
+    assert headers == expected_headers, "every vendored file needs the shared header"
 
+
+def test_project_has_exactly_one_package_with_vendored_files() -> None:
     package_files = sorted(ROOT_DIR.glob("*/log_filters.py"))
-    assert len(package_files) == 1
-    for filename in PACKAGE_VENDORED_FILES:
-        first_line = (
-            (package_files[0].parent / filename)
-            .read_text(encoding="utf-8")
-            .splitlines()[0]
-        )
-        assert first_line == VENDORED_HEADER
+    expected_count = 1
+    assert len(package_files) == expected_count, "exactly one package must vendor files"
+
+
+def test_package_vendored_files_have_required_headers() -> None:
+    package_dir = min(ROOT_DIR.glob("*/log_filters.py")).parent
+    headers = {name: _first_line(package_dir / name) for name in PACKAGE_VENDORED_FILES}
+    expected_headers = dict.fromkeys(PACKAGE_VENDORED_FILES, VENDORED_HEADER)
+    assert headers == expected_headers, "every package vendored file needs the header"
 
 
 def test_project_version_and_changelog_prepare_release_030() -> None:
-    pyproject = (ROOT_DIR / "pyproject.toml").read_text(encoding="utf-8")
-    changelog = (ROOT_DIR / "CHANGELOG.md").read_text(encoding="utf-8")
-    release_entry = changelog.split("## [0.3.0] - ", maxsplit=1)[1].split(
-        "\n## [", maxsplit=1
-    )[0]
-
+    pyproject = _read_project_file("pyproject.toml")
     version_line = 'version = "0.3.0"'
-    assert version_line in pyproject
-    for section in ("### Added", "### Changed", "### Removed"):
-        assert section in release_entry
-    deprecation_note = "Deprecated functionality is not supported starting with 0.3.0."
-    assert deprecation_note in release_entry
+    assert version_line in pyproject, "pyproject.toml must declare version 0.3.0"
 
 
-def test_changelog_keeps_the_release_020_entry() -> None:
-    changelog = (ROOT_DIR / "CHANGELOG.md").read_text(encoding="utf-8")
+@pytest.mark.parametrize(
+    "fragment",
+    [
+        "### Added",
+        "### Changed",
+        "### Removed",
+        "Deprecated functionality is not supported starting with 0.3.0.",
+    ],
+)
+def test_changelog_release_030_entry_lists_the_changes(fragment: str) -> None:
+    release_entry = _release_entry(_read_project_file("CHANGELOG.md"), "0.3.0")
+    assert fragment in release_entry, f"the 0.3.0 entry must contain {fragment!r}"
+
+
+@pytest.mark.parametrize(
+    "section", ["### Added", "### Changed", "### Deprecated", "### Removed"]
+)
+def test_changelog_keeps_the_release_020_entry(section: str) -> None:
+    changelog = _read_project_file("CHANGELOG.md")
     release_entry = changelog.split("## [0.2.0] - ", maxsplit=1)[1]
-
-    for section in ("### Added", "### Changed", "### Deprecated", "### Removed"):
-        assert section in release_entry
+    assert section in release_entry, f"the 0.2.0 entry must contain {section!r}"

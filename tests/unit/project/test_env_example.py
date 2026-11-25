@@ -62,19 +62,26 @@ def _read_env_example_names() -> set[str]:
     return names
 
 
-def test_env_example_matches_settings_environment_variables() -> None:
+def test_env_example_lists_every_settings_environment_variable() -> None:
     settings_names = _read_settings_environment_names()
     example_names = _read_env_example_names()
 
     missing = sorted(settings_names - example_names)
-    extra = sorted(example_names - settings_names)
 
-    expected_empty = []
+    expected_empty: list[str] = []
     assert missing == expected_empty, (
         ".env.example and audiodoc/config/settings.py are out of sync. "
         f"Missing from .env.example: {missing}"
     )
-    expected_empty = []
+
+
+def test_env_example_matches_settings_environment_variables() -> None:
+    settings_names = _read_settings_environment_names()
+    example_names = _read_env_example_names()
+
+    extra = sorted(example_names - settings_names)
+
+    expected_empty: list[str] = []
     assert extra == expected_empty, (
         ".env.example and audiodoc/config/settings.py are out of sync. "
         f"not read by Settings: {extra}"

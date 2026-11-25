@@ -20,37 +20,31 @@ def _create_model_directory(directory: Path) -> Path:
     return directory
 
 
-def test_whisper_model_check_accepts_configured_local_model(
-    tmp_path: Path,
+def _patch_doctor_checks(
+    monkeypatch: pytest.MonkeyPatch,
+    native_tools: NativeToolsStatus,
 ) -> None:
-    model_directory = _create_model_directory(tmp_path / "model")
-    configured_settings = Settings(WHISPER_MODEL_PATH=str(model_directory))
-
-    result = doctor.check_whisper_model(configured_settings)
-
-    expected_status = "OK"
-    assert result.status == expected_status
-    present_detail = "present"
-    assert present_detail in result.message
-
-
-def test_whisper_model_check_rejects_missing_configured_path(
-    tmp_path: Path,
-) -> None:
-    configured_settings = Settings(WHISPER_MODEL_PATH=str(tmp_path / "missing-model"))
-
-    result = doctor.check_whisper_model(configured_settings)
-
-    expected_status = "FAIL"
-    assert result.status == expected_status
-    missing_detail = "missing or incomplete"
-    assert missing_detail in result.message
+    monkeypatch.setattr(doctor, "collect_system_checks", lambda _source: ())
+    monkeypatch.setattr(doctor, "load_settings", lambda _source: Settings())
+    monkeypatch.setattr(
+        doctor,
+        "check_whisper_model",
+        lambda _settings: DiagnosticCheck("Whisper model", "OK", "Available."),
+    )
+    monkeypatch.setattr(
+        doctor,
+        "check_cuda_device",
+        lambda _settings: DiagnosticCheck("CUDA", "OK", "Not required."),
+    )
+    monkeypatch.setattr(doctor, "check_native_tools", lambda: native_tools)
 
 
-def test_whisper_model_check_accepts_cached_model(
+@pytest.fixture(name="cached_model_calls")
+def fixture_cached_model_calls(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-) -> None:
+) -> list[tuple[str, bool]]:
+    """Serve a cached Whisper model and record each download request."""
     model_directory = _create_model_directory(tmp_path / "cached-model")
     calls: list[tuple[str, bool]] = []
 
@@ -63,83 +57,167 @@ def test_whisper_model_check_accepts_cached_model(
         "import_module",
         lambda _name: SimpleNamespace(download_model=fake_download),
     )
+    return calls
 
+
+@pytest.fixture(name="cache_miss_calls")
+def fixture_cache_miss_calls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[tuple[str, bool]]:
+    """Miss the Whisper model cache and record each download request."""
+    calls: list[tuple[str, bool]] = []
+
+    def cache_miss(name: str, *, local_files_only: bool) -> str:
+        calls.append((name, local_files_only))
+        raise OSError
+
+    monkeypatch.setattr(
+        doctor.importlib,
+        "import_module",
+        lambda _name: SimpleNamespace(download_model=cache_miss),
+    )
+    return calls
+
+
+@pytest.fixture(name="missing_native_tools_checks")
+def fixture_missing_native_tools_checks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[DiagnosticCheck]:
+    """Collect doctor checks with a missing OCR language and DjVu tool."""
+    _patch_doctor_checks(
+        monkeypatch,
+        NativeToolsStatus(
+            "/usr/bin/tesseract",
+            ("eng",),
+            DjvuTools(None, "/usr/bin/djvused", "/usr/bin/ddjvu"),
+        ),
+    )
+    return list(doctor.collect_doctor_checks({}))
+
+
+def test_whisper_model_check_accepts_configured_local_model(
+    tmp_path: Path,
+) -> None:
+    model_directory = _create_model_directory(tmp_path / "model")
+    configured_settings = Settings(WHISPER_MODEL_PATH=str(model_directory))
+
+    result = doctor.check_whisper_model(configured_settings)
+
+    present_detail = "present"
+    expected = ("OK", True)
+    assert (result.status, present_detail in result.message) == expected, (
+        f"configured local model was not accepted: {result}"
+    )
+
+
+def test_whisper_model_check_rejects_missing_configured_path(
+    tmp_path: Path,
+) -> None:
+    configured_settings = Settings(WHISPER_MODEL_PATH=str(tmp_path / "missing-model"))
+
+    result = doctor.check_whisper_model(configured_settings)
+
+    missing_detail = "missing or incomplete"
+    expected = ("FAIL", True)
+    assert (result.status, missing_detail in result.message) == expected, (
+        f"missing configured model path was not rejected: {result}"
+    )
+
+
+def test_whisper_model_check_accepts_cached_model(
+    cached_model_calls: list[tuple[str, bool]],
+) -> None:
     result = doctor.check_whisper_model(Settings(WHISPER_MODEL_SIZE="small"))
 
-    expected_status = "OK"
-    assert result.status == expected_status
     cache_detail = "local cache"
-    assert cache_detail in result.message
-    assert calls == [("small", True)]
+    expected = ("OK", True)
+    assert (result.status, cache_detail in result.message) == expected, (
+        f"cached model was not accepted: {result}, calls {cached_model_calls}"
+    )
+
+
+def test_whisper_model_check_looks_up_cached_model_locally(
+    cached_model_calls: list[tuple[str, bool]],
+) -> None:
+    doctor.check_whisper_model(Settings(WHISPER_MODEL_SIZE="small"))
+
+    expected_calls = [("small", True)]
+    assert cached_model_calls == expected_calls, (
+        "cached model was not looked up once in the local cache only"
+    )
 
 
 def test_whisper_model_check_accepts_downloadable_model(
-    monkeypatch: pytest.MonkeyPatch,
+    cache_miss_calls: list[tuple[str, bool]],
 ) -> None:
-    def cache_miss(_name: str, *, local_files_only: bool) -> str:
-        assert local_files_only is True
-        raise OSError
+    result = doctor.check_whisper_model(Settings(WHISPER_MODEL_SIZE="medium.en"))
 
-    monkeypatch.setattr(
-        doctor.importlib,
-        "import_module",
-        lambda _name: SimpleNamespace(download_model=cache_miss),
+    download_detail = "downloaded on first startup"
+    expected = ("OK", True)
+    assert (result.status, download_detail in result.message) == expected, (
+        f"downloadable model was not accepted: {result}, calls {cache_miss_calls}"
     )
 
-    result = doctor.check_whisper_model(Settings(WHISPER_MODEL_SIZE="small"))
 
-    expected_status = "OK"
-    assert result.status == expected_status
-    download_detail = "downloaded on first startup"
-    assert download_detail in result.message
+def test_whisper_model_check_probes_only_local_cache_for_downloadable_model(
+    cache_miss_calls: list[tuple[str, bool]],
+) -> None:
+    doctor.check_whisper_model(Settings(WHISPER_MODEL_SIZE="base"))
+
+    expected_calls = [("base", True)]
+    assert cache_miss_calls == expected_calls, (
+        "downloadable model check did not probe only the local cache"
+    )
 
 
 def test_whisper_model_check_rejects_missing_offline_model(
-    monkeypatch: pytest.MonkeyPatch,
+    cache_miss_calls: list[tuple[str, bool]],
 ) -> None:
-    def cache_miss(_name: str, **_kwargs: object) -> str:
-        raise OSError
-
-    monkeypatch.setattr(
-        doctor.importlib,
-        "import_module",
-        lambda _name: SimpleNamespace(download_model=cache_miss),
-    )
-
     result = doctor.check_whisper_model(
         Settings(WHISPER_MODEL_SIZE="small", WHISPER_OFFLINE=True)
     )
 
-    expected_status = "FAIL"
-    assert result.status == expected_status
     offline_setting = "WHISPER_OFFLINE"
-    assert offline_setting in result.message
+    expected = ("FAIL", True)
+    assert (result.status, offline_setting in result.message) == expected, (
+        f"missing offline model was not rejected: {result}, calls {cache_miss_calls}"
+    )
 
 
 def test_whisper_model_check_requires_cached_model_when_forced_offline(
-    monkeypatch: pytest.MonkeyPatch,
+    cache_miss_calls: list[tuple[str, bool]],
 ) -> None:
-    def cache_miss(_name: str, *, local_files_only: bool) -> str:
-        assert local_files_only is True
-        raise OSError
-
-    monkeypatch.setattr(
-        doctor.importlib,
-        "import_module",
-        lambda _name: SimpleNamespace(download_model=cache_miss),
-    )
-
     result = doctor.check_whisper_model(
         Settings(WHISPER_MODEL_SIZE="small", WHISPER_OFFLINE=False),
         offline=True,
     )
 
-    expected_status = "FAIL"
-    assert result.status == expected_status
     cache_detail = "local cache"
-    assert cache_detail in result.message
     offline_detail = "offline mode"
-    assert offline_detail in result.message
+    expected = ("FAIL", True, True)
+    actual = (
+        result.status,
+        cache_detail in result.message,
+        offline_detail in result.message,
+    )
+    assert actual == expected, (
+        f"forced offline mode accepted an uncached model: {result}, "
+        f"calls {cache_miss_calls}"
+    )
+
+
+def test_whisper_model_check_probes_only_local_cache_when_forced_offline(
+    cache_miss_calls: list[tuple[str, bool]],
+) -> None:
+    doctor.check_whisper_model(
+        Settings(WHISPER_MODEL_SIZE="large-v3", WHISPER_OFFLINE=False),
+        offline=True,
+    )
+
+    expected_calls = [("large-v3", True)]
+    assert cache_miss_calls == expected_calls, (
+        "forced offline check did not probe only the local cache"
+    )
 
 
 def test_whisper_model_check_rejects_unsupported_model(
@@ -156,10 +234,11 @@ def test_whisper_model_check_rejects_unsupported_model(
 
     result = doctor.check_whisper_model(Settings(WHISPER_MODEL_SIZE="unknown"))
 
-    expected_status = "FAIL"
-    assert result.status == expected_status
     unsupported_detail = "Unsupported Whisper model"
-    assert unsupported_detail in result.message
+    expected = ("FAIL", True)
+    assert (result.status, unsupported_detail in result.message) == expected, (
+        f"unsupported model was not rejected: {result}"
+    )
 
 
 def test_whisper_model_check_rejects_missing_dependency(
@@ -176,19 +255,21 @@ def test_whisper_model_check_rejects_missing_dependency(
 
     result = doctor.check_whisper_model(Settings())
 
-    expected_status = "FAIL"
-    assert result.status == expected_status
     missing_dependency_detail = "not installed"
-    assert missing_dependency_detail in result.message
+    expected = ("FAIL", True)
+    assert (result.status, missing_dependency_detail in result.message) == expected, (
+        f"missing faster-whisper dependency was not rejected: {result}"
+    )
 
 
 def test_cuda_check_is_not_required_for_cpu() -> None:
     result = doctor.check_cuda_device(Settings(WHISPER_DEVICE="cpu"))
 
-    expected_status = "OK"
-    assert result.status == expected_status
     not_required_detail = "not required"
-    assert not_required_detail in result.message
+    expected = ("OK", True)
+    assert (result.status, not_required_detail in result.message) == expected, (
+        f"CUDA was required for the CPU device: {result}"
+    )
 
 
 def test_cuda_check_accepts_visible_devices(
@@ -202,10 +283,11 @@ def test_cuda_check_accepts_visible_devices(
 
     result = doctor.check_cuda_device(Settings(WHISPER_DEVICE="cuda"))
 
-    expected_status = "OK"
-    assert result.status == expected_status
     device_count_detail = "2 CUDA device(s)"
-    assert device_count_detail in result.message
+    expected = ("OK", True)
+    assert (result.status, device_count_detail in result.message) == expected, (
+        f"visible CUDA devices were not accepted: {result}"
+    )
 
 
 def test_cuda_check_rejects_no_visible_devices(
@@ -219,10 +301,11 @@ def test_cuda_check_rejects_no_visible_devices(
 
     result = doctor.check_cuda_device(Settings(WHISPER_DEVICE="cuda"))
 
-    expected_status = "FAIL"
-    assert result.status == expected_status
     no_device_detail = "no CUDA devices"
-    assert no_device_detail in result.message
+    expected = ("FAIL", True)
+    assert (result.status, no_device_detail in result.message) == expected, (
+        f"missing CUDA devices were not rejected: {result}"
+    )
 
 
 def test_cuda_check_rejects_unavailable_ctranslate2(
@@ -239,31 +322,19 @@ def test_cuda_check_rejects_unavailable_ctranslate2(
 
     result = doctor.check_cuda_device(Settings(WHISPER_DEVICE="cuda"))
 
-    expected_status = "FAIL"
-    assert result.status == expected_status
     import_error_detail = "ImportError"
-    assert import_error_detail in result.message
+    expected = ("FAIL", True)
+    assert (result.status, import_error_detail in result.message) == expected, (
+        f"unavailable ctranslate2 was not rejected: {result}"
+    )
 
 
 def test_collect_doctor_checks_reports_native_tool_success(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(doctor, "collect_system_checks", lambda _source: ())
-    monkeypatch.setattr(doctor, "load_settings", lambda _source: Settings())
-    monkeypatch.setattr(
-        doctor,
-        "check_whisper_model",
-        lambda _settings: DiagnosticCheck("Whisper model", "OK", "Available."),
-    )
-    monkeypatch.setattr(
-        doctor,
-        "check_cuda_device",
-        lambda _settings: DiagnosticCheck("CUDA", "OK", "Not required."),
-    )
-    monkeypatch.setattr(
-        doctor,
-        "check_native_tools",
-        lambda: NativeToolsStatus(
+    _patch_doctor_checks(
+        monkeypatch,
+        NativeToolsStatus(
             "/usr/bin/tesseract",
             ("eng", "rus"),
             DjvuTools("/usr/bin/djvutxt", "/usr/bin/djvused", "/usr/bin/ddjvu"),
@@ -272,44 +343,30 @@ def test_collect_doctor_checks_reports_native_tool_success(
 
     checks = doctor.collect_doctor_checks({})
 
-    native_checks = checks[:2]
-    assert [check.name for check in native_checks] == ["Tesseract", "DjVuLibre"]
-    expected_status = "OK"
-    assert all(check.status == expected_status for check in native_checks)
+    actual = [(check.name, check.status) for check in checks[:2]]
+    expected = [("Tesseract", "OK"), ("DjVuLibre", "OK")]
+    assert actual == expected, "native tool checks did not report success first"
 
 
-def test_collect_doctor_checks_reports_missing_native_tools(
-    monkeypatch: pytest.MonkeyPatch,
+def test_collect_doctor_checks_reports_missing_tesseract_language(
+    missing_native_tools_checks: list[DiagnosticCheck],
 ) -> None:
-    monkeypatch.setattr(doctor, "collect_system_checks", lambda _source: ())
-    monkeypatch.setattr(doctor, "load_settings", lambda _source: Settings())
-    monkeypatch.setattr(
-        doctor,
-        "check_whisper_model",
-        lambda _settings: DiagnosticCheck("Whisper model", "OK", "Available."),
-    )
-    monkeypatch.setattr(
-        doctor,
-        "check_cuda_device",
-        lambda _settings: DiagnosticCheck("CUDA", "OK", "Not required."),
-    )
-    monkeypatch.setattr(
-        doctor,
-        "check_native_tools",
-        lambda: NativeToolsStatus(
-            "/usr/bin/tesseract",
-            ("eng",),
-            DjvuTools(None, "/usr/bin/djvused", "/usr/bin/ddjvu"),
-        ),
-    )
+    tesseract_check = missing_native_tools_checks[0]
 
-    checks = doctor.collect_doctor_checks({})
-
-    expected_status = "FAIL"
-    assert checks[0].status == expected_status
     missing_language = "rus"
-    assert missing_language in checks[0].message
-    expected_status = "FAIL"
-    assert checks[1].status == expected_status
+    expected = ("FAIL", True)
+    actual = (tesseract_check.status, missing_language in tesseract_check.message)
+    assert actual == expected, (
+        f"missing Tesseract language was not reported: {tesseract_check}"
+    )
+
+
+def test_collect_doctor_checks_reports_missing_djvu_tool(
+    missing_native_tools_checks: list[DiagnosticCheck],
+) -> None:
+    djvu_check = missing_native_tools_checks[1]
+
     missing_tool = "djvutxt"
-    assert missing_tool in checks[1].message
+    expected = ("FAIL", True)
+    actual = (djvu_check.status, missing_tool in djvu_check.message)
+    assert actual == expected, f"missing DjVuLibre tool was not reported: {djvu_check}"

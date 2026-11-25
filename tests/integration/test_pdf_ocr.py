@@ -15,7 +15,9 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 
-def test_extracts_pdf_text_layer_and_recognizes_scanned_page(tmp_path: Path) -> None:
+@pytest.fixture(name="scanned_pdf_text")
+def fixture_scanned_pdf_text(tmp_path: Path) -> str:
+    """Extract a PDF with a text layer page and a scanned page, or skip without OCR."""
     if shutil.which("tesseract") is None:
         pytest.skip("Tesseract is not installed")
 
@@ -38,8 +40,21 @@ def test_extracts_pdf_text_layer_and_recognizes_scanned_page(tmp_path: Path) -> 
     path = tmp_path / "test_scanned.pdf"
     path.write_bytes(create_scanned_pdf())
 
-    text = extract_pdf(path.read_bytes())
+    return extract_pdf(path.read_bytes())
 
-    assert "This is a normal PDF text page" in text
-    assert "Scanned PDF OCR Test" in text
-    assert "This page has no text layer" in text
+
+@pytest.mark.parametrize(
+    "expected_fragment",
+    [
+        "This is a normal PDF text page",
+        "Scanned PDF OCR Test",
+        "This page has no text layer",
+    ],
+)
+def test_extracts_pdf_text_layer_and_recognizes_scanned_page(
+    scanned_pdf_text: str,
+    expected_fragment: str,
+) -> None:
+    assert expected_fragment in scanned_pdf_text, (
+        "the text layer and the recognized scanned page must be extracted"
+    )

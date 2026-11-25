@@ -43,16 +43,24 @@ async def _generate_speech(executable: str, audio_path: Path) -> None:
         raise RuntimeError(message)
 
 
-@pytest.mark.timeout(900)
-def test_real_tiny_whisper_transcribes_generated_speech(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.fixture(name="speech_audio")
+def fixture_speech_audio(tmp_path: Path) -> Path:
+    """Generate a speech sample with eSpeak NG and return its path."""
     espeak_ng = shutil.which("espeak-ng")
-    assert espeak_ng is not None, "Install the espeak-ng package to run this test."
+    if espeak_ng is None:
+        message = "Install the espeak-ng package to run this test."
+        raise RuntimeError(message)
 
     audio_path = tmp_path / "whisper-smoke.wav"
     asyncio.run(_generate_speech(espeak_ng, audio_path))
+    return audio_path
+
+
+@pytest.mark.timeout(900)
+def test_real_tiny_whisper_transcribes_generated_speech(
+    speech_audio: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
 
     monkeypatch.setattr(settings, "WHISPER_MODEL_SIZE", "tiny")
     monkeypatch.setattr(settings, "WHISPER_MODEL_PATH", "")
@@ -67,7 +75,7 @@ def test_real_tiny_whisper_transcribes_generated_speech(
     configured_model_holder.load()
     transcription = asyncio.run(
         transcribe_file(
-            audio_path,
+            speech_audio,
             queue=WorkQueue(
                 settings.MAX_CONCURRENT_TRANSCRIPTIONS,
                 settings.MAX_WAITING_TRANSCRIPTIONS,

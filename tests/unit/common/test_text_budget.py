@@ -15,70 +15,136 @@ from audiodoc.common.text_budget import TextBudget
     separator_length=st.integers(min_value=0, max_value=8),
 )
 @settings(max_examples=200)
-def test_text_budget_never_exceeds_limit_and_reports_exact_truncation(
+def test_text_budget_never_exceeds_limit(
+    limit: int,
+    chunks: list[str],
+    separator_length: int,
+) -> None:
+    budget = TextBudget(limit)
+    overruns: list[int] = []
+
+    for chunk in chunks:
+        budget.add(chunk, separator_length=separator_length)
+        if budget.used > limit:
+            overruns.append(budget.used)
+
+    expected_empty: list[int] = []
+    assert overruns == expected_empty, "the budget must never use more than its limit"
+
+
+@given(
+    limit=st.integers(min_value=1, max_value=1024),
+    chunks=st.lists(st.text(max_size=256), max_size=16),
+    separator_length=st.integers(min_value=0, max_value=8),
+)
+@settings(max_examples=200)
+def test_text_budget_reports_exact_truncation(
     limit: int,
     chunks: list[str],
     separator_length: int,
 ) -> None:
     budget = TextBudget(limit)
     truncated_so_far = False
+    expected_flags: list[bool] = []
+    reported_flags: list[bool] = []
 
     for chunk in chunks:
         piece = budget.add(chunk, separator_length=separator_length)
-        if len(piece) < len(chunk):
-            truncated_so_far = True
+        truncated_so_far = truncated_so_far or len(piece) < len(chunk)
+        expected_flags.append(truncated_so_far)
+        reported_flags.append(budget.truncated)
 
-        assert budget.truncated is truncated_so_far
-        assert budget.used <= limit
+    assert reported_flags == expected_flags, (
+        "the truncation flag must turn on exactly when a chunk is cut"
+    )
 
 
 def test_text_budget_truncates_a_single_oversized_chunk() -> None:
     budget = TextBudget(10)
     expected_piece = "Длинный_те"
-    assert budget.add("Длинный_текст №20!!") == expected_piece
-    expected_used = 10
-    assert budget.used == expected_used
-    assert budget.exhausted is True
-    assert budget.truncated is True
+    assert budget.add("Длинный_текст №20!!") == expected_piece, (
+        "an oversized chunk must be cut to the limit"
+    )
+
+
+def test_text_budget_is_full_and_truncated_after_an_oversized_chunk() -> None:
+    budget = TextBudget(10)
+    budget.add("Длинный_текст №20!!")
+    expected_state = (10, True, True)
+    assert (budget.used, budget.exhausted, budget.truncated) == expected_state, (
+        "a cut chunk must fill the budget and mark it truncated"
+    )
 
 
 def test_text_budget_accounts_for_newline_between_chunks() -> None:
     budget = TextBudget(5)
     parts = [budget.add("Чай"), budget.add("Tee!")]
     expected_text = "Чай\nT"
-    assert "\n".join(part for part in parts if part) == expected_text
-    expected_used = 5
-    assert budget.used == expected_used
-    assert budget.exhausted is True
+    assert "\n".join(part for part in parts if part) == expected_text, (
+        "the newline between chunks must count towards the limit"
+    )
 
 
-def test_text_budget_rejects_invalid_limits_and_chunks() -> None:
-    with pytest.raises(ValueError, match="limit must be a positive integer"):
+def test_text_budget_is_full_after_chunks_with_newline_reach_limit() -> None:
+    budget = TextBudget(5)
+    budget.add("Чай")
+    budget.add("Tee!")
+    expected_state = (5, True)
+    assert (budget.used, budget.exhausted) == expected_state, (
+        "chunks and the newline between them must fill the budget"
+    )
+
+
+def test_text_budget_rejects_non_positive_limit() -> None:
+    with pytest.raises(ValueError, match="limit must be") as error:
         TextBudget(0)
-    with pytest.raises(TypeError, match="text must be a string"):
+    expected_message = "limit must be a positive integer"
+    assert str(error.value) == expected_message, "a zero limit must be rejected"
+
+
+def test_text_budget_rejects_non_string_chunk() -> None:
+    with pytest.raises(TypeError, match="text must be") as error:
         TextBudget(5).add(b"bytes")  # type: ignore[arg-type]  # wrong type on purpose
+    expected_message = "text must be a string"
+    assert str(error.value) == expected_message, "a bytes chunk must be rejected"
+
+
+def test_text_budget_returns_text_that_exactly_fits() -> None:
+    budget = TextBudget(5)
+
+    expected_add = "12345"
+    assert budget.add("12345") == expected_add, (
+        "text that exactly fits must be accepted whole"
+    )
 
 
 def test_text_budget_is_not_truncated_when_text_exactly_fits() -> None:
     budget = TextBudget(5)
+    budget.add("12345")
+
+    expected_state = (5, True, False)
+    assert (budget.used, budget.exhausted, budget.truncated) == expected_state, (
+        "text that exactly fits must fill the budget without truncation"
+    )
+
+
+def test_text_budget_cuts_text_that_exceeds_limit_by_one() -> None:
+    budget = TextBudget(5)
 
     expected_add = "12345"
-    assert budget.add("12345") == expected_add
-    expected_used = 5
-    assert budget.used == expected_used
-    assert budget.exhausted is True
-    assert budget.truncated is False
+    assert budget.add("123456") == expected_add, (
+        "text one character over the limit must lose its last character"
+    )
 
 
 def test_text_budget_is_truncated_when_text_exceeds_limit_by_one() -> None:
     budget = TextBudget(5)
+    budget.add("123456")
 
-    expected_add = "12345"
-    assert budget.add("123456") == expected_add
-    expected_used = 5
-    assert budget.used == expected_used
-    assert budget.exhausted is True
-    assert budget.truncated is True
+    expected_state = (5, True, True)
+    assert (budget.used, budget.exhausted, budget.truncated) == expected_state, (
+        "text one character over the limit must fill the budget and truncate"
+    )
 
 
 def test_text_budget_can_mark_source_as_incomplete_when_extraction_stops() -> None:
@@ -87,5 +153,7 @@ def test_text_budget_can_mark_source_as_incomplete_when_extraction_stops() -> No
 
     budget.mark_truncated()
 
-    assert budget.exhausted is True
-    assert budget.truncated is True
+    expected_state = (True, True)
+    assert (budget.exhausted, budget.truncated) == expected_state, (
+        "a marked budget must stay full and become truncated"
+    )
