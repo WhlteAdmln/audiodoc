@@ -1,4 +1,6 @@
 # Copyright (c) 2026 Nikolai Zelensky
+"""Integration tests for DjVu processing with OCR."""
+
 import importlib
 import shutil
 import subprocess
