@@ -37,5 +37,6 @@ def configure_logging(level: str, secrets: Iterable[str] = ()) -> None:
         handler.setFormatter(logging.Formatter(LOG_FORMAT))
         if not any(isinstance(item, RequestIdFilter) for item in handler.filters):
             handler.addFilter(RequestIdFilter())
-        if not any(isinstance(item, SecretsFilter) for item in handler.filters):
-            handler.addFilter(secret_filter)
+        for stale in [f for f in handler.filters if isinstance(f, SecretsFilter)]:
+            handler.removeFilter(stale)
+        handler.addFilter(secret_filter)

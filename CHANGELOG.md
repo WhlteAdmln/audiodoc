@@ -13,6 +13,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Fixed
 
+- [#115](https://github.com/WhlteAdmln/audiodoc/issues/115) Logs redact the secrets of the latest `configure_logging` call instead of keeping those of the first call.
 - [#139](https://github.com/WhlteAdmln/audiodoc/issues/139) `audiodoc run` warns about and `audiodoc pair` renders as loopback every spelling of the all-interfaces bind address.
 - [#114](https://github.com/WhlteAdmln/audiodoc/issues/114) `audiodoc doctor` warns about every spelling of the all-interfaces bind address, such as `0` or `::0`.
 - [#116](https://github.com/WhlteAdmln/audiodoc/issues/116) Logs redact a Telegram token inside a bot API URL or one that ends with `-`.
