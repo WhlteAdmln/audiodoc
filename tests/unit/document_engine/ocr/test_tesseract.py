@@ -153,6 +153,16 @@ def test_reports_a_failing_tesseract_run(tesseract: FakeTesseract) -> None:
     assert caught.value.status == expected_status, "the exit status was lost"
 
 
+def test_reports_output_that_is_not_utf8(tesseract: FakeTesseract) -> None:
+    tesseract.configure(pages=[b"Seite \xff\xfe 17"])
+
+    with pytest.raises(RuntimeError) as caught:
+        _recognize("deu")
+
+    expected_message = "Tesseract output is not valid UTF-8"
+    assert str(caught.value) == expected_message, "invalid UTF-8 was not reported"
+
+
 def test_reports_a_timeout(tesseract: FakeTesseract) -> None:
     tesseract.configure(delay=10)
 

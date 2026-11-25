@@ -104,7 +104,11 @@ class _PytesseractProxy:
                 message = stderr.decode("utf-8", errors="replace")
                 raise _get_pytesseract().TesseractError(return_code, message)
 
-            return output.decode("utf-8")
+            try:
+                return output.decode("utf-8")
+            except UnicodeDecodeError as error:
+                message = "Tesseract output is not valid UTF-8"
+                raise RuntimeError(message) from error
 
 
 pytesseract = _PytesseractProxy()
