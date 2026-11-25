@@ -136,6 +136,18 @@ def test_hides_tesseract_errors_behind_a_safe_message(
     assert message == expected, "Tesseract details reached the client"
 
 
+def test_maps_output_that_is_not_utf8_to_a_recognition_error(
+    tesseract: FakeTesseract,
+) -> None:
+    tesseract.configure(pages=[b"\xc3\x28 broken page \x80"])
+
+    with Image.new("RGB", (7, 5)) as image:
+        message = _rejection(image)
+
+    expected = "Не удалось распознать страницу изображения"
+    assert message == expected, "invalid UTF-8 from Tesseract was not mapped"
+
+
 def test_maps_a_page_timeout_to_a_recognition_error(
     tesseract: FakeTesseract, monkeypatch: pytest.MonkeyPatch
 ) -> None:
