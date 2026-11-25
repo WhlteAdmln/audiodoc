@@ -8,7 +8,7 @@ PROJECT_ROOT = Path(__file__).parents[3]
 
 def test_document_engine_processor_shim_is_removed() -> None:
     processor = PROJECT_ROOT / "audiodoc" / "document_engine" / "processor.py"
-    assert not processor.exists()
+    assert not processor.exists(), "the legacy processor module is back"
 
 
 def test_project_root_has_no_stray_test_scripts_or_working_folders() -> None:

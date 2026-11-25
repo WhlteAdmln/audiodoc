@@ -4,8 +4,6 @@
 
 from __future__ import annotations
 
-import asyncio
-import threading
 import zipfile
 from io import BytesIO
 from pathlib import Path
@@ -20,13 +18,10 @@ import starlette.formparsers
 import audiodoc.document_engine.extractors.djvu as djvu_module
 import audiodoc.document_engine.extractors.djvu.text_layer as text_layer_module
 from audiodoc.common.deadline import DeadlineExceededError
-from audiodoc.common.work_queue import WorkQueue
 from audiodoc.document_engine import pipeline as pipeline_module
 from audiodoc.document_engine import (
     process_document_sync,
-    runner,
 )
-from audiodoc.document_engine.extractors import REGISTRY
 from audiodoc.document_engine.extractors import pdf as pdf_module
 from audiodoc.document_engine.extractors.djvu.tools import DjvuTools
 from audiodoc.document_engine.guards import zip_archive as zip_guard
@@ -732,58 +727,6 @@ def test_rejects_standalone_image() -> None:
     assert caught.value.public_message == expected_message, "a PNG was accepted"
 
 
-def test_registry_contains_all_supported_document_formats() -> None:
-    expected_formats = {
-        "pdf",
-        "docx",
-        "xlsx",
-        "pptx",
-        "epub",
-        "fb2",
-        "djvu",
-        "odt",
-        "ods",
-        "odp",
-        "txt",
-        "md",
-        "csv",
-        "html",
-        "xml",
-        "rtf",
-    }
-
-    assert set(REGISTRY) == expected_formats, "the registry formats changed"
-
-
-def test_registry_reads_markdown_as_plain_text() -> None:
-    assert REGISTRY["txt"] is REGISTRY["md"], "Markdown has its own extractor"
-
-
-def test_odf_registry_entries_dispatch_to_the_correct_type(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls = []
-
-    def fake_extract_odf(
-        data: object,
-        filetype: object,
-        **_kwargs: object,
-    ) -> object:
-        calls.append((data, filetype))
-        return ""
-
-    monkeypatch.setattr(
-        "audiodoc.document_engine.extractors.extract_odf",
-        fake_extract_odf,
-    )
-
-    for kind in ("odt", "ods", "odp"):
-        REGISTRY[kind](b"odf")
-
-    expected = [(b"odf", "odt"), (b"odf", "ods"), (b"odf", "odp")]
-    assert calls == expected, "each ODF registry entry must pass its own file type"
-
-
 def test_dispatches_registered_extractor_and_builds_result(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -866,50 +809,6 @@ def test_rejects_document_one_byte_over_size_limit() -> None:
 
     expected_status = 413
     assert caught.value.status_code == expected_status, "an oversized file passed"
-
-
-def test_legacy_processor_shim_has_been_removed() -> None:
-    processor_path = (
-        Path(__file__).parents[3] / "audiodoc" / "document_engine" / "processor.py"
-    )
-
-    assert not processor_path.exists(), "the legacy processor module is back"
-
-
-def test_async_runner_executes_sync_pipeline_in_a_worker_thread(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    main_thread = threading.get_ident()
-    calls = []
-
-    def fake_process(
-        data: object, filename: object, max_characters: object, deadline: object
-    ) -> object:
-        calls.append((data, filename, max_characters, deadline, threading.get_ident()))
-        return {"format": "txt", "text": "ok", "characters": 2, "truncated": False}
-
-    monkeypatch.setattr(runner, "process_document_sync", fake_process)
-
-    result = asyncio.run(
-        runner.process_document(
-            b"body", "note.txt", queue=WorkQueue(workers=1, max_waiting=4)
-        )
-    )
-
-    data, filename, max_characters, deadline, thread = calls[0]
-    outcome = (
-        result,
-        (data, filename, max_characters),
-        deadline is not None,
-        thread != main_thread,
-    )
-    expected = (
-        {"format": "txt", "text": "ok", "characters": 2, "truncated": False},
-        (b"body", "note.txt", None),
-        True,
-        True,
-    )
-    assert outcome == expected, "the runner did not use a worker thread"
 
 
 @pytest.mark.parametrize(

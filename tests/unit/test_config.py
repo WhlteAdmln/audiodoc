@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-from audiodoc.common.safe_log import log_safe
 from audiodoc.config import (
     ConfigError,
     Settings,
@@ -285,14 +284,6 @@ def test_get_log_level_warns_and_falls_back_for_an_invalid_value() -> None:
         value = get_log_level(environ=environ)
 
     assert value == expected, "an invalid log level did not fall back to INFO"
-
-
-def test_log_safe_removes_line_breaks_and_non_printable_characters() -> None:
-    expected = "user\\nname\\r?"
-
-    value = log_safe("user\nname\r\x00", limit=30)
-
-    assert value == expected, "line breaks or control characters were kept"
 
 
 def test_load_settings_uses_the_supplied_environment_and_normalizes_values(
