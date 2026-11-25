@@ -8,6 +8,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Added
 
+- [#161](https://github.com/WhlteAdmln/audiodoc/issues/161) `scripts/check_test_rules.py` reports a docstring in a test function.
 - [#157](https://github.com/WhlteAdmln/audiodoc/issues/157) `scripts/check_vendored.py` also compares the shared `tests/unit/scripts/docs_checks/test_settings.py`.
 - [#118](https://github.com/WhlteAdmln/audiodoc/issues/118) `scripts/check_vendored.py` also compares the shared `docs_checks` modules `links.py`, `markdown.py`, `russian.py` and their tests.
 - [#131](https://github.com/WhlteAdmln/audiodoc/issues/131) `scripts/check_vendored.py` has its own shared unit tests in `tests/unit/scripts/test_check_vendored.py`.
