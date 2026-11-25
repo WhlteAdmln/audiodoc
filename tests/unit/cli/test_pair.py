@@ -46,3 +46,24 @@ def test_pair_uses_host_and_port_from_env_when_url_is_omitted(
     assert output.splitlines()[0] == expected_splitlines
     expected_count = 3
     assert len(output.splitlines()) == expected_count
+
+
+@pytest.mark.parametrize(
+    ("host", "port"),
+    [("0", "8417"), ("::0", "9031"), ("0:0:0:0:0:0:0:0", "8662"), ("::", "8209")],
+)
+def test_pair_renders_every_all_interfaces_spelling_as_loopback(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    host: str,
+    port: str,
+) -> None:
+    monkeypatch.setenv("AUDIODOC_HOME", str(tmp_path / "home"))
+    cli.main(["init", "--host", host, "--port", port])
+    capsys.readouterr()
+
+    cli.main(["pair"])
+
+    expected_url = f"AUDIODOC_URL=http://127.0.0.1:{port}"
+    assert capsys.readouterr().out.splitlines()[0] == expected_url, "wrong pair URL"

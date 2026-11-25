@@ -164,3 +164,42 @@ def test_run_loads_environment_before_running_uvicorn(
             },
         ),
     ]
+
+
+@pytest.mark.parametrize("host", ["0", "::0", "0:0:0:0:0:0:0:0", "000.0"])
+def test_run_warns_about_every_all_interfaces_spelling(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    host: str,
+) -> None:
+    monkeypatch.setenv("AUDIODOC_HOST", host)
+    monkeypatch.setattr(run_command, "load_env_file", lambda _path=None: None)
+    monkeypatch.setattr(run_command, "configure_logging", lambda _level, _secrets: None)
+    monkeypatch.setattr(uvicorn, "run", lambda _application, **_kwargs: None)
+    caplog.set_level(logging.WARNING, logger="audiodoc.cli")
+
+    cli.main(["run"])
+
+    expected_warning = (
+        f"SECURITY WARNING: Binding to {host} exposes audiodoc on all network "
+        "interfaces. Ensure API keys and firewall rules are configured."
+    )
+    assert caplog.messages == [expected_warning], "all-interfaces bind not warned"
+
+
+@pytest.mark.parametrize("host", ["10.8.0.17", "fd00::5e", "audiodoc.lan"])
+def test_run_does_not_warn_about_a_specific_address(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    host: str,
+) -> None:
+    monkeypatch.setenv("AUDIODOC_HOST", host)
+    monkeypatch.setattr(run_command, "load_env_file", lambda _path=None: None)
+    monkeypatch.setattr(run_command, "configure_logging", lambda _level, _secrets: None)
+    monkeypatch.setattr(uvicorn, "run", lambda _application, **_kwargs: None)
+    caplog.set_level(logging.WARNING, logger="audiodoc.cli")
+
+    cli.main(["run"])
+
+    expected_empty: list[str] = []
+    assert caplog.messages == expected_empty, "specific bind address was warned"
