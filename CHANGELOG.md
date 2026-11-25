@@ -6,6 +6,10 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ## [Unreleased]
 
+### Added
+
+- [#129](https://github.com/WhlteAdmln/audiodoc/issues/129) Contributors can read the shared development principles in `docs/development-principles.md` and its Russian twin.
+
 ### Fixed
 
 - [#107](https://github.com/WhlteAdmln/audiodoc/issues/107) `audiodoc doctor` no longer reports the API port as failed while the service is running.
