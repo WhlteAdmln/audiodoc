@@ -5,6 +5,7 @@ import io
 import logging
 
 from PIL import Image, UnidentifiedImageError
+from PIL.Image import DecompressionBombError
 
 from audiodoc.common.deadline import Deadline
 from audiodoc.document_engine.ocr.preprocessing import SUPPORTED_IMAGE_FORMATS
@@ -12,6 +13,7 @@ from audiodoc.document_engine.ocr.recognize import recognize_pages
 from audiodoc.document_engine.ocr.tesseract import DEFAULT_OCR_LANGUAGES, ensure_ready
 from audiodoc.errors.images import (
     EmptyImageError,
+    ImageTooLargeError,
     UnknownImageFormatError,
     UnsupportedOcrImageFormatError,
 )
@@ -36,6 +38,8 @@ def extract_image_text(
         image = Image.open(io.BytesIO(data))
     except UnidentifiedImageError as error:
         raise UnknownImageFormatError from error
+    except DecompressionBombError as error:
+        raise ImageTooLargeError from error
 
     with image:
         if image.format not in SUPPORTED_IMAGE_FORMATS:

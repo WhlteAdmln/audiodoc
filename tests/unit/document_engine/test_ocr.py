@@ -89,6 +89,14 @@ def test_rejects_a_header_that_declares_too_many_pixels() -> None:
     assert message == expected, "a huge declared size was not rejected"
 
 
+@pytest.mark.usefixtures("tesseract")
+def test_rejects_a_header_over_the_decompression_bomb_limit() -> None:
+    message = _rejection(png_header(13_457, 13_331))
+
+    expected = "Изображение слишком большое: превышен лимит пикселей"
+    assert message == expected, "a decompression bomb was not reported as too large"
+
+
 def test_requires_tesseract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     empty_bin = tmp_path / "empty-bin"
     empty_bin.mkdir()
