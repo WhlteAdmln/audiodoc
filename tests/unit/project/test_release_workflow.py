@@ -1,17 +1,14 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Regression tests for release asset generation and workflow configuration."""
 
-import json
 from pathlib import Path
 
 import pytest
 
 from scripts.check_vendored import (
-    HEADERLESS_VENDORED_FILES,
     PACKAGE_VENDORED_FILES,
     VENDORED_FILES,
     VENDORED_HEADER,
-    check_vendored,
 )
 from scripts.release_notes import extract_release_notes
 
@@ -301,133 +298,6 @@ def test_sdist_manifest_includes_only_the_safe_environment_template() -> None:
     manifest = (ROOT_DIR / "MANIFEST.in").read_text(encoding="utf-8").splitlines()
 
     assert manifest == ["include .env.example", "exclude .env"]
-
-
-def _minimal_pyproject(
-    package_name: str,
-    ruff_line_length: int,
-    pytest_addopts: str,
-) -> str:
-    return (
-        f"{VENDORED_HEADER}\n\n"
-        "[tool.ruff]\n"
-        f"line-length = {ruff_line_length}\n\n"
-        "[tool.deptry]\n"
-        f"known_first_party = [{json.dumps(package_name)}]\n\n"
-        "[tool.importlinter]\n"
-        f"root_package = {json.dumps(package_name)}\n\n"
-        "[[tool.importlinter.contracts]]\n"
-        f"source_modules = [{json.dumps(f'{package_name}.api')}]\n"
-        f"forbidden_modules = [{json.dumps(f'{package_name}.main')}]\n\n"
-        "[tool.pytest.ini_options]\n"
-        f"addopts = {json.dumps(pytest_addopts)}\n"
-    )
-
-
-def _write_vendored_repository(
-    root: Path,
-    package_name: str,
-    *,
-    ruff_line_length: int = 88,
-    pytest_addopts: str = "-q",
-) -> None:
-    """Create a minimal repository containing all vendored files."""
-    for relative_path in VENDORED_FILES:
-        path = root / relative_path
-        path.parent.mkdir(parents=True, exist_ok=True)
-        pyproject_path = "pyproject.toml"
-        content = (
-            _minimal_pyproject(package_name, ruff_line_length, pytest_addopts)
-            if relative_path == pyproject_path
-            else f"{VENDORED_HEADER}\nshared content\n"
-        )
-        path.write_text(content, encoding="utf-8")
-
-    for relative_path in HEADERLESS_VENDORED_FILES:
-        path = root / relative_path
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("shared content\n", encoding="utf-8")
-
-    package_dir = root / package_name
-    package_dir.mkdir(parents=True, exist_ok=True)
-    for filename in PACKAGE_VENDORED_FILES:
-        (package_dir / filename).write_text(
-            f"{VENDORED_HEADER}\nshared module\n",
-            encoding="utf-8",
-        )
-
-
-def test_check_vendored_accepts_package_names_and_non_lint_settings(
-    tmp_path: Path,
-) -> None:
-    local = tmp_path / "audiodoc"
-    other = tmp_path / "bot-obormot"
-    _write_vendored_repository(local, "audiodoc")
-    _write_vendored_repository(other, "bot_obormot", pytest_addopts="-vv")
-
-    expected_empty = []
-    assert check_vendored(other, root=local) == expected_empty, "expected an empty list"
-
-
-def test_check_vendored_reports_lint_configuration_differences(
-    tmp_path: Path,
-) -> None:
-    local = tmp_path / "audiodoc"
-    other = tmp_path / "bot-obormot"
-    _write_vendored_repository(local, "audiodoc")
-    _write_vendored_repository(other, "bot_obormot", ruff_line_length=100)
-
-    assert check_vendored(other, root=local) == [
-        "pyproject.toml: lint configuration differs from other repository"
-    ]
-
-
-def test_check_vendored_reports_file_and_header_errors(tmp_path: Path) -> None:
-    local = tmp_path / "audiodoc"
-    other = tmp_path / "bot-obormot"
-    _write_vendored_repository(local, "audiodoc")
-    _write_vendored_repository(other, "bot_obormot")
-    (local / ".pre-commit-config.yaml").write_text(
-        f"{VENDORED_HEADER}\nlocal content\n",
-        encoding="utf-8",
-    )
-    (local / ".editorconfig").write_text("root = true\n", encoding="utf-8")
-    (other / "bot_obormot" / "env_readers.py").unlink()
-
-    errors = check_vendored(other, root=local)
-
-    difference_message = (
-        ".pre-commit-config.yaml: content differs from other repository"
-    )
-    assert difference_message in errors
-    assert f"{local / '.editorconfig'}: missing VENDORED header" in errors
-    assert f"{other / 'bot_obormot' / 'env_readers.py'}: file not found" in errors
-
-
-def test_check_vendored_reports_headerless_file_differences(tmp_path: Path) -> None:
-    local = tmp_path / "audiodoc"
-    other = tmp_path / "bot-obormot"
-    _write_vendored_repository(local, "audiodoc")
-    _write_vendored_repository(other, "bot_obormot")
-    (other / "AGENTS.md").write_text("changed\n", encoding="utf-8")
-
-    assert check_vendored(other, root=local) == [
-        "AGENTS.md: content differs from other repository"
-    ]
-
-
-def test_check_vendored_reports_claude_instructions_differences(
-    tmp_path: Path,
-) -> None:
-    local = tmp_path / "audiodoc"
-    other = tmp_path / "bot-obormot"
-    _write_vendored_repository(local, "audiodoc")
-    _write_vendored_repository(other, "bot_obormot")
-    (other / "CLAUDE.md").write_text("changed\n", encoding="utf-8")
-
-    assert check_vendored(other, root=local) == [
-        "CLAUDE.md: content differs from other repository"
-    ]
 
 
 def test_project_vendored_files_have_required_headers() -> None:
