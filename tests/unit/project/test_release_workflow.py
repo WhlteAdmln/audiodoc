@@ -141,34 +141,59 @@ def test_ci_lint_job_runs_every_static_analysis_gate() -> None:
     assert lint_command in workflow
 
 
-def test_ci_jobs_use_the_required_make_targets() -> None:
+@pytest.mark.parametrize(
+    "job",
+    ["lint", "test", "integration", "e2e", "audit", "build", "docker", "installer"],
+)
+def test_ci_defines_the_required_job(job: str) -> None:
     workflow = (ROOT_DIR / ".github" / "workflows" / "ci.yml").read_text(
         encoding="utf-8"
     )
+    assert f"\n  {job}:\n" in workflow, f"ci.yml must define the {job} job"
 
-    for job in (
-        "lint",
-        "test",
-        "integration",
-        "e2e",
-        "audit",
-        "build",
-        "docker",
-        "installer",
-    ):
-        assert f"\n  {job}:\n" in workflow
 
-    for command in (
+@pytest.mark.parametrize(
+    "command",
+    [
         "run: make lint",
-        "make test 2>&1 | tee pytest.log",
-        "make integration 2>&1 | tee pytest.log",
-        "make e2e 2>&1 | tee pytest.log",
+        "run: make test-no-skips",
+        "run: make test-integration-no-skips",
+        "run: make test-e2e-no-skips",
         "run: make audit",
         "run: make build VERSION=",
         "run: make docker",
         "run: make installer",
-    ):
-        assert command in workflow
+    ],
+)
+def test_ci_runs_the_required_make_command(command: str) -> None:
+    workflow = (ROOT_DIR / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"
+    )
+    assert command in workflow, f"ci.yml must run {command!r}"
+
+
+@pytest.mark.parametrize(
+    ("target", "call"),
+    [
+        ("test-no-skips", "$(call run_without_skips,test,Unit)"),
+        (
+            "test-integration-no-skips",
+            "$(call run_without_skips,test-integration,Integration)",
+        ),
+        ("test-e2e-no-skips", "$(call run_without_skips,test-e2e,E2E)"),
+    ],
+)
+def test_no_skips_target_fails_on_skipped_tests(target: str, call: str) -> None:
+    makefile = (ROOT_DIR / "Makefile").read_text(encoding="utf-8")
+    assert f"{target}:\n\t{call}\n" in makefile, f"{target} must reject skips"
+
+
+def test_release_e2e_job_rejects_skipped_tests() -> None:
+    workflow = (ROOT_DIR / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    expected_command = "run: make test-e2e-no-skips"
+    assert expected_command in workflow, "release e2e job must reject skipped tests"
 
 
 def test_check_target_runs_every_local_ci_gate() -> None:
