@@ -13,6 +13,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Fixed
 
+- [#111](https://github.com/WhlteAdmln/audiodoc/issues/111) XML extraction keeps the text that follows a child element.
 - [#107](https://github.com/WhlteAdmln/audiodoc/issues/107) `audiodoc doctor` no longer reports the API port as failed while the service is running.
 - [#106](https://github.com/WhlteAdmln/audiodoc/issues/106) `install.sh --upgrade` no longer leaves `.venv.new` paths in the environment, so the service starts after an upgrade.
 

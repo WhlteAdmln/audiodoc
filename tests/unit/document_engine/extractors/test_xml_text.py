@@ -26,6 +26,24 @@ def test_extracts_element_text_in_document_order() -> None:
     assert text == expected_text, "element text is missing or out of order"
 
 
+def test_keeps_tail_text_after_a_child_element() -> None:
+    data = b"<note><em>Grieg</em> wrote it in 1874</note>"
+
+    text = extract_xml_text(data)
+
+    expected_text = "Grieg\nwrote it in 1874"
+    assert text == expected_text, "tail text after a child element was dropped"
+
+
+def test_orders_nested_tail_text_after_the_inner_elements() -> None:
+    data = b"<p>Os<q>Bergen<i>7th</i>fjord</q>Troldhaugen</p>"
+
+    text = extract_xml_text(data)
+
+    expected_text = "Os\nBergen\n7th\nfjord\nTroldhaugen"
+    assert text == expected_text, "nested tail text is out of document order"
+
+
 def test_skips_comments_instructions_and_blank_nodes_but_keeps_cdata() -> None:
     data = (
         b"<r><?php system('id'); ?><!-- \xd0\xbf\xd0\xb0\xd1\x80\xd0\xbe\xd0\xbb\xd1"
