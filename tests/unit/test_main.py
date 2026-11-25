@@ -786,8 +786,8 @@ def test_loads_model_during_startup(
         ("audio-secret", "document-secret", ("audio-secret", "document-secret")),
         (
             " new-audio-7Q , old-audio-2x,,",
-            "doc-ключ-ß",
-            ("new-audio-7Q", "old-audio-2x", "doc-ключ-ß"),
+            "doc-K~e/y+9=",
+            ("new-audio-7Q", "old-audio-2x", "doc-K~e/y+9="),
         ),
     ],
 )

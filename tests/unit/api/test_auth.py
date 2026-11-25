@@ -198,6 +198,33 @@ def test_fails_closed_when_apis_share_a_key(
     assert message == expected_message, "a shared key was accepted"
 
 
+@pytest.mark.parametrize(
+    ("audio", "document", "names"),
+    [
+        ("ключ-42", "document-7Hq", "AUDIODOC_AUDIO_KEY"),
+        ("audio-x9Z", "old-ascii-1, café-new", "AUDIODOC_DOCUMENT_KEY"),
+        ("Schlüssel", "鍵-2026", "AUDIODOC_AUDIO_KEY, AUDIODOC_DOCUMENT_KEY"),
+    ],
+    ids=["audio", "document-rotation", "both"],
+)
+def test_rejects_keys_with_non_ascii_characters(
+    audio: str, document: str, names: str
+) -> None:
+    message = _security_error(audio, document)
+
+    expected_message = (
+        f"API keys must contain only ASCII characters: {names}. "
+        "Replace them with keys made of ASCII characters only."
+    )
+    assert message == expected_message, "a non-ASCII key passed startup"
+
+
+def test_does_not_reveal_non_ascii_keys_in_the_error() -> None:
+    message = _security_error("pässword-81", "document-Wq4")
+
+    assert re.search("pässword-81", message) is None, "a key leaked into the error"
+
+
 def test_does_not_reveal_keys_in_the_error() -> None:
     message = _security_error("", "shared-ab12, shared-ab12")
 

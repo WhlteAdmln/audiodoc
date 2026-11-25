@@ -69,6 +69,7 @@ def key_protected_router(get_expected: Callable[[Settings], str]) -> APIRouter:
 def check_security_settings(settings: Settings) -> None:
     """Fail closed when API keys are absent or shared between APIs."""
     missing: list[str] = []
+    non_ascii: list[str] = []
     configured_keys: dict[str, set[str]] = {}
     key_names = ("AUDIODOC_AUDIO_KEY", "AUDIODOC_DOCUMENT_KEY")
 
@@ -79,12 +80,21 @@ def check_security_settings(settings: Settings) -> None:
 
         if not configured:
             missing.append(name)
+        if not value.isascii():
+            non_ascii.append(name)
 
     if missing and not settings.ALLOW_UNAUTHENTICATED:
         raise RuntimeError(
             "Missing API keys: " + ", ".join(missing) + ". "
             "Set them in .env (using the same values as in the bot's .env) "
             "or set ALLOW_UNAUTHENTICATED=true for local development only."
+        )
+
+    if non_ascii:
+        raise RuntimeError(
+            "API keys must contain only ASCII characters: "
+            + ", ".join(non_ascii)
+            + ". Replace them with keys made of ASCII characters only."
         )
 
     if configured_keys["AUDIODOC_AUDIO_KEY"] & configured_keys["AUDIODOC_DOCUMENT_KEY"]:
