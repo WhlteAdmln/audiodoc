@@ -111,11 +111,11 @@ def test_save_rejects_upload_over_limit(tmp_path: Path) -> None:
 def test_save_stops_before_the_chunk_that_crosses_the_limit(tmp_path: Path) -> None:
     target = tmp_path / "voice.ogg"
     with contextlib.suppress(HTTPException):
-        asyncio.run(save_upload_limited(_upload(b"abcdefgh"), target, 5))
+        asyncio.run(save_upload_limited(_upload(b"Og\xa7S\x00\x02hd"), target, 5))
 
     written = target.read_bytes()
 
-    expected_written = b"abc"
+    expected_written = b"Og\xa7"
     assert written == expected_written, "bytes past the limit reached the disk"
 
 

@@ -844,7 +844,7 @@ def test_applies_client_character_hint(
 )
 def test_rejects_invalid_character_hint(hint: object) -> None:
     with pytest.raises(DocumentRejectedError) as caught:
-        process_document_sync(b"hello", "note.txt", max_characters=hint)
+        process_document_sync("Квитанция №17".encode(), "note.txt", max_characters=hint)
 
     expected_message = "Некорректный лимит длины текста"
     assert caught.value.public_message == expected_message, f"{hint!r} was accepted"
@@ -885,7 +885,9 @@ def test_maps_deadline_expiration_to_safe_backend_error(
     expired_deadline = SimpleNamespace(check=check)
 
     with pytest.raises(ProcessingTimeoutError) as caught:
-        process_document_sync(b"hello", "note.txt", deadline=expired_deadline)
+        process_document_sync(
+            b"Draft_v2 (final)\r\n", "note.txt", deadline=expired_deadline
+        )
 
     expected_code = "processing_timeout"
     assert caught.value.code == expected_code, "an expired deadline was not mapped"

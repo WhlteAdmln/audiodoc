@@ -373,8 +373,9 @@ def _exact_fit_context(
     scanned: FakeDjvuLibre, tesseract: FakeTesseract, pages: int
 ) -> ExtractContext:
     scanned.configure("djvused", ToolBehavior(stdout=str(pages).encode()))
-    tesseract.configure(pages=[b"abc"])
-    budget = TextBudget(len("--- Страница 1 ---\nabc"))
+    page_text = "Скан №5"
+    tesseract.configure(pages=[page_text.encode()])
+    budget = TextBudget(len(f"--- Страница 1 ---\n{page_text}"))
     return ExtractContext(budget=budget, deadline=Deadline(30))
 
 
@@ -385,7 +386,7 @@ def test_stops_at_an_exact_fit_when_more_pages_follow(
 
     text = extract_djvu(_DJVU, context=context)
 
-    expected_text = "--- Страница 1 ---\nabc"
+    expected_text = "--- Страница 1 ---\nСкан №5"
     assert text == expected_text, "text beyond the budget was returned"
 
 

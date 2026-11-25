@@ -20,7 +20,12 @@ def test_async_runner_executes_sync_pipeline_in_a_worker_thread(
         data: object, filename: object, max_characters: object, deadline: object
     ) -> object:
         calls.append((data, filename, max_characters, deadline, threading.get_ident()))
-        return {"format": "txt", "text": "ok", "characters": 2, "truncated": False}
+        return {
+            "format": "txt",
+            "text": "Готово ✓",
+            "characters": 8,
+            "truncated": False,
+        }
 
     monkeypatch.setattr(runner, "process_document_sync", fake_process)
 
@@ -38,7 +43,7 @@ def test_async_runner_executes_sync_pipeline_in_a_worker_thread(
         thread != main_thread,
     )
     expected = (
-        {"format": "txt", "text": "ok", "characters": 2, "truncated": False},
+        {"format": "txt", "text": "Готово ✓", "characters": 8, "truncated": False},
         (b"body", "note.txt", None),
         True,
         True,

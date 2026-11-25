@@ -84,7 +84,7 @@ def test_rejects_invalid_character_budget(
 ) -> None:
     response = client.post(
         "/process-document",
-        files={"file": ("note.txt", b"hello", "text/plain")},
+        files={"file": ("note.txt", "Отчёт за Q3".encode(), "text/plain")},
         data={"max_characters": max_characters},
     )
 

@@ -80,16 +80,18 @@ def test_rejects_entity_declarations() -> None:
 def test_stops_at_an_exact_fit_when_another_text_node_follows() -> None:
     context = _limited_context(3)
 
-    text = extract_xml_text(b"<root>abc<child>def</child></root>", context=context)
+    data = "<root>Мир<child>Welt</child></root>".encode()
 
-    expected_text = "abc"
+    text = extract_xml_text(data, context=context)
+
+    expected_text = "Мир"
     assert text == expected_text, "text beyond the budget was returned"
 
 
 def test_marks_truncation_when_another_text_node_follows_an_exact_fit() -> None:
     context = _limited_context(3)
 
-    extract_xml_text(b"<root>abc<child>def</child></root>", context=context)
+    extract_xml_text("<корень>Ära<z>zwölf</z></корень>".encode(), context=context)
 
     assert context.budget.truncated is True, "the omitted node was not reported"
 
