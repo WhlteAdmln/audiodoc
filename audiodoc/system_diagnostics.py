@@ -22,9 +22,6 @@ MAX_PORT = 65_535
 HEALTH_PROBE_TIMEOUT_SECONDS = 2.0
 HEALTHY_STATUS = "ok"
 HEALTH_LOADED_FIELD = "loaded"
-ALL_INTERFACES_HOSTS = frozenset(
-    (str(ipaddress.IPv4Address(0)), str(ipaddress.IPv6Address(0)))
-)
 
 CheckStatus = Literal["OK", "WARN", "FAIL"]
 FAIL_STATUS: CheckStatus = "FAIL"
@@ -148,10 +145,22 @@ def check_unauthenticated_setting(environ: Mapping[str, str]) -> DiagnosticCheck
     )
 
 
+def _binds_all_interfaces(host: str) -> bool:
+    """Return whether a numeric host spells the unspecified (all-interfaces) address."""
+    try:
+        addresses = socket.getaddrinfo(host, None, flags=socket.AI_NUMERICHOST)
+    except (socket.gaierror, UnicodeError):
+        return False
+    return any(
+        ipaddress.ip_address(sockaddr[0]).is_unspecified
+        for _family, _type, _proto, _canonname, sockaddr in addresses
+    )
+
+
 def check_bind_address(environ: Mapping[str, str]) -> DiagnosticCheck:
     """Warn when the server is configured to bind on every network interface."""
     host = (environ.get("AUDIODOC_HOST", "127.0.0.1").strip()) or "127.0.0.1"
-    if host in ALL_INTERFACES_HOSTS:
+    if _binds_all_interfaces(host):
         return DiagnosticCheck(
             "Bind address",
             "WARN",
