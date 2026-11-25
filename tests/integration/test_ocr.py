@@ -1,4 +1,6 @@
 # Copyright (c) 2026 Nikolai Zelensky
+"""Integration tests for OCR of images."""
+
 import importlib
 import shutil
 from typing import TYPE_CHECKING, cast

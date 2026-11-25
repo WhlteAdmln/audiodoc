@@ -1,4 +1,6 @@
 # Copyright (c) 2026 Nikolai Zelensky
+"""Integration tests for PDF text extraction and OCR."""
+
 import importlib
 import shutil
 from pathlib import Path
