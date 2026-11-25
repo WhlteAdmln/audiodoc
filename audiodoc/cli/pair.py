@@ -6,9 +6,8 @@ import sys
 
 from dotenv import dotenv_values
 
-from audiodoc.cli.run import ALL_INTERFACES_HOST
 from audiodoc.env_readers import get_home_dir
-from audiodoc.system_diagnostics import IPV6_HOST_MARKER
+from audiodoc.system_diagnostics import IPV6_HOST_MARKER, binds_all_interfaces
 
 
 def handle_pair_command(
@@ -43,7 +42,7 @@ def _build_pair_configuration(url: str | None) -> str:
     if base_url is None:
         host = values.get("AUDIODOC_HOST") or "127.0.0.1"
         port = values.get("AUDIODOC_PORT") or "8000"
-        if host in {ALL_INTERFACES_HOST, "::"}:
+        if binds_all_interfaces(host):
             host = "127.0.0.1"
         elif IPV6_HOST_MARKER in host and not host.startswith("["):
             host = f"[{host}]"

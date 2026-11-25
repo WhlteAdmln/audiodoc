@@ -4,7 +4,6 @@
 import argparse
 import logging
 import os
-from ipaddress import IPv4Address
 from pathlib import Path
 
 import uvicorn
@@ -12,10 +11,10 @@ import uvicorn
 from audiodoc.cli.parser import parse_port
 from audiodoc.config import ConfigError, load_env_file, load_settings
 from audiodoc.logging_setup import configure_logging, split_secrets
+from audiodoc.system_diagnostics import binds_all_interfaces
 
 # The package name keeps the logger name the command had before the split.
 logger = logging.getLogger(__package__)
-ALL_INTERFACES_HOST = str(IPv4Address(0))
 
 
 def handle_run_command(
@@ -50,10 +49,11 @@ def _run_server(host: str | None, port: int | None, env_file: Path | None) -> No
     )
     configure_logging(configured_settings.LOG_LEVEL, configured_secrets)
 
-    if resolved_host == ALL_INTERFACES_HOST:
+    if binds_all_interfaces(resolved_host):
         logger.warning(
-            "SECURITY WARNING: Binding to 0.0.0.0 exposes audiodoc on all "
-            "network interfaces. Ensure API keys and firewall rules are configured."
+            "SECURITY WARNING: Binding to %s exposes audiodoc on all "
+            "network interfaces. Ensure API keys and firewall rules are configured.",
+            resolved_host,
         )
 
     uvicorn.run(

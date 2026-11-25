@@ -13,6 +13,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Fixed
 
+- [#139](https://github.com/WhlteAdmln/audiodoc/issues/139) `audiodoc run` warns about and `audiodoc pair` renders as loopback every spelling of the all-interfaces bind address.
 - [#114](https://github.com/WhlteAdmln/audiodoc/issues/114) `audiodoc doctor` warns about every spelling of the all-interfaces bind address, such as `0` or `::0`.
 - [#116](https://github.com/WhlteAdmln/audiodoc/issues/116) Logs redact a Telegram token inside a bot API URL or one that ends with `-`.
 - [#113](https://github.com/WhlteAdmln/audiodoc/issues/113) OCR reports an image whose header exceeds Pillow's decompression bomb limit as too large.

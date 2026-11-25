@@ -145,7 +145,7 @@ def check_unauthenticated_setting(environ: Mapping[str, str]) -> DiagnosticCheck
     )
 
 
-def _binds_all_interfaces(host: str) -> bool:
+def binds_all_interfaces(host: str) -> bool:
     """Return whether a numeric host spells the unspecified (all-interfaces) address."""
     try:
         addresses = socket.getaddrinfo(host, None, flags=socket.AI_NUMERICHOST)
@@ -160,7 +160,7 @@ def _binds_all_interfaces(host: str) -> bool:
 def check_bind_address(environ: Mapping[str, str]) -> DiagnosticCheck:
     """Warn when the server is configured to bind on every network interface."""
     host = (environ.get("AUDIODOC_HOST", "127.0.0.1").strip()) or "127.0.0.1"
-    if _binds_all_interfaces(host):
+    if binds_all_interfaces(host):
         return DiagnosticCheck(
             "Bind address",
             "WARN",
