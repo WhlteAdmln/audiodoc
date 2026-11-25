@@ -24,9 +24,8 @@ class ConfigError(ValueError):
         super().__init__("Invalid configuration:\n" + "\n".join(errors))
 
 
-# One field per environment variable; splitting them would only hide the schema.
 @dataclass(frozen=True, slots=True)
-class Settings:  # pylint: disable=too-many-instance-attributes
+class Settings:  # pylint: disable=too-many-instance-attributes  # one field per env var
     """Environment-backed defaults for Whisper, HTTP access, and resource limits."""
 
     # Whisper model and inference settings.

@@ -13,6 +13,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Changed
 
+- [#105](https://github.com/WhlteAdmln/audiodoc/issues/105) `WorkQueue` drops an unused attribute and its `too-many-instance-attributes` suppression; `Settings` keeps the suppression with an inline reason.
 - [#123](https://github.com/WhlteAdmln/audiodoc/issues/123) The `log_safe`, extractor registry and runner tests live in the test files that mirror their modules.
 - [#120](https://github.com/WhlteAdmln/audiodoc/issues/120) CI checks for skipped unit, integration and e2e tests with the `test-no-skips`, `test-integration-no-skips` and `test-e2e-no-skips` make targets instead of inline shell.
 - [#121](https://github.com/WhlteAdmln/audiodoc/issues/121) The bot contract test loads a fake Whisper model through `loaded_model_holder` instead of patching a private attribute.
