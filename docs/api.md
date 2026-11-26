@@ -20,7 +20,7 @@ Clients should use `code` for programmatic handling and may continue to display 
 | `server_busy` | 503 | Both processing endpoints | The bounded work queue is full; `Retry-After: 30` is returned |
 | `document_rejected` | 400 | `/process-document` | The document cannot be processed |
 | `unsupported_format` | 400 | `/process-document` | The format is not supported |
-| `payload_too_large` | 413 | `/process-document` | The processing payload exceeds its configured limit |
+| `payload_too_large` | 413 | Both processing endpoints | The upload or processing payload exceeds its configured limit |
 | `processing_timeout` | 504 | `/process-document` | Document processing exceeded its deadline |
 | `dependency_missing` | 503 | `/process-document` | A required native dependency is unavailable |
 | `invalid_audio` | 400 | `/transcribe` | The uploaded file is not decodable audio |
@@ -77,7 +77,7 @@ Response `200`:
 | ---: | --- |
 | 400 | Audio is unreadable (`invalid_audio`) or exceeds `MAX_AUDIO_DURATION` (`audio_too_long`) |
 | 401 | Missing or invalid audio key |
-| 413 | Upload exceeds `MAX_AUDIO_SIZE` or request-body limit |
+| 413 | Upload exceeds `MAX_AUDIO_SIZE` (`payload_too_large`); early request-size rejections retain their existing response format |
 | 503 | Whisper model is not loaded (`model_not_ready`) or the bounded work queue is full (`server_busy`; `Retry-After: 30`) |
 | 504 | Transcription deadline elapsed (`transcription_timeout`) |
 | 500 | Unexpected internal failure (`internal_error`); implementation details are not returned |

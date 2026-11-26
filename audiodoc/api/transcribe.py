@@ -4,7 +4,7 @@
 import logging
 from typing import Annotated
 
-from fastapi import Depends, File, HTTPException, UploadFile
+from fastapi import Depends, File, UploadFile
 
 from audiodoc.api.auth import key_protected_router
 from audiodoc.api.dependencies import get_model_holder, get_transcription_queue
@@ -13,11 +13,15 @@ from audiodoc.common.limited_upload import save_upload_limited
 from audiodoc.common.work_queue import WorkQueue
 from audiodoc.config import settings
 from audiodoc.errors.base import BackendError
+from audiodoc.errors.transcription import ModelNotReadyError
 from audiodoc.transcription.model import ModelHolder
 from audiodoc.transcription.service import TranscriptionResult, transcribe_file
 from audiodoc.transcription.temp_files import temp_audio_file
 
 logger = logging.getLogger(__name__)
+
+MODEL_NOT_LOADED_DETAIL = "Whisper model is not loaded"
+TRANSCRIPTION_FAILED_DETAIL = "Transcription failed"
 
 router = key_protected_router(
     lambda configured_settings: configured_settings.AUDIODOC_AUDIO_KEY
@@ -52,7 +56,7 @@ async def _transcribe_upload(
         "Returns:\n"
         "    The recognized text, detected language, and audio duration.\n\n"
         "Raises:\n"
-        "    HTTPException: For missing model, invalid duration, oversized audio, or\n"
+        "    AppError: For missing model, invalid duration, oversized audio, or\n"
         "        an internal transcription failure."
     ),
     responses={
@@ -61,6 +65,12 @@ async def _transcribe_upload(
             "description": (
                 "Audio is unreadable (invalid_audio) or exceeds the duration "
                 "limit (audio_too_long)."
+            ),
+        },
+        413: {
+            "model": ErrorResponse,
+            "description": (
+                "The audio upload exceeds MAX_AUDIO_SIZE (payload_too_large)."
             ),
         },
         500: {
@@ -102,24 +112,21 @@ async def transcribe(
         The recognized text, detected language, and audio duration.
 
     Raises:
-        AppError: Re-raised unchanged when queueing or transcription reports a
-            backend error.
-        HTTPException: For missing model, invalid duration, oversized audio, or
-            an internal transcription failure.
+        AppError: For missing model, invalid duration, oversized audio, or an
+            internal transcription failure; backend errors from queueing or
+            transcription are re-raised unchanged.
 
     """
     if not configured_model_holder.is_loaded:
-        raise HTTPException(status_code=503, detail="Whisper model is not loaded")
+        raise ModelNotReadyError(MODEL_NOT_LOADED_DETAIL)
 
     try:
         return await _transcribe_upload(file, queue, configured_model_holder)
 
     except BackendError:
         raise
-    except HTTPException:
-        raise
     except Exception:
         logger.exception("Audio transcription failed")
-        raise HTTPException(status_code=500, detail="Transcription failed") from None
+        raise BackendError(TRANSCRIPTION_FAILED_DETAIL) from None
     finally:
         await file.close()

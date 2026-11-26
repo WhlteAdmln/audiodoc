@@ -230,6 +230,45 @@ def test_answers_service_unavailable_without_loaded_model() -> None:
     assert response.status_code == expected_status, "an unloaded model answered"
 
 
+def test_reports_model_not_ready_code_without_loaded_model() -> None:
+    application = create_app(settings)
+    application.state.model_holder = ModelHolder(settings)
+
+    response = TestClient(application).post(
+        "/transcribe", files={"file": ("memo.ogg", b"OggS\x00\x02", "audio/ogg")}
+    )
+
+    expected_body = {"detail": "Whisper model is not loaded", "code": "model_not_ready"}
+    assert response.json() == expected_body, "an unloaded model gave no code"
+
+
+def test_reports_payload_too_large_code_for_oversized_audio(
+    audio_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "MAX_AUDIO_SIZE", 23)
+
+    response = _post(speech_model(), f"{audio_dir.name}-big.wav", create_wav())
+
+    expected_code = "payload_too_large"
+    assert response.json().get("code") == expected_code, "oversized audio gave no code"
+
+
+def test_hides_unexpected_failure_behind_internal_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    transcribe = import_module("audiodoc.api.transcribe")
+
+    def broken_transcription(*_args: object, **_kwargs: object) -> Never:
+        raise RuntimeError
+
+    monkeypatch.setattr(transcribe, "transcribe_file", broken_transcription)
+
+    response = _post(speech_model(), "lecture-07.wav", create_wav())
+
+    expected_body = {"detail": "Transcription failed", "code": "internal_error"}
+    assert response.json() == expected_body, "an unexpected failure gave no code"
+
+
 def test_busy_queue_answers_service_unavailable(busy_response: httpx2.Response) -> None:
     expected_status = 503
     assert busy_response.status_code == expected_status, "a full queue copied audio"

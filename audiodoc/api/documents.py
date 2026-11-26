@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, File, Form, HTTPException, UploadFile
+from fastapi import Depends, File, Form, UploadFile
 
 from audiodoc.api.auth import key_protected_router
 from audiodoc.api.dependencies import get_document_queue
@@ -22,6 +22,8 @@ from audiodoc.document_engine.result import DocumentResult
 from audiodoc.errors.base import BackendError
 
 logger = logging.getLogger(__name__)
+
+PROCESSING_FAILED_DETAIL = "Document processing failed"
 
 router = key_protected_router(
     lambda configured_settings: configured_settings.AUDIODOC_DOCUMENT_KEY
@@ -113,8 +115,6 @@ async def process_document_endpoint(
     try:
         return await _process_upload(file, filename, max_characters, queue)
 
-    except HTTPException:
-        raise
     except BackendError as error:
         logger.warning(
             "Document rejected: filename=%s, status=%s",
@@ -127,9 +127,6 @@ async def process_document_endpoint(
             "Document processing failed: filename=%s",
             log_safe(filename),
         )
-        raise HTTPException(
-            status_code=500,
-            detail="Document processing failed",
-        ) from error
+        raise BackendError(PROCESSING_FAILED_DETAIL) from error
     finally:
         await file.close()
