@@ -14,6 +14,6 @@ Keep the detector, extractor registry, limits, tests, and public documentation i
 Run both test commands before returning the change:
 
 ```bash
-python -m pytest -q
-python -m pytest -q -m integration
+make test
+make test-integration
 ```

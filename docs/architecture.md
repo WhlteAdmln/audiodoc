@@ -109,17 +109,20 @@ The root logger uses a consistent format with the request ID. The request ID is 
 ## 8. Dependencies and package layout
 
 - `api/`: HTTP routers, response schemas, authentication, middleware and error handling.
-- `common/`: deadlines, queues, limited uploads/subprocesses, safe logging, request IDs and logging setup.
+- `cli/`: the `audiodoc` command-line parser and one module per command.
+- `common/`: deadlines, queues, limited uploads/subprocesses, safe logging and request IDs.
 - `config/`: environment-backed settings and project paths.
 - `document_engine/`: limits, detection, guards, OCR, extractors and pipeline.
 - `errors/`: typed errors with safe public messages.
 - `transcription/`: Whisper model, threaded recognition and temporary files.
+- Top-level modules: `main.py` (application factory and lifecycle), `__main__.py` (`python -m audiodoc`), `logging_setup.py` (logging setup with request IDs), `log_filters.py` (secret redaction in log records), `doctor.py` and `system_diagnostics.py` (installation diagnostics), `service.py` (systemd unit rendering and installation) and `env_readers.py` (shared environment readers).
 - `tests/`: contract, unit and integration checks.
 
 ```text
 audiodoc/
 ├── audiodoc/
 │   ├── api/
+│   ├── cli/
 │   ├── common/
 │   ├── config/
 │   ├── document_engine/
@@ -132,12 +135,19 @@ audiodoc/
 │   │   └── runner.py
 │   ├── errors/
 │   ├── transcription/
-│   └── main.py
+│   ├── __main__.py
+│   ├── doctor.py
+│   ├── env_readers.py
+│   ├── log_filters.py
+│   ├── logging_setup.py
+│   ├── main.py
+│   ├── service.py
+│   └── system_diagnostics.py
 ├── deploy/
 ├── docs/
 ├── tests/
 ├── .env.example
-├── pytest.ini
+├── pyproject.toml
 ├── requirements.txt
 ├── requirements-dev.txt
 └── requirements-lock.txt

@@ -36,6 +36,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Fixed
 
+- [#182](https://github.com/WhlteAdmln/audiodoc/issues/182) The architecture guides show the real package layout, the format guide runs tests through `make`, and the bot guides explain a `404` as an endpoint path in `AUDIODOC_URL`.
 - [#187](https://github.com/WhlteAdmln/audiodoc/issues/187) The configuration reference describes the order in which the process environment, `--env-file` and the two `.env` files are loaded.
 - [#179](https://github.com/WhlteAdmln/audiodoc/issues/179) The configuration reference and `.env.example` name `$AUDIODOC_HOME/.env` as the settings file and resolve relative paths under `AUDIODOC_HOME`.
 - [#181](https://github.com/WhlteAdmln/audiodoc/issues/181) The security checklist and the integrity baseline check the installed `audiodoc` process and package and link the key rotation procedure.

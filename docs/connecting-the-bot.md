@@ -196,7 +196,7 @@ Do not combine the Whisper and document keys; they protect different endpoints.
 | Symptom | Likely cause | What to check |
 | --- | --- | --- |
 | Bot cannot connect to the service | Wrong host/port, service stopped, firewall blocks traffic, or Uvicorn listens only on loopback | Call `/health` from machine A; inspect `ss -tlnp` and UFW rules on B |
-| HTTP `404` | URL is missing the endpoint path | Include `/transcribe` or `/process-document` in the bot URL |
+| HTTP `404` | `AUDIODOC_URL` contains an endpoint path, so the bot requests a path that does not exist | Set `AUDIODOC_URL` to the base URL without `/transcribe` or `/process-document`; the bot adds the path itself |
 | HTTP `401` | Key mismatch or wrong key group | Compare the bot's audio key with `AUDIODOC_AUDIO_KEY`, and its document key with `AUDIODOC_DOCUMENT_KEY` without sharing secret values |
 | HTTP `503` | Whisper is not loaded or a bounded queue is full | Check `/health`, service logs, and `Retry-After`; reduce load or tune queue limits carefully |
 | HTTP `413` | Upload exceeds the bot or server limit | Check the 20 MiB bot limit and audiodoc's 25/50 MiB endpoint limits |

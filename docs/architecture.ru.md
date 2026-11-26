@@ -109,17 +109,20 @@ flowchart TD
 ## 8. Зависимости и дерево пакетов
 
 - `api/` — HTTP-роутеры, схемы ответов, авторизация, middleware и обработчики ошибок.
-- `common/` — дедлайны, очереди, ограниченные загрузки/подпроцессы, безопасные логи, request ID и настройка логирования.
+- `cli/` — разбор аргументов команды `audiodoc` и отдельный модуль для каждой команды.
+- `common/` — дедлайны, очереди, ограниченные загрузки/подпроцессы, безопасные логи и request ID.
 - `config/` — настройки из окружения и пути проекта.
 - `document_engine/` — лимиты, детекция, защитные проверки, OCR, экстракторы и pipeline.
 - `errors/` — типизированные ошибки с безопасными публичными сообщениями.
 - `transcription/` — модель Whisper, потоковое распознавание и временные файлы.
+- Модули верхнего уровня: `main.py` (фабрика приложения и жизненный цикл), `__main__.py` (`python -m audiodoc`), `logging_setup.py` (настройка логов с request ID), `log_filters.py` (маскирование секретов в записях логов), `doctor.py` и `system_diagnostics.py` (диагностика установки), `service.py` (сборка и установка unit-файла systemd) и `env_readers.py` (общее чтение переменных окружения).
 - `tests/` — contract-, unit- и integration-тесты.
 
 ```text
 audiodoc/
 ├── audiodoc/
 │   ├── api/
+│   ├── cli/
 │   ├── common/
 │   ├── config/
 │   ├── document_engine/
@@ -132,12 +135,19 @@ audiodoc/
 │   │   └── runner.py
 │   ├── errors/
 │   ├── transcription/
-│   └── main.py
+│   ├── __main__.py
+│   ├── doctor.py
+│   ├── env_readers.py
+│   ├── log_filters.py
+│   ├── logging_setup.py
+│   ├── main.py
+│   ├── service.py
+│   └── system_diagnostics.py
 ├── deploy/
 ├── docs/
 ├── tests/
 ├── .env.example
-├── pytest.ini
+├── pyproject.toml
 ├── requirements.txt
 ├── requirements-dev.txt
 └── requirements-lock.txt
