@@ -1,6 +1,6 @@
 # This file is a pointer, not a second systemd unit template.
 # Print the canonical hardened system unit with:
-#   audiodoc service install --system --print
+#   AUDIODOC_HOME=/opt/audiodoc audiodoc service install --system --print
 # Install it with:
 #   sudo env AUDIODOC_HOME=/opt/audiodoc \
 #     /opt/audiodoc/.venv/bin/audiodoc service install --system

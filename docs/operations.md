@@ -175,7 +175,7 @@ less install.sh
 sh install.sh --help
 ```
 
-The installer can verify a published `SHA256SUMS` entry for the release archive when one is attached to the GitHub Release; if the release has no checksum asset (or only GitHub's generated source ZIP), it reports that independent archive verification was unavailable. For production hardening with a dedicated system account and system-wide systemd unit, use [Production deployment](#production-deployment) above.
+The installer installs the release wheel. It downloads `SHA256SUMS`, the wheel and `constraints.txt` from the GitHub Release, requires all three, and stops without installing when an asset is missing or a SHA-256 checksum does not match. For production hardening with a dedicated system account and system-wide systemd unit, use [Production deployment](#production-deployment) above.
 
 ## 5. Health and readiness
 
@@ -186,7 +186,7 @@ curl -i http://127.0.0.1:8000/health
 curl -i http://127.0.0.1:8000/ready
 ```
 
-A healthy process is not necessarily ready to transcribe if the model is still loading. A readiness failure for OCR or DJVU usually means a system package or language-data package is missing. Keep `/docs` and `/openapi.json` disabled in production unless there is a specific operational reason to expose them (`ENABLE_DOCS=false` by default).
+The application loads the Whisper model during startup, before it accepts requests; if the model cannot be loaded, the startup fails. A readiness failure for OCR or DJVU usually means a system package or language-data package is missing. Keep `/docs` and `/openapi.json` disabled in production unless there is a specific operational reason to expose them (`ENABLE_DOCS=false` by default).
 
 ## 6. Logs and request tracing
 
@@ -211,7 +211,7 @@ The service accepts `X-Request-ID` and includes the request identifier in its lo
 | DJVU extraction fails | Install DjVuLibre and verify `ddjvu`/`djvutxt` are available on `PATH`. |
 | Requests return `401` | Check that the endpoint uses the correct key: audio key for `/transcribe`, document key for `/process-document`. `/health` and `/ready` require no key. |
 | Requests return `413` | Check the endpoint's configured upload limit and the reverse proxy's body-size limit. |
-| Requests return `503` | Whisper may still be loading or the bounded work queue may be full. Inspect logs and retry after the advertised `Retry-After` interval. |
+| Requests return `503` | The bounded work queue is full, or a document needs a system tool (Tesseract or DjVuLibre) that is missing; `/ready` shows missing tools. Inspect logs and retry after the advertised `Retry-After` interval. |
 | Requests time out | Check CPU/GPU contention, queue wait, OCR input size, and client/proxy deadlines before increasing limits. |
 
 ## 8. Dependency maintenance
