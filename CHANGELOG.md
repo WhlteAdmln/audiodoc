@@ -8,6 +8,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Added
 
+- [#183](https://github.com/WhlteAdmln/audiodoc/issues/183) `/transcribe` and `/process-document` return a `code` with the missing-model, oversized-upload and unexpected-failure errors as well.
 - [#171](https://github.com/WhlteAdmln/audiodoc/issues/171) `make docs-check` reports a path under `audiodoc/`, `scripts/` or `tests/` named in the documentation that does not exist.
 - [#170](https://github.com/WhlteAdmln/audiodoc/issues/170) CI installs its system packages from a nightly apt cache and falls back to the network when the cache is missing or does not install.
 - [#161](https://github.com/WhlteAdmln/audiodoc/issues/161) `scripts/check_test_rules.py` reports a docstring in a test function.

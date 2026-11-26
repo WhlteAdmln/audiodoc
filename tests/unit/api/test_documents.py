@@ -132,6 +132,43 @@ def test_rejects_unsupported_format(client: TestClient) -> None:
     assert response.status_code == expected_status, "an executable was accepted"
 
 
+def test_reports_payload_too_large_code_for_oversized_document(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    documents = import_module("audiodoc.api.documents")
+    monkeypatch.setattr(documents, "MAX_DOCUMENT_SIZE", 11)
+
+    response = client.post(
+        "/process-document",
+        files={"file": ("отчёт.txt", "квартальный отчёт".encode(), "text/plain")},
+    )
+
+    expected_body = {
+        "detail": "Файл слишком большой. Максимальный размер: 0 МБ.",
+        "code": "payload_too_large",
+    }
+    assert response.json() == expected_body, "an oversized document gave no code"
+
+
+def test_hides_unexpected_failure_behind_internal_error(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    documents = import_module("audiodoc.api.documents")
+
+    def broken_processing(*_args: object, **_kwargs: object) -> Never:
+        raise LookupError
+
+    monkeypatch.setattr(documents, "process_document", broken_processing)
+
+    response = client.post(
+        "/process-document",
+        files={"file": ("plan-2026.md", b"# Roadmap\n- ship", "text/markdown")},
+    )
+
+    expected_body = {"detail": "Document processing failed", "code": "internal_error"}
+    assert response.json() == expected_body, "an unexpected failure gave no code"
+
+
 def test_busy_queue_answers_service_unavailable(busy_response: httpx2.Response) -> None:
     expected_status = 503
     assert busy_response.status_code == expected_status, "a full queue read the upload"

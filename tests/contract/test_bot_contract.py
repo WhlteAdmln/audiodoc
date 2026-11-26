@@ -251,6 +251,7 @@ def test_error_schema_lists_every_error_code() -> None:
     ("path", "status_code", "codes"),
     [
         ("/transcribe", "400", ("invalid_audio", "audio_too_long")),
+        ("/transcribe", "413", ("payload_too_large",)),
         ("/transcribe", "500", ("internal_error",)),
         ("/transcribe", "503", ("model_not_ready", "server_busy")),
         ("/transcribe", "504", ("transcription_timeout",)),

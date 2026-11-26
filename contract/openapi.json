@@ -347,7 +347,7 @@
     },
     "/transcribe": {
       "post": {
-        "description": "Save an audio upload and return its Whisper transcription.\n\nArgs:\n    file: Multipart audio file from the client.\n\nReturns:\n    The recognized text, detected language, and audio duration.\n\nRaises:\n    HTTPException: For missing model, invalid duration, oversized audio, or\n        an internal transcription failure.",
+        "description": "Save an audio upload and return its Whisper transcription.\n\nArgs:\n    file: Multipart audio file from the client.\n\nReturns:\n    The recognized text, detected language, and audio duration.\n\nRaises:\n    AppError: For missing model, invalid duration, oversized audio, or\n        an internal transcription failure.",
         "operationId": "transcribe_transcribe_post",
         "parameters": [
           {
@@ -397,6 +397,16 @@
               }
             },
             "description": "Audio is unreadable (invalid_audio) or exceeds the duration limit (audio_too_long)."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The audio upload exceeds MAX_AUDIO_SIZE (payload_too_large)."
           },
           "422": {
             "content": {

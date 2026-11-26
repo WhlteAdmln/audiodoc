@@ -11,10 +11,10 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from starlette.datastructures import UploadFile
-from starlette.exceptions import HTTPException
 
 import audiodoc.common.limited_upload as upload_limits
 from audiodoc.common.limited_upload import read_upload_limited, save_upload_limited
+from audiodoc.errors.documents import PayloadTooLargeError
 
 
 def _upload(data: bytes, filename: str = "договор.pdf") -> UploadFile:
@@ -49,7 +49,7 @@ def test_read_joins_several_chunks() -> None:
 
 @pytest.mark.parametrize(("size", "limit"), [(6, 5), (1, 0), (3 * 1024 * 1024, 1)])
 def test_read_rejects_upload_over_limit(size: int, limit: int) -> None:
-    with pytest.raises(HTTPException) as caught:
+    with pytest.raises(PayloadTooLargeError) as caught:
         asyncio.run(read_upload_limited(_upload(b"z" * size), limit))
 
     expected_status_code = 413
@@ -58,7 +58,7 @@ def test_read_rejects_upload_over_limit(size: int, limit: int) -> None:
 
 @pytest.mark.usefixtures("small_chunks")
 def test_read_rejects_when_a_later_chunk_crosses_the_limit() -> None:
-    with pytest.raises(HTTPException) as caught:
+    with pytest.raises(PayloadTooLargeError) as caught:
         asyncio.run(read_upload_limited(_upload(b"abcdefg"), 6))
 
     expected_status_code = 413
@@ -73,10 +73,10 @@ def test_read_rejects_when_a_later_chunk_crosses_the_limit() -> None:
     ],
 )
 def test_read_reports_limit_in_megabytes(limit: int, expected_detail: str) -> None:
-    with pytest.raises(HTTPException) as caught:
+    with pytest.raises(PayloadTooLargeError) as caught:
         asyncio.run(read_upload_limited(_upload(b"q" * (limit + 1)), limit))
 
-    assert caught.value.detail == expected_detail, "wrong user-facing message"
+    assert caught.value.public_message == expected_detail, "wrong user-facing message"
 
 
 def test_save_writes_upload_within_limit(tmp_path: Path) -> None:
@@ -100,7 +100,7 @@ def test_save_returns_number_of_written_bytes(tmp_path: Path) -> None:
 
 @pytest.mark.usefixtures("small_chunks")
 def test_save_rejects_upload_over_limit(tmp_path: Path) -> None:
-    with pytest.raises(HTTPException) as caught:
+    with pytest.raises(PayloadTooLargeError) as caught:
         asyncio.run(save_upload_limited(_upload(b"1234567"), tmp_path / "v.ogg", 5))
 
     expected_status_code = 413
@@ -110,7 +110,7 @@ def test_save_rejects_upload_over_limit(tmp_path: Path) -> None:
 @pytest.mark.usefixtures("small_chunks")
 def test_save_stops_before_the_chunk_that_crosses_the_limit(tmp_path: Path) -> None:
     target = tmp_path / "voice.ogg"
-    with contextlib.suppress(HTTPException):
+    with contextlib.suppress(PayloadTooLargeError):
         asyncio.run(save_upload_limited(_upload(b"Og\xa7S\x00\x02hd"), target, 5))
 
     written = target.read_bytes()
@@ -131,7 +131,7 @@ def test_save_never_writes_more_than_limit(
     destination = tmp_path_factory.mktemp("upload") / "upload.bin"
     with pytest.MonkeyPatch.context() as patcher:
         patcher.setattr(upload_limits, "CHUNK_SIZE", chunk_size)
-        with contextlib.suppress(HTTPException):
+        with contextlib.suppress(PayloadTooLargeError):
             asyncio.run(save_upload_limited(_upload(data), destination, limit))
 
     assert destination.stat().st_size <= limit, "the file grew past the limit"
