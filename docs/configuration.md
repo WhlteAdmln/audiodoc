@@ -1,6 +1,6 @@
 # Configuration reference
 
-`~/.env` (or `$AUDIODOC_HOME/.env`) contains backend settings. Start with `.env.example`, keep the file readable only by the service administrator/account, and never commit real secrets. For a manually managed single-user install, use `chmod 600 .env`; a dedicated system service may use `root:audiodoc` with mode `640` as described in [Production deployment](operations.md#production-deployment).
+`$AUDIODOC_HOME/.env` (by default `~/audiodoc/.env`) contains backend settings. Start with `.env.example`, keep the file readable only by the service administrator/account, and never commit real secrets. For a manually managed single-user install, use `chmod 600 .env`; a dedicated system service may use `root:audiodoc` with mode `640` as described in [Production deployment](operations.md#production-deployment).
 
 Generate independent keys for audio and documents:
 
@@ -12,7 +12,7 @@ Set the generated values in `AUDIODOC_AUDIO_KEY` and `AUDIODOC_DOCUMENT_KEY`. Th
 
 ## Environment settings
 
-The defaults below match `.env.example` and the CLI defaults. Empty means that no value is supplied in `.env`.
+The defaults below match `.env.example` and the CLI defaults. `AUDIODOC_HOST` and `AUDIODOC_PORT` are not in `.env.example`: their defaults come from the CLI, and `audiodoc init` writes both to `.env`. Empty means that no value is supplied in `.env`.
 
 | Variable | Default | Purpose | Example |
 | --- | --- | --- | --- |
@@ -22,14 +22,14 @@ The defaults below match `.env.example` and the CLI defaults. Empty means that n
 | `AUDIODOC_AUDIO_KEY` | empty | Bearer key for `POST /transcribe`; required unless the local authentication bypass is enabled | `AUDIODOC_AUDIO_KEY=<random-audio-key>` |
 | `AUDIODOC_DOCUMENT_KEY` | empty | Separate Bearer key for `POST /process-document` and `GET /ready` | `AUDIODOC_DOCUMENT_KEY=<random-document-key>` |
 | `ALLOW_UNAUTHENTICATED` | `false` | Local-development authentication bypass; never enable on a production server | `ALLOW_UNAUTHENTICATED=false` |
-| `BACKEND_TEMP_DIR` | `$AUDIODOC_HOME/tmp` | Private directory for temporary uploads and intermediate files; relative paths resolve under the user's home directory (`$HOME`) | `BACKEND_TEMP_DIR=/var/tmp/audiodoc` |
+| `BACKEND_TEMP_DIR` | `$AUDIODOC_HOME/tmp` | Private directory for temporary uploads and intermediate files; relative paths resolve under `AUDIODOC_HOME` | `BACKEND_TEMP_DIR=/var/tmp/audiodoc` |
 | `MAX_AUDIO_SIZE` | `26214400` | Maximum audio upload size in bytes (25 MiB) | `MAX_AUDIO_SIZE=20971520` |
 | `MAX_AUDIO_DURATION` | `600` | Maximum audio duration in seconds | `MAX_AUDIO_DURATION=300` |
 | `MAX_CONCURRENT_TRANSCRIPTIONS` | `1` | Number of active transcription jobs | `MAX_CONCURRENT_TRANSCRIPTIONS=1` |
 | `MAX_WAITING_TRANSCRIPTIONS` | `4` | Maximum transcription jobs waiting in the queue | `MAX_WAITING_TRANSCRIPTIONS=2` |
 | `MAX_WAITING_DOCUMENTS` | `4` | Maximum document jobs waiting in the queue | `MAX_WAITING_DOCUMENTS=2` |
 | `WHISPER_MODEL_SIZE` | `small` | Model identifier used when `WHISPER_MODEL_PATH` is empty | `WHISPER_MODEL_SIZE=small` |
-| `WHISPER_MODEL_PATH` | empty | Path to a pre-downloaded local Whisper model; takes precedence over the model size | `WHISPER_MODEL_PATH=/opt/audiodoc/models/small` |
+| `WHISPER_MODEL_PATH` | empty | Path to a pre-downloaded local Whisper model; takes precedence over the model size; relative paths resolve under `AUDIODOC_HOME` | `WHISPER_MODEL_PATH=/opt/audiodoc/models/small` |
 | `WHISPER_DEVICE` | `cpu` | Inference device | `WHISPER_DEVICE=cpu` |
 | `WHISPER_COMPUTE_TYPE` | `int8` | Compute type compatible with the selected device | `WHISPER_COMPUTE_TYPE=int8` |
 | `WHISPER_OFFLINE` | `false` | Loads only local model files and prevents model downloads | `WHISPER_OFFLINE=true` |
