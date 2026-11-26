@@ -65,7 +65,7 @@ jobs:
             deps: lock
             experimental: false
           - python-version: "3.13"
-            deps: package
+            deps: latest
             experimental: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -83,9 +83,9 @@ jobs:
       - name: Install pinned dependencies
         if: matrix.deps == 'lock'
         run: python -m pip install -r requirements-dev.txt
-      - name: Install the package with its test extra under the lock
-        if: matrix.deps == 'package'
-        run: python -m pip install -c requirements-lock.txt ".[test]"
+      - name: Install the package with its test extra at the latest allowed versions
+        if: matrix.deps == 'latest'
+        run: python -m pip install ".[test]"
       - name: Check installed dependencies
         run: python -m pip check
       - name: Run unit tests with coverage (skips are failures)

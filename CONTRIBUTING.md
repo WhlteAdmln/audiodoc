@@ -15,7 +15,7 @@
 
 ## Checks and CI
 
-`make check` runs every CI gate that needs only Python and network access: lint and documentation checks, mypy, pylint, deptry, vulture, import contracts, `pip check`, unit tests with coverage that fail when a test is skipped (`make test-no-skips`), `pip-audit` of the lock (`make audit`) and a release build with verified checksums (`make release-check`). The test dependencies are the `test` extra of `pyproject.toml`; the `dev` extra includes it, and the `package` CI job installs the package with it under the lock constraints.
+`make check` runs every CI gate that needs only Python and network access: lint and documentation checks, mypy, pylint, deptry, vulture, import contracts, `pip check`, unit tests with coverage that fail when a test is skipped (`make test-no-skips`), `pip-audit` of the lock (`make audit`) and a release build with verified checksums (`make release-check`). The test dependencies are the `test` extra of `pyproject.toml`; the `dev` extra includes it, and the `latest` CI job installs the package with it at the latest versions that `pyproject.toml` allows, without the lock.
 
 `make lint` also runs `scripts/check_test_layout.py` and `scripts/check_test_rules.py`. The second one fails when a `test_*.py` or `conftest.py` module under `tests/` uses mocks (`unittest.mock`, `mock`, the `mocker` fixture or `assert_called*`), defines a class inside a function, imports `tempfile` or `time.sleep`, when a test function calls `time.sleep`, when a comment inside a test function is not a `# noqa`, `# pylint:`, `# type:` or `# pragma:` pragma followed by a reason, or when a test function has a docstring. It also fails when a test does not have exactly one assert or an assert has no failure message.
 

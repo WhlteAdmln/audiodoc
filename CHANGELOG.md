@@ -19,6 +19,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 ### Changed
 
 - [#163](https://github.com/WhlteAdmln/audiodoc/issues/163) `scripts/check_test_rules.py` applies the one-assert and failure-message rules to every test file, so `tests/strict_test_files.txt` is gone.
+- [#119](https://github.com/WhlteAdmln/audiodoc/issues/119) The `latest` CI test job installs the package with its `test` extra without the lock constraint, so it tests the latest allowed dependency versions.
 - [#167](https://github.com/WhlteAdmln/audiodoc/issues/167) Ruff sorts the `build` import as third-party even with a leftover `build/` directory.
 - [#119](https://github.com/WhlteAdmln/audiodoc/issues/119) The CI test job that installs the package with its `test` extra under the lock is named `package` instead of `latest`.
 - [#104](https://github.com/WhlteAdmln/audiodoc/issues/104) Ruff and pylint exempt only test functions from docstrings, and test packages and modules have docstrings.
