@@ -44,7 +44,7 @@ This endpoint does not check Tesseract or DjVuLibre. Use `/ready` for that diagn
 
 ## `GET /ready`
 
-Requires `AUDIODOC_DOCUMENT_KEY` in `Authorization: Bearer <key>`. Reports whether Tesseract is installed, which language data it can see, whether all required DjVuLibre programs are on `PATH`, and whether the Whisper model is loaded.
+Unauthenticated diagnostic endpoint, like `/health`. Reports whether Tesseract is installed, which language data it can see, whether all required DjVuLibre programs are on `PATH`, and whether the Whisper model is loaded.
 
 Example response (actual booleans/languages depend on the host):
 
@@ -52,7 +52,7 @@ Example response (actual booleans/languages depend on the host):
 {"tesseract":true,"languages":["eng","osd","rus"],"djvulibre":true,"model_loaded":true}
 ```
 
-An absent tool or language is reported as a diagnostic value; the endpoint does not install packages. A missing or invalid key returns `401`.
+An absent tool or language is reported as a diagnostic value; the endpoint does not install packages. The response reveals the installed OCR languages and native tools, so keep the endpoint on the private network like the rest of the API.
 
 ## `POST /transcribe`
 
@@ -134,8 +134,8 @@ A client may send an identifier containing 8–64 ASCII letters, digits, dots, u
 
 ## Authentication and compatibility
 
-- `/health` is intentionally unauthenticated.
-- `/ready` and `/process-document` use `AUDIODOC_DOCUMENT_KEY`.
+- `/health` and `/ready` are intentionally unauthenticated.
+- `/process-document` uses `AUDIODOC_DOCUMENT_KEY`.
 - `/transcribe` uses `AUDIODOC_AUDIO_KEY`.
 - `ALLOW_UNAUTHENTICATED=true` is only for isolated local development and must remain `false` in production.
 - The bot's established paths, multipart field `file`, and required successful response fields remain unchanged.

@@ -29,7 +29,7 @@ The defaults below match `.env.example` and the CLI defaults. `AUDIODOC_HOST` an
 | `AUDIODOC_HOST` | `127.0.0.1` | Bind address used by the `audiodoc run` command and the default URL printed by `audiodoc pair` | `AUDIODOC_HOST=10.8.0.1` |
 | `AUDIODOC_PORT` | `8000` | Listen port used by the CLI and the default URL printed by `audiodoc pair` | `AUDIODOC_PORT=8000` |
 | `AUDIODOC_AUDIO_KEY` | empty | Bearer key for `POST /transcribe`; required unless the local authentication bypass is enabled | `AUDIODOC_AUDIO_KEY=<random-audio-key>` |
-| `AUDIODOC_DOCUMENT_KEY` | empty | Separate Bearer key for `POST /process-document` and `GET /ready` | `AUDIODOC_DOCUMENT_KEY=<random-document-key>` |
+| `AUDIODOC_DOCUMENT_KEY` | empty | Separate Bearer key for `POST /process-document` | `AUDIODOC_DOCUMENT_KEY=<random-document-key>` |
 | `ALLOW_UNAUTHENTICATED` | `false` | Local-development authentication bypass; never enable on a production server | `ALLOW_UNAUTHENTICATED=false` |
 | `BACKEND_TEMP_DIR` | `$AUDIODOC_HOME/tmp` | Private directory for temporary uploads and intermediate files; relative paths resolve under `AUDIODOC_HOME` | `BACKEND_TEMP_DIR=/var/tmp/audiodoc` |
 | `MAX_AUDIO_SIZE` | `26214400` | Maximum audio upload size in bytes (25 MiB) | `MAX_AUDIO_SIZE=20971520` |

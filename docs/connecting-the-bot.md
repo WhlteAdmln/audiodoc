@@ -35,7 +35,7 @@ The bot builds endpoint paths from `AUDIODOC_URL`. Set this to the base URL only
 | Transcription response | Reads `text` | `{text, language, duration}` | All three fields are part of the response contract |
 | Document response | Validates `format`, `text`, `characters`; handles `truncated` | `{format, text, characters, truncated}` | `truncated=true` is reported to the user as an oversized document |
 
-`GET /health` is unauthenticated. `GET /ready` and `POST /process-document` use `AUDIODOC_DOCUMENT_KEY`; `POST /transcribe` uses `AUDIODOC_AUDIO_KEY`. Keep the two keys different. In production, keep `ALLOW_UNAUTHENTICATED=false`.
+`GET /health` and `GET /ready` are unauthenticated; `/ready` reveals the installed OCR languages and native tools, so keep the service on the private network. `POST /process-document` uses `AUDIODOC_DOCUMENT_KEY`; `POST /transcribe` uses `AUDIODOC_AUDIO_KEY`. Keep the two keys different. In production, keep `ALLOW_UNAUTHENTICATED=false`.
 
 ### Generate bot settings with `audiodoc pair`
 
@@ -152,11 +152,10 @@ export AUDIODOC_AUDIO_KEY='your-audio-key'
 curl -fsS http://10.8.0.1:8000/health
 ```
 
-1. Document dependencies, document key required. Expect booleans and installed language codes:
+1. Document dependencies, no key required. Expect booleans and installed language codes:
 
 ```bash
-curl -fsS http://10.8.0.1:8000/ready \
-  -H "Authorization: Bearer ${AUDIODOC_DOCUMENT_KEY}"
+curl -fsS http://10.8.0.1:8000/ready
 ```
 
 1. Document extraction. Expect `format`, `text`, `characters`, and `truncated`:

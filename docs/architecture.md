@@ -65,13 +65,13 @@ flowchart TD
 | Method and path | Purpose | Authentication |
 | --- | --- | --- |
 | `GET /health` | Liveness and Whisper model state | None |
-| `GET /ready` | Tesseract, OCR languages, DjVuLibre and model diagnostics | `AUDIODOC_DOCUMENT_KEY` |
+| `GET /ready` | Tesseract, OCR languages, DjVuLibre and model diagnostics | None |
 | `POST /transcribe` | Audio transcription | `AUDIODOC_AUDIO_KEY` |
 | `POST /process-document` | Document text extraction | `AUDIODOC_DOCUMENT_KEY` |
 
 The two POST routes accept `multipart/form-data` with a required `file` field. `/process-document` also accepts optional `max_characters`, which can reduce the server's extraction budget. Successful response models retain the bot-required fields; the optional `truncated` field is additive.
 
-`/health` is a liveness endpoint and intentionally does not verify optional native parsers. Use authenticated `/ready` to inspect Tesseract, installed language data, all three DJVU tools, and `model_loaded`. The endpoint reports diagnostics; it does not automatically install or repair missing packages.
+`/health` is a liveness endpoint and intentionally does not verify optional native parsers. Use the unauthenticated `/ready` to inspect Tesseract, installed language data, all three DJVU tools, and `model_loaded`. The endpoint reports diagnostics; it does not automatically install or repair missing packages. Because it reveals the installed OCR languages and native tools, keep it on the private network like the rest of the API.
 
 `RequestIdMiddleware` accepts only request IDs matching `[A-Za-z0-9._-]{8,64}`. Invalid or absent values are replaced with a UUID. The identifier is echoed in the `X-Request-ID` response header and added to log records. The context variable is inherited by `asyncio.to_thread` workers.
 
