@@ -1,0 +1,3 @@
+shellcheck
+systemd
+wireguard-tools
