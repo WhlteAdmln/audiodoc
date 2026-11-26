@@ -73,7 +73,7 @@ audiodoc pair --url http://10.8.0.1:8000
 
 Самый простой вариант для локальной проверки. Запустите audiodoc, LLM-сервер и бота на одном хосте.
 
-`audiodoc/.env`:
+`$AUDIODOC_HOME/.env`:
 
 ```ini
 AUDIODOC_AUDIO_KEY=REPLACE_WITH_RANDOM_KEY_1
@@ -119,7 +119,7 @@ AUDIODOC_AUDIO_KEY=REPLACE_WITH_RANDOM_KEY_1
 AUDIODOC_DOCUMENT_KEY=REPLACE_WITH_RANDOM_KEY_2
 ```
 
-Используйте те же два ключа в `audiodoc/.env` на машине B. Обычный HTTP внутри WireGuard допустим: VPN-туннель шифрует трафик между узлами.
+Используйте те же два ключа в `$AUDIODOC_HOME/.env` на машине B. Обычный HTTP внутри WireGuard допустим: VPN-туннель шифрует трафик между узлами.
 
 ### Сценарий 3 — HTTPS через nginx вместо WireGuard
 
@@ -185,7 +185,7 @@ curl -fsS \
 
 API audiodoc принимает несколько действующих ключей через запятую. Для каждого ключа выполните процедуру отдельно:
 
-1. В `audiodoc/.env` задайте ключ эндпоинта как `OLD_KEY,NEW_KEY` и перезапустите audiodoc. Во время переключения будут приниматься оба значения.
+1. В `$AUDIODOC_HOME/.env` задайте ключ эндпоинта как `OLD_KEY,NEW_KEY` и перезапустите audiodoc. Во время переключения будут приниматься оба значения.
 2. Замените соответствующий ключ в `.env` бота и перезапустите бота.
 3. После проверки запросов удалите `OLD_KEY` из `.env` audiodoc и снова перезапустите audiodoc.
 

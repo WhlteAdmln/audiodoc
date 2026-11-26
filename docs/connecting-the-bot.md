@@ -73,7 +73,7 @@ The bot sends the document `max_characters=11264` multipart field. This reduces 
 
 This is the simplest setup for a local test. Run audiodoc, the LLM server, and the bot on the same host.
 
-`audiodoc/.env`:
+`$AUDIODOC_HOME/.env`:
 
 ```ini
 AUDIODOC_AUDIO_KEY=REPLACE_WITH_RANDOM_KEY_1
@@ -119,7 +119,7 @@ AUDIODOC_AUDIO_KEY=REPLACE_WITH_RANDOM_KEY_1
 AUDIODOC_DOCUMENT_KEY=REPLACE_WITH_RANDOM_KEY_2
 ```
 
-Use the same two key values in `audiodoc/.env` on machine B. Plain HTTP inside WireGuard is acceptable because the VPN tunnel encrypts traffic between the peers.
+Use the same two key values in `$AUDIODOC_HOME/.env` on machine B. Plain HTTP inside WireGuard is acceptable because the VPN tunnel encrypts traffic between the peers.
 
 ### Scenario 3 — HTTPS through nginx instead of WireGuard
 
@@ -185,7 +185,7 @@ Finally, send a short voice message and a small `.txt` document to the Telegram 
 
 The audiodoc API accepts multiple comma-separated active keys. Rotate each endpoint key independently:
 
-1. In `audiodoc/.env`, set the endpoint key to `OLD_KEY,NEW_KEY`, then restart audiodoc. Both keys are accepted during the transition.
+1. In `$AUDIODOC_HOME/.env`, set the endpoint key to `OLD_KEY,NEW_KEY`, then restart audiodoc. Both keys are accepted during the transition.
 2. Update the matching key in the bot's `.env`, then restart the bot.
 3. After confirming requests succeed, remove `OLD_KEY` from audiodoc's `.env` and restart audiodoc again.
 

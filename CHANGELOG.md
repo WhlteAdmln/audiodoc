@@ -8,6 +8,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Added
 
+- [#171](https://github.com/WhlteAdmln/audiodoc/issues/171) `make docs-check` reports a path under `audiodoc/`, `scripts/` or `tests/` named in the documentation that does not exist.
 - [#170](https://github.com/WhlteAdmln/audiodoc/issues/170) CI installs its system packages from a nightly apt cache and falls back to the network when the cache is missing or does not install.
 - [#161](https://github.com/WhlteAdmln/audiodoc/issues/161) `scripts/check_test_rules.py` reports a docstring in a test function.
 - [#157](https://github.com/WhlteAdmln/audiodoc/issues/157) `scripts/check_vendored.py` also compares the shared `tests/unit/scripts/docs_checks/test_settings.py`.
@@ -34,6 +35,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Fixed
 
+- [#171](https://github.com/WhlteAdmln/audiodoc/issues/171) The guides name the extractor matrix and the installed `.env` file at their real locations.
 - [#174](https://github.com/WhlteAdmln/audiodoc/issues/174) CI reuses the cached `.deb` files whose versions match the current package index instead of installing every list from the network.
 - [#148](https://github.com/WhlteAdmln/audiodoc/issues/148) `audiodoc doctor` fails the API keys check for a key with non-ASCII characters, as startup does.
 - [#108](https://github.com/WhlteAdmln/audiodoc/issues/108) Startup rejects an API key with non-ASCII characters with a clear error instead of accepting a key that can never authenticate.
