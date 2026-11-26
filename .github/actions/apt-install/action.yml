@@ -1,0 +1,57 @@
+name: Install CI system packages
+description: >-
+  Install one package list from .github/apt-packages with the .deb files of the
+  nightly apt cache, or from the network when no cache matches or the cached
+  files do not install.
+inputs:
+  packages:
+    description: Name of a package list in .github/apt-packages without the .txt suffix
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Compute apt cache key prefix
+      id: key
+      shell: bash
+      env:
+        PACKAGE_LISTS_HASH: ${{ hashFiles('.github/apt-packages/*.txt') }}
+      run: echo "prefix=apt-${ImageOS}-${PACKAGE_LISTS_HASH}-" >> "${GITHUB_OUTPUT}"
+    - name: Restore apt cache
+      id: restore
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/apt-cache
+        key: ${{ steps.key.outputs.prefix }}
+        restore-keys: |
+          ${{ steps.key.outputs.prefix }}
+    - name: Install packages
+      shell: bash
+      env:
+        APT_CACHE_DIR: ${{ runner.temp }}/apt-cache
+        APT_CACHE_KEY: ${{ steps.restore.outputs.cache-matched-key }}
+        PACKAGE_LIST: ${{ inputs.packages }}
+      run: |
+        set -euo pipefail
+        shopt -s nullglob
+        mapfile -t packages < ".github/apt-packages/${PACKAGE_LIST}.txt"
+        debs=("${APT_CACHE_DIR}/${PACKAGE_LIST}"/*.deb)
+
+        all_installed() {
+          local package
+          for package in "${packages[@]}"; do
+            if [[ "$(dpkg-query -W -f='${Status}' "${package}" 2>/dev/null)" != "install ok installed" ]]; then
+              return 1
+            fi
+          done
+        }
+
+        if [[ -n "${APT_CACHE_KEY}" && ${#debs[@]} -gt 0 ]] \
+          && sudo apt-get install -y --no-install-recommends --no-download "${debs[@]}" \
+          && all_installed; then
+          echo "Installed ${PACKAGE_LIST} from the apt cache ${APT_CACHE_KEY}"
+          exit 0
+        fi
+
+        echo "::notice::Installing ${PACKAGE_LIST} from the network: no usable apt cache"
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends "${packages[@]}"

@@ -54,9 +54,9 @@ jobs:
         run: |
           echo "Exact Whisper cache hit: ${WHISPER_CACHE_HIT}"
       - name: Install eSpeak NG
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends espeak-ng
+        uses: ./.github/actions/apt-install # zizmor: ignore[self-repository] actionlint rejects $/
+        with:
+          packages: espeak
       - name: Install development dependencies
         run: python -m pip install -r requirements-dev.txt
       - name: Check installed dependencies

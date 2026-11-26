@@ -1,0 +1,55 @@
+name: apt cache
+
+on:
+  schedule:
+    - cron: "0 22 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  apt-cache:
+    name: Download CI system packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Compute apt cache key
+        id: key
+        env:
+          PACKAGE_LISTS_HASH: ${{ hashFiles('.github/apt-packages/*.txt') }}
+        run: |
+          echo "key=apt-${ImageOS}-${PACKAGE_LISTS_HASH}-$(date -u +%Y%m%d)" >> "${GITHUB_OUTPUT}"
+      - name: Download the .deb files of every package list
+        env:
+          APT_CACHE_DIR: ${{ runner.temp }}/apt-cache
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          sudo apt-get update
+          for list in .github/apt-packages/*.txt; do
+            name="$(basename "${list}" .txt)"
+            mapfile -t packages < "${list}"
+            sudo apt-get clean
+            sudo apt-get install -y --no-install-recommends --download-only "${packages[@]}"
+            debs=(/var/cache/apt/archives/*.deb)
+            mkdir -p "${APT_CACHE_DIR}/${name}"
+            if [[ ${#debs[@]} -gt 0 ]]; then
+              cp "${debs[@]}" "${APT_CACHE_DIR}/${name}/"
+            fi
+            echo "${name}: ${#debs[@]} .deb files"
+          done
+          du -sh "${APT_CACHE_DIR}"
+      - name: Save apt cache
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/apt-cache
+          key: ${{ steps.key.outputs.key }}

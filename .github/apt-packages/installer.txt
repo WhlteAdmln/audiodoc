@@ -1,0 +1,5 @@
+shellcheck
+tesseract-ocr
+tesseract-ocr-rus
+tesseract-ocr-eng
+djvulibre-bin

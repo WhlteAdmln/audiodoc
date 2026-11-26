@@ -21,6 +21,8 @@
 
 Only CI runs the jobs that need system tools or services: integration tests with Tesseract and DjVuLibre (`make test-integration-no-skips`), the real Whisper test (`make test-e2e-no-skips`), the Docker image (`make docker`), the installer smoke test against a locally served release, and the systemd, UFW and nginx examples. Like `make test-no-skips`, both test targets fail when a test is skipped.
 
+These jobs install their system packages with the shared step `.github/actions/apt-install`, which takes the name of a package list in `.github/apt-packages/`. The `apt-cache.yml` workflow runs nightly and on demand, downloads the `.deb` files of every list and saves them with `actions/cache` under a key made of the runner image family (`ImageOS`), a hash of the package lists and the date. The install step restores the newest cache with a matching prefix, installs the list from it without downloading and falls back to `apt-get update` and `apt-get install` from the network when no cache matches or the cached files do not install. A cache saved on `main` is also restored by pull request runs.
+
 On a pull request the `pr-size` CI job runs `scripts/report_pr_size.py --base HEAD^1` and prints the number of changed lines (insertions plus deletions) next to the 256-line limit of [the development principles](docs/development-principles.md). `requirements-lock.txt`, `*.ru.md` translations and files marked `linguist-generated` in `.gitattributes` are not counted. The job only reports and never fails.
 
 ## Files shared with bot-obormot
