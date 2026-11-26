@@ -36,6 +36,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Fixed
 
+- [#180](https://github.com/WhlteAdmln/audiodoc/issues/180) The operations guide, the README installer section and the service unit pointer describe the installer assets, its options and variables, the `503` causes and the system unit print command correctly.
 - [#177](https://github.com/WhlteAdmln/audiodoc/issues/177) The guides describe `/ready` as an endpoint without an API key, like `/health`.
 - [#190](https://github.com/WhlteAdmln/audiodoc/issues/190) The bot guides name a full work queue and a missing document tool as the causes of `503` instead of an unloaded Whisper model.
 - [#182](https://github.com/WhlteAdmln/audiodoc/issues/182) The architecture guides show the real package layout, the format guide runs tests through `make`, and the bot guides explain a `404` as an endpoint path in `AUDIODOC_URL`.

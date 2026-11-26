@@ -35,7 +35,7 @@ less install.sh
 sh install.sh --no-model --systemd
 ```
 
-Use `--model`, `--device`, `--compute-type`, `--host`, and `--port` to configure the install; `--no-model` skips the model download. `--systemd` creates a per-user unit but does not enable or start it. Set `AUDIODOC_HOME` to change the install directory. Upgrade guidance is in [Operations](docs/operations.md).
+Use `--model`, `--device`, `--compute-type`, `--host`, and `--port` to configure the install; `--no-model` skips the model download. `--systemd` creates a per-user unit but does not enable or start it. `--os-packages` runs the native package command that `audiodoc doctor` prints when a system dependency is missing (apt, dnf or pacman). `--upgrade` replaces the virtual environment of an existing installation with the latest release and keeps `.env`, `models/`, `tmp/` and the systemd unit; it cannot be combined with the configuration options. Set `AUDIODOC_HOME` to change the install directory. `AUDIODOC_RELEASE_URL` and `AUDIODOC_RELEASE_TAG` point the installer at a release mirror, `AUDIODOC_GITHUB_REPOSITORY` selects another GitHub repository, and `GITHUB_TOKEN` authenticates the GitHub API request for the latest release. Upgrade guidance is in [Operations](docs/operations.md).
 
 ### 2. Install a release wheel
 
