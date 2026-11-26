@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 def test_runs_the_changelog_check_with_the_documentation_checks(
     tmp_path: Path,
 ) -> None:
+    project = '[project]\nname = "tern-ledger"\n'
+    (tmp_path / "pyproject.toml").write_text(project, "utf-8")
     expected = "CHANGELOG.md: file not found"
 
     errors = check_docs(tmp_path)
@@ -24,6 +26,8 @@ def test_runs_the_changelog_check_with_the_documentation_checks(
 def test_runs_the_code_path_check_with_the_documentation_checks(
     tmp_path: Path,
 ) -> None:
+    project = '[project]\nname = "tern-ledger-docs"\n'
+    (tmp_path / "pyproject.toml").write_text(project, "utf-8")
     (tmp_path / "README.md").write_text("Run `scripts/lost_helper.py`.", "utf-8")
     expected = "README.md:1: missing path 'scripts/lost_helper.py'"
 

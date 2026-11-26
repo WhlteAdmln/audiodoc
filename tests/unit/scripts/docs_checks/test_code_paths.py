@@ -19,25 +19,32 @@ def _write(root: Path, relative: str, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def _write_project(root: Path, project_name: str) -> None:
+    _write(root, "pyproject.toml", f'[project]\nname = "{project_name}"\n')
+
+
 @pytest.mark.parametrize(
     ("document", "text"),
     [
         ("README.md", "Run `scripts/tidy_up.py` first."),
-        ("docs/guide.md", "See `audiodoc/engine/` for the engine."),
+        ("docs/guide.md", "See `marsh_wren/engine/` for the engine."),
         ("CONTRIBUTING.ru.md", "Вызовите `scripts/tidy_up.py::sweep_dust()`."),
         ("docs/deep/notes.md", "Use `scripts/tidy_up.py --base HEAD^1` here."),
-        ("docs/plugins.md", "Add `audiodoc/engine/<name>.py` for a format."),
+        ("docs/plugins.md", "Add `marsh_wren/engine/<name>.py` for a format."),
         ("docs/setup.md", "Copy `deploy/unit.example` and `tests` aside."),
+        ("docs/runner.md", "Call `make check tests/unit/gone_by.py` again."),
+        ("docs/other.md", "Unlike `other_pkg/lost_Ω.py` in a fork."),
         ("docs/fenced.md", "```text\n`tests/gone_away.py`\n```\n"),
         ("CHANGELOG.md", "- Removed `scripts/retired_tool.py`."),
-        ("AGENTS.md", "Mirror `audiodoc/a/b.py` in tests."),
+        ("AGENTS.md", "Mirror `marsh_wren/a/b.py` in tests."),
     ],
 )
 def test_accepts_documents_without_missing_paths(
     tmp_path: Path, document: str, text: str
 ) -> None:
+    _write_project(tmp_path, "marsh-wren")
     _write(tmp_path, "scripts/tidy_up.py", "")
-    _write(tmp_path, "audiodoc/engine/core.py", "")
+    _write(tmp_path, "marsh_wren/engine/core.py", "")
     _write(tmp_path, document, text)
     expected_empty: list[str] = []
 
@@ -48,6 +55,7 @@ def test_accepts_documents_without_missing_paths(
 
 def test_reports_a_missing_path_with_its_line(tmp_path: Path) -> None:
     text = "# Matrix\n\nRows: `tests/unit/old_matrix.py`.\n"
+    _write_project(tmp_path, "quill")
     _write(tmp_path, "docs/matrix.md", text)
     expected = ["docs/matrix.md:3: missing path 'tests/unit/old_matrix.py'"]
 
@@ -57,10 +65,22 @@ def test_reports_a_missing_path_with_its_line(tmp_path: Path) -> None:
 
 
 def test_reports_a_missing_path_after_a_fenced_block(tmp_path: Path) -> None:
-    text = "```sh\nmake check\n```\n\nSee `audiodoc/vanished.py::run()`.\n"
+    text = "```sh\nmake check\n```\n\nSee `scripts/vanished.py::run()`.\n"
+    _write_project(tmp_path, "fern-gate")
     _write(tmp_path, "README.ru.md", text)
-    expected = ["README.ru.md:5: missing path 'audiodoc/vanished.py'"]
+    expected = ["README.ru.md:5: missing path 'scripts/vanished.py'"]
 
     errors = check_code_paths(tmp_path)
 
     assert errors == expected, "line numbers must count the lines of fenced blocks"
+
+
+def test_reports_a_missing_path_of_the_project_package(tmp_path: Path) -> None:
+    text = "Модуль `slate_otter_kit/gone/Qx7.py` удалён.\n"
+    _write_project(tmp_path, "slate-otter-kit")
+    _write(tmp_path, "docs/architecture.ru.md", text)
+    expected = ["docs/architecture.ru.md:1: missing path 'slate_otter_kit/gone/Qx7.py'"]
+
+    errors = check_code_paths(tmp_path)
+
+    assert errors == expected, "the package prefix must follow the project name"
