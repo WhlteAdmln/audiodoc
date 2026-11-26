@@ -12,9 +12,9 @@ Complete this checklist on the actual machines A (bot) and B (audiodoc/LLM). The
 | 6 | Document access works with correct key | Repeat with `Authorization: Bearer <key>` | `200` |
 | 7 | Each service has a different key | Compare protected `.env` files on A and B without displaying values | Keys differ |
 | 8 | Environment file permissions are restricted | `stat -c '%a %U %n' .env` on A and B | `600` or service-group `640` |
-| 9 | Secrets are absent from command-line arguments | `ps aux \| grep -E 'api-key\|uvicorn\|llama'` | No API key/token values |
-| 10 | Backend runs without root | `ps -o user= -C uvicorn` | Dedicated `audiodoc` account |
-| 11 | Service cannot modify backend code | `sudo -u audiodoc touch /opt/audiodoc/audiodoc/main.py` | `Permission denied` |
+| 9 | Secrets are absent from command-line arguments | `ps aux \| grep -E 'api-key\|audiodoc\|llama'` | No API key/token values |
+| 10 | Backend runs without root | `ps -o user= -C audiodoc` | Dedicated `audiodoc` account |
+| 11 | Service cannot modify backend code | `sudo -u audiodoc sh -c 'touch /opt/audiodoc/.venv/lib/python3.*/site-packages/audiodoc/main.py'` | `Permission denied` |
 | 12 | Backend has no unrestricted internet egress | `sudo -u audiodoc curl -m 3 https://example.org` or inspect `IPAddressDeny` | No connection |
 | 13 | Whisper loads without network | Disconnect external network on B and restart service | Service starts; `/health` returns `loaded: true` |
 | 14 | Resource limits are active | `systemctl show audiodoc -p MemoryMax -p CPUQuotaPerSecUSec` | Values are set |
@@ -27,6 +27,6 @@ Complete this checklist on the actual machines A (bot) and B (audiodoc/LLM). The
 | 21 | Data and backups are encrypted | Review LUKS and backup encryption configuration | Encryption enabled |
 | 22 | Host clocks are synchronized | `timedatectl status` on A and B | `System clock synchronized: yes` |
 | 23 | Bot allow-list policy is restrictive | Inspect bot `.env`: `ALLOW_ALL_USERS=false`, `ALLOWED_USERS` populated | Only intended users have access |
-| 24 | Key rotation and incident procedure are understood | Rehearse D.2.3 with test keys and review D.7 | Procedure works without exposing production secrets |
+| 24 | Key rotation and incident procedure are understood | Rehearse the [key rotation procedure](connecting-the-bot.md#6-rotate-keys-without-an-authentication-gap) with test keys | Procedure works without exposing production secrets |
 
 This checklist is not an automated certification. Record the date, host, operator, exceptions, and evidence in your operations records. Re-run it after network, systemd, key, or dependency changes.
