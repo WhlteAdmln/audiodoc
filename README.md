@@ -73,11 +73,10 @@ For a local source-checkout run:
 ```bash
 audiodoc run --host 127.0.0.1 --port 8000
 curl -i http://127.0.0.1:8000/health
-curl -i http://127.0.0.1:8000/ready \
-  -H "Authorization: Bearer $AUDIODOC_DOCUMENT_KEY"
+curl -i http://127.0.0.1:8000/ready
 ```
 
-`/health` is unauthenticated. `/ready` requires `AUDIODOC_DOCUMENT_KEY`. Bind to a private/VPN address or loopback behind a TLS reverse proxy; do not expose the service on an untrusted network. For offline startup, prepare a local model and set `WHISPER_MODEL_PATH` and `WHISPER_OFFLINE=true`; see [Operations](docs/operations.md).
+`/health` and `/ready` require no key. `/ready` reveals the installed OCR languages and native tools, so keep it on the private network like the rest of the API. Bind to a private/VPN address or loopback behind a TLS reverse proxy; do not expose the service on an untrusted network. For offline startup, prepare a local model and set `WHISPER_MODEL_PATH` and `WHISPER_OFFLINE=true`; see [Operations](docs/operations.md).
 
 ## Tests
 

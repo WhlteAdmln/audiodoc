@@ -179,12 +179,11 @@ The installer can verify a published `SHA256SUMS` entry for the release archive 
 
 ## 5. Health and readiness
 
-`GET /health` is a liveness check and does not require authentication. It reports whether the application is running and whether the Whisper model is loaded. `GET /ready` checks document-processing dependencies and requires the document Bearer key:
+`GET /health` is a liveness check and does not require authentication. It reports whether the application is running and whether the Whisper model is loaded. `GET /ready` checks document-processing dependencies and does not require authentication either; it reveals the installed OCR languages and native tools, so keep it on the private network like the rest of the API:
 
 ```bash
 curl -i http://127.0.0.1:8000/health
-curl -i http://127.0.0.1:8000/ready \
-  -H "Authorization: Bearer $AUDIODOC_DOCUMENT_KEY"
+curl -i http://127.0.0.1:8000/ready
 ```
 
 A healthy process is not necessarily ready to transcribe if the model is still loading. A readiness failure for OCR or DJVU usually means a system package or language-data package is missing. Keep `/docs` and `/openapi.json` disabled in production unless there is a specific operational reason to expose them (`ENABLE_DOCS=false` by default).
@@ -210,7 +209,7 @@ The service accepts `X-Request-ID` and includes the request identifier in its lo
 | `/health` reports the model is not loaded | Check model download/provisioning, `WHISPER_MODEL_PATH`, disk space, and whether offline mode was enabled too early. |
 | `/ready` reports a missing OCR language | Install the matching Tesseract language package and verify `tesseract --list-langs`. |
 | DJVU extraction fails | Install DjVuLibre and verify `ddjvu`/`djvutxt` are available on `PATH`. |
-| Requests return `401` | Check that the endpoint uses the correct key: audio key for `/transcribe`, document key for `/process-document` and `/ready`. |
+| Requests return `401` | Check that the endpoint uses the correct key: audio key for `/transcribe`, document key for `/process-document`. `/health` and `/ready` require no key. |
 | Requests return `413` | Check the endpoint's configured upload limit and the reverse proxy's body-size limit. |
 | Requests return `503` | Whisper may still be loading or the bounded work queue may be full. Inspect logs and retry after the advertised `Retry-After` interval. |
 | Requests time out | Check CPU/GPU contention, queue wait, OCR input size, and client/proxy deadlines before increasing limits. |

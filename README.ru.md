@@ -73,11 +73,10 @@ chmod 600 .env
 ```bash
 audiodoc run --host 127.0.0.1 --port 8000
 curl -i http://127.0.0.1:8000/health
-curl -i http://127.0.0.1:8000/ready \
-  -H "Authorization: Bearer $AUDIODOC_DOCUMENT_KEY"
+curl -i http://127.0.0.1:8000/ready
 ```
 
-`/health` не требует ключа. Для `/ready` нужен `AUDIODOC_DOCUMENT_KEY`. Привязывайте сервис к приватному/VPN-адресу или loopback за TLS reverse proxy; не открывайте его в недоверенной сети. Для автономного запуска заранее подготовьте локальную модель и задайте `WHISPER_MODEL_PATH` и `WHISPER_OFFLINE=true`; см. [руководство по эксплуатации](docs/operations.md).
+`/health` и `/ready` не требуют ключа. `/ready` показывает установленные языки OCR и системные инструменты, поэтому держите его в приватной сети, как и остальной API. Привязывайте сервис к приватному/VPN-адресу или loopback за TLS reverse proxy; не открывайте его в недоверенной сети. Для автономного запуска заранее подготовьте локальную модель и задайте `WHISPER_MODEL_PATH` и `WHISPER_OFFLINE=true`; см. [руководство по эксплуатации](docs/operations.md).
 
 ## Тесты
 

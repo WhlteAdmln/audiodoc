@@ -35,7 +35,7 @@ bot-obormot (машина A)
 | Ответ распознавания | Бот читает `text` | `{text, language, duration}` | Все три поля входят в контракт ответа |
 | Ответ документа | Бот проверяет `format`, `text`, `characters` и обрабатывает `truncated` | `{format, text, characters, truncated}` | При `truncated=true` бот сообщает, что документ слишком большой |
 
-`GET /health` не требует ключа. Для `GET /ready` и `POST /process-document` нужен `AUDIODOC_DOCUMENT_KEY`; для `POST /transcribe` — `AUDIODOC_AUDIO_KEY`. Используйте разные ключи. В production оставляйте `ALLOW_UNAUTHENTICATED=false`.
+`GET /health` и `GET /ready` не требуют ключа; `/ready` показывает установленные языки OCR и системные инструменты, поэтому держите сервис в приватной сети. Для `POST /process-document` нужен `AUDIODOC_DOCUMENT_KEY`; для `POST /transcribe` — `AUDIODOC_AUDIO_KEY`. Используйте разные ключи. В production оставляйте `ALLOW_UNAUTHENTICATED=false`.
 
 ### Генерация настроек бота командой `audiodoc pair`
 
@@ -152,11 +152,10 @@ export AUDIODOC_AUDIO_KEY='your-audio-key'
 curl -fsS http://10.8.0.1:8000/health
 ```
 
-1. Диагностика зависимостей документов, нужен ключ документов. Ожидаются булевы значения и список языков:
+1. Диагностика зависимостей документов, ключ не нужен. Ожидаются булевы значения и список языков:
 
 ```bash
-curl -fsS http://10.8.0.1:8000/ready \
-  -H "Authorization: Bearer ${AUDIODOC_DOCUMENT_KEY}"
+curl -fsS http://10.8.0.1:8000/ready
 ```
 
 1. Извлечение документа. Ожидаются поля `format`, `text`, `characters` и `truncated`:
