@@ -198,7 +198,7 @@ Do not combine the Whisper and document keys; they protect different endpoints.
 | Bot cannot connect to the service | Wrong host/port, service stopped, firewall blocks traffic, or Uvicorn listens only on loopback | Call `/health` from machine A; inspect `ss -tlnp` and UFW rules on B |
 | HTTP `404` | `AUDIODOC_URL` contains an endpoint path, so the bot requests a path that does not exist | Set `AUDIODOC_URL` to the base URL without `/transcribe` or `/process-document`; the bot adds the path itself |
 | HTTP `401` | Key mismatch or wrong key group | Compare the bot's audio key with `AUDIODOC_AUDIO_KEY`, and its document key with `AUDIODOC_DOCUMENT_KEY` without sharing secret values |
-| HTTP `503` | Whisper is not loaded or a bounded queue is full | Check `/health`, service logs, and `Retry-After`; reduce load or tune queue limits carefully |
+| HTTP `503` | A bounded work queue is full, or a system tool that the document needs (Tesseract or DjVuLibre) is missing | For a full queue, check `Retry-After` and service logs, then reduce load or tune queue limits carefully; for a missing tool, check `/ready` on machine B and install the tool |
 | HTTP `413` | Upload exceeds the bot or server limit | Check the 20 MiB bot limit and audiodoc's 25/50 MiB endpoint limits |
 | HTTP `400` for audio | Audio is invalid or longer than the configured server limit | The bot currently rejects audio over 300 seconds; audiodoc defaults to 600 seconds |
 | HTTP `504` or bot timeout | Document deadline or client timeout elapsed; queue wait may contribute | Inspect backend logs and load before increasing timeouts |
