@@ -6,6 +6,10 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ## [Unreleased]
 
+### Added
+
+- [#208](https://github.com/WhlteAdmln/audiodoc/issues/208) SonarQube Cloud analyzes pull requests and reports its quality gate result in them.
+
 ## [0.3.1] - 2026-11-26
 
 ### Added

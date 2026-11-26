@@ -25,6 +25,8 @@ These jobs install their system packages with the shared step `.github/actions/a
 
 On a pull request the `pr-size` CI job runs `scripts/report_pr_size.py --base HEAD^1` and prints the number of changed lines (insertions plus deletions) next to the 256-line limit of [the development principles](docs/development-principles.md). `requirements-lock.txt`, `*.ru.md` translations and files marked `linguist-generated` in `.gitattributes` are not counted. The job only reports and never fails.
 
+SonarQube Cloud analyzes every pull request with automatic analysis and its GitHub App posts the quality gate result in the pull request; `.sonarcloud.properties` sets the analyzed sources (`audiodoc`, `scripts`), the tests (`tests`) and the Python versions. The quality profiles have every rule active, and the quality gate fails on any new issue, on an unreviewed security hotspot, on a rating worse than A and on any new duplicated line. Automatic analysis does not import coverage reports, so coverage stays enforced by pytest.
+
 ## Files shared with bot-obormot
 
 `.editorconfig`, `.pre-commit-config.yaml`, `.github/renovate.json5`, `.markdownlint-cli2.yaml`, `AGENTS.md`, `CLAUDE.md`, `docs/development-principles.md`, `docs/development-principles.ru.md`,
