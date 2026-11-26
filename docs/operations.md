@@ -91,7 +91,7 @@ After installing a trusted release, create a baseline outside the writable servi
 
 ```bash
 cd /opt/audiodoc
-sudo find audiodoc -type f -name '*.py' -exec sha256sum {} + | sudo tee /root/audiodoc.baseline.sha256 >/dev/null
+sudo find .venv/lib/python3.*/site-packages/audiodoc -type f -name '*.py' -exec sha256sum {} + | sudo tee /root/audiodoc.baseline.sha256 >/dev/null
 ```
 
 Check it periodically:
