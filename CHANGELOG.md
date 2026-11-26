@@ -36,6 +36,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Fixed
 
+- [#179](https://github.com/WhlteAdmln/audiodoc/issues/179) The configuration reference and `.env.example` name `$AUDIODOC_HOME/.env` as the settings file and resolve relative paths under `AUDIODOC_HOME`.
 - [#181](https://github.com/WhlteAdmln/audiodoc/issues/181) The security checklist and the integrity baseline check the installed `audiodoc` process and package and link the key rotation procedure.
 - [#171](https://github.com/WhlteAdmln/audiodoc/issues/171) The guides name the extractor matrix and the installed `.env` file at their real locations.
 - [#174](https://github.com/WhlteAdmln/audiodoc/issues/174) CI reuses the cached `.deb` files whose versions match the current package index instead of installing every list from the network.
