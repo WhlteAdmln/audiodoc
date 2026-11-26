@@ -6,6 +6,8 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-26
+
 ### Added
 
 - [#189](https://github.com/WhlteAdmln/audiodoc/issues/189) `scripts/check_vendored.py` also compares the shared `docs_checks` module `code_paths.py` and its tests.

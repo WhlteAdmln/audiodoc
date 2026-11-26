@@ -342,10 +342,10 @@ def test_package_vendored_files_have_required_headers() -> None:
     assert headers == expected_headers, "every package vendored file needs the header"
 
 
-def test_project_version_and_changelog_prepare_release_030() -> None:
+def test_declares_project_version_031() -> None:
     pyproject = _read_project_file("pyproject.toml")
-    version_line = 'version = "0.3.0"'
-    assert version_line in pyproject, "pyproject.toml must declare version 0.3.0"
+    version_line = 'version = "0.3.1"'
+    assert version_line in pyproject, "pyproject.toml must declare version 0.3.1"
 
 
 @pytest.mark.parametrize(
