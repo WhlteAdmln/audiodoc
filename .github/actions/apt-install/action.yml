@@ -1,8 +1,7 @@
 name: Install CI system packages
 description: >-
-  Install one package list from .github/apt-packages with the .deb files of the
-  nightly apt cache, or from the network when no cache matches or the cached
-  files do not install.
+  Install one package list from .github/apt-packages, reusing the .deb files of
+  the nightly apt cache whose versions match and downloading the rest.
 inputs:
   packages:
     description: Name of a package list in .github/apt-packages without the .txt suffix
@@ -36,22 +35,12 @@ runs:
         mapfile -t packages < ".github/apt-packages/${PACKAGE_LIST}.txt"
         debs=("${APT_CACHE_DIR}/${PACKAGE_LIST}"/*.deb)
 
-        all_installed() {
-          local package
-          for package in "${packages[@]}"; do
-            if [[ "$(dpkg-query -W -f='${Status}' "${package}" 2>/dev/null)" != "install ok installed" ]]; then
-              return 1
-            fi
-          done
-        }
-
-        if [[ -n "${APT_CACHE_KEY}" && ${#debs[@]} -gt 0 ]] \
-          && sudo apt-get install -y --no-install-recommends --no-download "${debs[@]}" \
-          && all_installed; then
-          echo "Installed ${PACKAGE_LIST} from the apt cache ${APT_CACHE_KEY}"
-          exit 0
+        if [[ -n "${APT_CACHE_KEY}" && ${#debs[@]} -gt 0 ]]; then
+          sudo cp "${debs[@]}" /var/cache/apt/archives/
+          echo "Copied ${#debs[@]} .deb files of ${PACKAGE_LIST} from the apt cache ${APT_CACHE_KEY}"
+        else
+          echo "::notice::Installing ${PACKAGE_LIST} from the network: no usable apt cache"
         fi
 
-        echo "::notice::Installing ${PACKAGE_LIST} from the network: no usable apt cache"
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends "${packages[@]}"
