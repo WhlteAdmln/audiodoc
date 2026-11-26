@@ -2,6 +2,15 @@
 
 `$AUDIODOC_HOME/.env` (by default `~/audiodoc/.env`) contains backend settings. Start with `.env.example`, keep the file readable only by the service administrator/account, and never commit real secrets. For a manually managed single-user install, use `chmod 600 .env`; a dedicated system service may use `root:audiodoc` with mode `640` as described in [Production deployment](operations.md#production-deployment).
 
+`audiodoc run`, `audiodoc config check` and `audiodoc doctor` read settings from these sources in order of precedence:
+
+1. The process environment.
+2. The file given with `audiodoc run --env-file PATH` (`audiodoc run` only).
+3. `$AUDIODOC_HOME/.env`.
+4. `.env` in the current working directory.
+
+A source never overrides a value that an earlier source has already set, so the first source that sets a variable wins. A file that does not exist is skipped, and a file that is the same as an earlier one is read only once.
+
 Generate independent keys for audio and documents:
 
 ```bash
