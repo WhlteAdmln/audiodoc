@@ -188,6 +188,15 @@ def test_ci_runs_the_required_make_command(command: str) -> None:
     assert command in workflow, f"ci.yml must run {command!r}"
 
 
+def test_ci_docker_job_waits_for_the_healthy_service() -> None:
+    workflow = (ROOT_DIR / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"
+    )
+
+    start_command = "up --detach --wait --wait-timeout 180 audiodoc"
+    assert start_command in workflow, "the docker job must wait for the health check"
+
+
 @pytest.mark.parametrize(
     ("target", "call"),
     [
