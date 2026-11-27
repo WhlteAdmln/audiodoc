@@ -7,7 +7,7 @@ import pytest
 
 import audiodoc.document_engine.extractors.pdf as pdf_module
 from audiodoc.common.deadline import Deadline
-from audiodoc.common.text_budget import TextBudget
+from audiodoc.common.text_budget import StopReason, TextBudget
 from audiodoc.document_engine.extractors.base import ExtractContext
 from audiodoc.document_engine.extractors.pdf import extract_pdf
 from audiodoc.document_engine.limits import MAX_DOCUMENT_PAGES
@@ -138,3 +138,16 @@ def test_pdf_exact_fit_on_last_page_is_not_truncated(
     assert (text, budget.truncated) == expected_result, (
         "a last page that exactly fits must be complete and not truncated"
     )
+
+
+def test_pdf_records_page_limit_when_pages_remain_after_exact_fit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    document = FakeDocument([FakePage("Акт 1, сцена"), FakePage("Finale №2")])
+    monkeypatch.setattr(pdf_module.pymupdf, "open", lambda **_kwargs: document)
+    budget = TextBudget(len("--- Страница 1 ---\nАкт 1, сцена"))
+    context = ExtractContext(budget=budget, deadline=Deadline(10))
+
+    extract_pdf(b"fake-pdf", context=context)
+
+    assert budget.stop_reason is StopReason.PAGE_LIMIT, "the page limit was missed"

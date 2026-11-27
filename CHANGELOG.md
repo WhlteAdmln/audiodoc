@@ -11,6 +11,10 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 - [#208](https://github.com/WhlteAdmln/audiodoc/issues/208) SonarQube Cloud analyzes pull requests and reports its quality gate result in them.
 - [#206](https://github.com/WhlteAdmln/audiodoc/issues/206) A test checks that `install.sh --upgrade` restores the previous `.venv` when the switch to the staged environment fails.
 
+### Changed
+
+- [#199](https://github.com/WhlteAdmln/audiodoc/issues/199) Document extraction records whether the text limit or the page limit stopped it and logs that reason with the format.
+
 ### Fixed
 
 - [#207](https://github.com/WhlteAdmln/audiodoc/issues/207) An XLSX row ends at its last non-empty cell instead of carrying empty separators up to the column cap.

@@ -14,7 +14,11 @@ from audiodoc.document_engine.limits import (
     MAX_DOCUMENT_SIZE,
     MAX_EXTRACTED_TEXT_LENGTH,
 )
-from audiodoc.document_engine.result import DocumentResult, build_result
+from audiodoc.document_engine.result import (
+    DocumentResult,
+    ExtractionOutcome,
+    build_result,
+)
 from audiodoc.errors.base import BackendError
 from audiodoc.errors.documents import (
     DocumentRejectedError,
@@ -106,7 +110,15 @@ def _run_extraction(
 
     text = _extract_document_text(data, filetype, context)
     context.check()
-    return build_result(filetype, text, truncated=context.budget.truncated)
+    outcome = ExtractionOutcome(
+        format=filetype, text=text, stop_reason=context.budget.stop_reason
+    )
+    logger.info(
+        "Document extracted: format=%s stop_reason=%s",
+        outcome.format,
+        outcome.stop_reason,
+    )
+    return build_result(outcome)
 
 
 def _get_text_limit(max_characters: int | None) -> int:

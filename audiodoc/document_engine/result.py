@@ -1,9 +1,20 @@
 # Copyright (c) 2026 Nikolai Zelensky
 """Build stable document responses and retain the extraction truncation flag."""
 
+from dataclasses import dataclass
 from typing import TypedDict
 
+from audiodoc.common.text_budget import StopReason
 from audiodoc.document_engine.limits import MAX_EXTRACTED_TEXT_LENGTH
+
+
+@dataclass(frozen=True)
+class ExtractionOutcome:
+    """Text extracted from one document and the limit that stopped it."""
+
+    format: str
+    text: str
+    stop_reason: StopReason
 
 
 class DocumentResult(TypedDict):
@@ -22,14 +33,12 @@ def limit_text(text: str) -> str:
     return text
 
 
-def build_result(
-    filetype: str, text: str, *, truncated: bool = False
-) -> DocumentResult:
+def build_result(outcome: ExtractionOutcome) -> DocumentResult:
     """Create the public document result, including whether extraction was cut."""
-    text = limit_text(text.strip())
+    text = limit_text(outcome.text.strip())
     return {
-        "format": filetype,
+        "format": outcome.format,
         "text": text,
         "characters": len(text),
-        "truncated": bool(truncated),
+        "truncated": outcome.stop_reason is not StopReason.NONE,
     }
