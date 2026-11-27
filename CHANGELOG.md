@@ -15,6 +15,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Changed
 
+- [#202](https://github.com/WhlteAdmln/audiodoc/issues/202) The Docker base images are pinned by digest, so the same commit is always built on the same base.
 - [#199](https://github.com/WhlteAdmln/audiodoc/issues/199) Document extraction records whether the text limit or the page limit stopped it and logs that reason with the format.
 
 ### Fixed

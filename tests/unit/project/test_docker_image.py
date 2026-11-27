@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -21,7 +22,7 @@ def _directives(text: str, keyword: str) -> list[str]:
 
 def test_dockerfile_starts_with_the_runtime_base_argument() -> None:
     dockerfile = _read("Dockerfile")
-    expected_first_line = "ARG RUNTIME_BASE=python:3.12-slim\n"
+    expected_first_line = "ARG RUNTIME_BASE=python:3.12-slim@sha256:"
 
     assert dockerfile.startswith(expected_first_line), (
         "the Dockerfile does not start with the runtime base argument"
@@ -31,7 +32,7 @@ def test_dockerfile_starts_with_the_runtime_base_argument() -> None:
 @pytest.mark.parametrize(
     "snippet",
     [
-        "FROM python:3.12-slim AS builder\n",
+        "FROM python:3.12-slim@sha256:",
         "FROM ${RUNTIME_BASE} AS runtime\n",
         "requirements-lock.txt",
         "pip wheel",
@@ -44,6 +45,29 @@ def test_dockerfile_builds_a_multi_stage_offline_python_image(snippet: str) -> N
     dockerfile = _read("Dockerfile")
 
     assert snippet in dockerfile, f"the Dockerfile build misses {snippet!r}"
+
+
+@pytest.mark.parametrize(
+    ("parts", "reference_pattern", "expected_count"),
+    [
+        (("Dockerfile",), r"^(?:ARG RUNTIME_BASE=|FROM )([^$\s]\S*)", 2),
+        (("compose.yaml",), r"^\s+RUNTIME_BASE: (\S+)$", 1),
+        (("compose.cuda.yaml",), r"^\s+RUNTIME_BASE: (\S+)$", 1),
+        ((".github", "workflows", "ci.yml"), r"^\s+(nginx:\S+) nginx -t$", 1),
+    ],
+)
+def test_pins_every_base_image_by_digest(
+    parts: tuple[str, ...], reference_pattern: str, expected_count: int
+) -> None:
+    text = _read(*parts)
+    digest = re.compile(r"^[\w./-]+:[\w.-]+@sha256:[0-9a-f]{64}$")
+
+    references = re.findall(reference_pattern, text, flags=re.MULTILINE)
+    pinned = [reference for reference in references if digest.match(reference)]
+
+    assert len(pinned) == expected_count, (
+        f"{'/'.join(parts)} has a base image without a tag and digest"
+    )
 
 
 def test_dockerfile_declares_ghcr_source_repository() -> None:

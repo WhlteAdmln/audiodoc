@@ -1,6 +1,6 @@
-ARG RUNTIME_BASE=python:3.12-slim
+ARG RUNTIME_BASE=python:3.12-slim@sha256:191083cdf6c7bda8c76158983163ead5d5cf7b77cf3033e805bb0f5296f51b4b
 
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim@sha256:191083cdf6c7bda8c76158983163ead5d5cf7b77cf3033e805bb0f5296f51b4b AS builder
 
 WORKDIR /build
 
