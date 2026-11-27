@@ -521,7 +521,29 @@ jobs:
             --volume "${GITHUB_WORKSPACE}/.cache/whisper:/data/models" \
             --env WHISPER_MODEL_PATH=/data/models/tiny \
             audiodoc doctor --offline
-          docker compose -f compose.yaml down --volumes
+
+      - name: Start the service and check the health endpoint
+        run: |
+          set -euo pipefail
+          override="${RUNNER_TEMP}/compose.model.yaml"
+          cat > "${override}" <<YAML
+          services:
+            audiodoc:
+              environment:
+                WHISPER_MODEL_PATH: /data/models/tiny
+              volumes:
+                - ${GITHUB_WORKSPACE}/.cache/whisper:/data/models
+          YAML
+          docker compose -f compose.yaml -f "${override}" up --detach --wait --wait-timeout 180 audiodoc
+          curl --fail --silent --show-error http://127.0.0.1:8000/health
+
+      - name: Print service logs
+        if: failure()
+        run: docker compose -f compose.yaml logs audiodoc
+
+      - name: Stop the service and remove its volume
+        if: always()
+        run: docker compose -f compose.yaml down --volumes
 
       - name: Make Whisper cache readable by runner
         if: always()
