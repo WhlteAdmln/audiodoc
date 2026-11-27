@@ -61,6 +61,34 @@ def test_xlsx_extracts_only_rows_within_caps(row: str, expected_count: int) -> N
     )
 
 
+@pytest.fixture(name="gapped_workbook")
+def fixture_gapped_workbook(monkeypatch: pytest.MonkeyPatch) -> FakeWorkbook:
+    """Serve a sheet whose row has an inner and trailing empty cells."""
+    sheet = FakeSheet("Gaps", [("Kp", None, 7, "", None, None)])
+    workbook = FakeWorkbook([sheet])
+    monkeypatch.setattr(
+        xlsx_module, "load_workbook", lambda *_args, **_kwargs: workbook
+    )
+    return workbook
+
+
+@pytest.mark.usefixtures("gapped_workbook")
+def test_xlsx_ends_row_at_last_non_empty_cell() -> None:
+    text = extract_xlsx(
+        b"workbook", context=ExtractContext(TextBudget(100), Deadline(10))
+    )
+
+    expected_text = "--- Лист: Gaps ---\nKp |  | 7"
+    assert text == expected_text, "a row must keep inner gaps and end at its last cell"
+
+
+def test_xlsx_extracts_workbook_rows_without_padding() -> None:
+    text = extract_xlsx(create_xlsx())
+
+    expected_text = "--- Лист: Test sheet ---\nName | Value\nDocument engine | Works!"
+    assert text == expected_text, "rows of a real workbook must not be padded"
+
+
 def test_xlsx_extracts_text_as_string() -> None:
     text = extract_xlsx(create_xlsx())
 

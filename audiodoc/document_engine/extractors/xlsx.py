@@ -17,8 +17,11 @@ from audiodoc.errors.messages import EXTRACTION_MESSAGES
 
 
 def _row_text(row: tuple[object, ...]) -> str:
-    """Join the cell values of a row, treating empty cells as blank."""
-    return " | ".join("" if value is None else str(value) for value in row).strip()
+    """Join the cell values of a row up to its last non-empty cell."""
+    cells = ["" if value is None else str(value) for value in row]
+    while cells and not cells[-1]:
+        cells.pop()
+    return " | ".join(cells).strip()
 
 
 def _extract_sheets(workbook: Workbook, ctx: ExtractContext, result: list[str]) -> None:
