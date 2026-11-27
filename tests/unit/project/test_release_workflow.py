@@ -70,7 +70,8 @@ def test_extract_release_notes_rejects_an_empty_version_entry() -> None:
 @pytest.mark.parametrize(
     "fragment",
     [
-        "needs: e2e",
+        "needs: ci",
+        "uses: ./.github/workflows/ci.yml",
         "dry_run:",
         "default: true",
         'GITHUB_REF" != "refs/heads/main"',
@@ -83,7 +84,9 @@ def test_extract_release_notes_rejects_an_empty_version_entry() -> None:
         "dist/build-provenance.sigstore.json",
     ],
 )
-def test_release_workflow_requires_e2e_and_defaults_to_dry_run(fragment: str) -> None:
+def test_release_workflow_requires_full_ci_and_defaults_to_dry_run(
+    fragment: str,
+) -> None:
     workflow = _read_project_file(".github", "workflows", "release.yml")
     assert fragment in workflow, f"release.yml must contain {fragment!r}"
 
@@ -213,12 +216,23 @@ def test_no_skips_target_fails_on_skipped_tests(target: str, call: str) -> None:
     assert f"{target}:\n\t{call}\n" in makefile, f"{target} must reject skips"
 
 
-def test_release_e2e_job_rejects_skipped_tests() -> None:
-    workflow = (ROOT_DIR / ".github" / "workflows" / "release.yml").read_text(
-        encoding="utf-8"
+def test_ci_runs_the_e2e_job_for_a_manual_run() -> None:
+    workflow = _read_project_file(".github", "workflows", "ci.yml")
+    e2e_condition = (
+        "if: github.event_name == 'schedule'"
+        " || github.event_name == 'workflow_dispatch'"
     )
-    expected_command = "run: make test-e2e-no-skips"
-    assert expected_command in workflow, "release e2e job must reject skipped tests"
+    assert e2e_condition in workflow, "a release run must run the e2e job"
+
+
+def test_ci_pushes_the_docker_image_only_on_a_push_to_main() -> None:
+    workflow = _read_project_file(".github", "workflows", "ci.yml")
+    push_condition = (
+        "if: github.event_name == 'push' && github.ref == 'refs/heads/main'"
+    )
+    push_guards = workflow.count(push_condition)
+    expected_guards = 2
+    assert push_guards == expected_guards, "a release run must not push the image"
 
 
 def test_check_target_runs_every_local_ci_gate() -> None:
