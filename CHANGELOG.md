@@ -10,6 +10,10 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 - [#208](https://github.com/WhlteAdmln/audiodoc/issues/208) SonarQube Cloud analyzes pull requests and reports its quality gate result in them.
 
+### Fixed
+
+- [#198](https://github.com/WhlteAdmln/audiodoc/issues/198) The package metadata declares the development status, environment, framework, audience, operating system and topic classifiers.
+
 ## [0.3.1] - 2026-11-26
 
 ### Added
