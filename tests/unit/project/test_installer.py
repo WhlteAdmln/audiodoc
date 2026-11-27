@@ -768,3 +768,47 @@ def test_upgrade_rolls_back_when_the_offline_doctor_fails(
         "leftovers": [],
     }
     assert observed == expected, result.stdout + result.stderr
+
+
+def _refuse_to_move_the_staged_venv(bin_dir: Path) -> None:
+    real_mv = shutil.which("mv") or "/bin/mv"
+    body = f'case "$1" in\n*/.venv.new) exit 1 ;;\nesac\nexec "{real_mv}" "$@"\n'
+    install_command(bin_dir, "mv", body)
+
+
+def test_upgrade_restores_the_previous_environment_when_the_switch_fails(
+    initial_install: InstallerRun,
+    inactive_systemctl: tuple[Path, Path],
+    user_home: Path,
+    release: LocalRelease,
+) -> None:
+    app_home = initial_install.app_home
+    old_marker = app_home / ".venv" / "previous-environment-marker"
+    old_marker.write_text("vorherige Umgebung", encoding="utf-8")
+    bin_dir, _systemctl_log = inactive_systemctl
+    _refuse_to_move_the_staged_venv(bin_dir)
+
+    result = _run_installer(
+        UPGRADE_FLAG,
+        home=user_home,
+        release=release,
+        extra_env={"PATH": path_with(bin_dir)},
+    )
+
+    observed = {
+        "rejection": _rejection(
+            result, "Could not activate the staged virtual environment."
+        ),
+        "old environment": old_marker.read_text(encoding="utf-8"),
+        "version": _installed_version(app_home),
+        "leftovers": [
+            name for name in (".venv.new", ".venv.prev") if (app_home / name).exists()
+        ],
+    }
+    expected = {
+        "rejection": (1, True),
+        "old environment": "vorherige Umgebung",
+        "version": "1.2.3",
+        "leftovers": [],
+    }
+    assert observed == expected, result.stdout + result.stderr
