@@ -4,6 +4,7 @@
 """Tests for the dependency update automation policy."""
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -257,3 +258,53 @@ def test_renovate_vulnerability_alerts_use_only_supported_options(
 def test_dependabot_version_updates_are_removed() -> None:
     dependabot_config = ROOT_DIR / ".github" / "dependabot.yml"
     assert not dependabot_config.exists(), "the Dependabot configuration still exists"
+
+
+def test_renovate_runs_the_regex_manager(renovate_config: dict[str, Any]) -> None:
+    regex_manager = "custom.regex"
+    assert regex_manager in renovate_config["enabledManagers"], (
+        "Renovate does not run the regex manager"
+    )
+
+
+@pytest.mark.parametrize(
+    ("path", "expected_image"),
+    [
+        ("compose.yaml", "python:3.12-slim"),
+        ("compose.cuda.yaml", "nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04"),
+        (".github/workflows/ci.yml", "nginx:stable-alpine"),
+    ],
+)
+def test_renovate_regex_manager_finds_digest_pinned_images(
+    renovate_config: dict[str, Any],
+    path: str,
+    expected_image: str,
+) -> None:
+    text = (ROOT_DIR / path).read_text("utf-8")
+    found_images = [
+        f"{match['depName']}:{match['currentValue']}"
+        for manager in renovate_config["customManagers"]
+        if re.search(manager["managerFilePatterns"][0].strip("/"), path)
+        for pattern in manager["matchStrings"]
+        for match in re.finditer(pattern.replace("(?<", "(?P<"), text)
+    ]
+
+    assert expected_image in found_images, (
+        f"the Renovate regex manager misses the image in {path}"
+    )
+
+
+def test_renovate_leaves_regex_manager_tag_updates_to_humans(
+    renovate_config: dict[str, Any],
+) -> None:
+    regex_manager = "custom.regex"
+    regex_rules = [
+        rule
+        for rule in renovate_config["packageRules"]
+        if rule.get("matchManagers") == [regex_manager]
+    ]
+
+    expected_automerge = [False]
+    assert [rule["automerge"] for rule in regex_rules] == expected_automerge, (
+        "Renovate merges tag updates of the regex managers"
+    )

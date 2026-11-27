@@ -8,6 +8,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Added
 
+- [#216](https://github.com/WhlteAdmln/audiodoc/issues/216) Renovate updates the digests of the base images in the Compose build arguments and of the `nginx` image in CI.
 - [#208](https://github.com/WhlteAdmln/audiodoc/issues/208) SonarQube Cloud analyzes pull requests and reports its quality gate result in them.
 - [#200](https://github.com/WhlteAdmln/audiodoc/issues/200) Property tests check the text budget with any separators, the row cap of `add_rows` and the ZIP size, count and compression limits.
 - [#205](https://github.com/WhlteAdmln/audiodoc/issues/205) The Docker CI job starts the service with Compose, waits for the container health check and requests `/health` on the published port.
