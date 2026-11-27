@@ -192,7 +192,7 @@ jobs:
           docker run --rm --pull=always \
             --mount "type=bind,src=${GITHUB_WORKSPACE}/deploy/nginx.conf.example,dst=/etc/nginx/conf.d/default.conf,readonly" \
             --mount "type=bind,src=${cert_dir},dst=/etc/ssl/audiodoc,readonly" \
-            nginx:stable-alpine nginx -t
+            nginx:stable-alpine@sha256:8eb04fe3b385090e9aa02961f77398ad09b6bf33ab07f6669a5bb7acce22c0d3 nginx -t
 
   e2e:
     name: Real Whisper smoke test
