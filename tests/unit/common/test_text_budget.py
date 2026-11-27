@@ -59,6 +59,62 @@ def test_text_budget_reports_exact_truncation(
     )
 
 
+@given(
+    limit=st.integers(min_value=1, max_value=256),
+    chunks=st.lists(
+        st.tuples(st.text(max_size=64), st.integers(min_value=0, max_value=6)),
+        max_size=24,
+    ),
+)
+@settings(max_examples=200)
+def test_text_budget_keeps_joined_text_within_limit_for_any_separators(
+    limit: int,
+    chunks: list[tuple[str, int]],
+) -> None:
+    budget = TextBudget(limit)
+    joined = ""
+
+    for text, separator_length in chunks:
+        piece = budget.add(text, separator_length=separator_length)
+        if piece and joined:
+            joined += "¶" * separator_length
+        joined += piece
+
+    assert len(joined) <= limit, "the accepted text with separators exceeds the limit"
+
+
+@given(
+    limit=st.integers(min_value=1, max_value=128),
+    operations=st.lists(
+        st.one_of(
+            st.tuples(st.text(max_size=48), st.integers(min_value=0, max_value=4)),
+            st.sampled_from([StopReason.TEXT_LIMIT, StopReason.PAGE_LIMIT]),
+        ),
+        max_size=24,
+    ),
+)
+@settings(max_examples=200)
+def test_text_budget_reports_truncation_exactly_when_it_has_a_stop_reason(
+    limit: int,
+    operations: list[tuple[str, int] | StopReason],
+) -> None:
+    budget = TextBudget(limit)
+    reported_flags: list[bool] = []
+    expected_flags: list[bool] = []
+
+    for operation in operations:
+        if isinstance(operation, StopReason):
+            budget.mark_truncated(operation)
+        else:
+            budget.add(operation[0], separator_length=operation[1])
+        reported_flags.append(budget.truncated)
+        expected_flags.append(budget.stop_reason is not StopReason.NONE)
+
+    assert reported_flags == expected_flags, (
+        "the truncation flag disagrees with the stop reason"
+    )
+
+
 def test_text_budget_truncates_a_single_oversized_chunk() -> None:
     budget = TextBudget(10)
     expected_piece = "Длинный_те"

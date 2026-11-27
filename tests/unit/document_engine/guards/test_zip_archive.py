@@ -5,10 +5,13 @@
 from __future__ import annotations
 
 import io
+import math
 import stat
 import zipfile
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from audiodoc.document_engine.guards import zip_archive as zip_guard
 from audiodoc.document_engine.guards.zip_archive import validate_zip_archive
@@ -23,6 +26,30 @@ def _archive(members: dict[str, bytes], *, external_attr: int = 0) -> bytes:
             info.external_attr = external_attr
             archive.writestr(info, data)
     return output.getvalue()
+
+
+def _payloads(*, min_size: int) -> st.SearchStrategy[list[bytes]]:
+    payload = st.binary(min_size=1, max_size=48).filter(
+        lambda data: not data.startswith(b"PK"),
+    )
+    return st.lists(payload, min_size=min_size, max_size=6)
+
+
+def _members(payloads: list[bytes]) -> list[ZipMember]:
+    return [
+        ZipMember(f"parts/{index}.bin", data) for index, data in enumerate(payloads)
+    ]
+
+
+def _outcome(data: bytes, limits: dict[str, int]) -> str:
+    with pytest.MonkeyPatch.context() as patch:
+        for name, value in limits.items():
+            patch.setattr(zip_guard, name, value)
+        try:
+            validate_zip_archive(data)
+        except ValueError as error:
+            return str(error)
+    return "accepted"
 
 
 def _rejection(data: bytes) -> str:
@@ -242,3 +269,94 @@ def test_rejects_archive_cut_before_its_central_directory() -> None:
 
     expected = "Invalid ZIP container"
     assert message == expected, "a truncated archive was accepted"
+
+
+@given(payloads=_payloads(min_size=1), slack=st.integers(min_value=0, max_value=3))
+def test_accepts_archive_within_every_limit(payloads: list[bytes], slack: int) -> None:
+    sizes = [len(data) for data in payloads]
+    limits = {
+        "MAX_ARCHIVE_FILES": len(payloads) + slack,
+        "MAX_ARCHIVE_FILE_SIZE": max(sizes) + slack,
+        "MAX_ARCHIVE_UNPACKED_SIZE": sum(sizes) + slack,
+    }
+
+    outcome = _outcome(lying_zip(_members(payloads)), limits)
+
+    expected = "accepted"
+    assert outcome == expected, "an archive within every limit was rejected"
+
+
+@given(payloads=_payloads(min_size=2))
+def test_rejects_archive_one_file_over_the_count_limit(payloads: list[bytes]) -> None:
+    sizes = [len(data) for data in payloads]
+    limits = {
+        "MAX_ARCHIVE_FILES": len(payloads) - 1,
+        "MAX_ARCHIVE_FILE_SIZE": max(sizes),
+        "MAX_ARCHIVE_UNPACKED_SIZE": sum(sizes),
+    }
+
+    outcome = _outcome(lying_zip(_members(payloads)), limits)
+
+    expected = f"Too many files in archive: {len(payloads)}"
+    assert outcome == expected, "an archive over the count limit was accepted"
+
+
+@given(payloads=_payloads(min_size=1))
+def test_rejects_archive_one_byte_over_the_member_size_limit(
+    payloads: list[bytes],
+) -> None:
+    sizes = [len(data) for data in payloads]
+    limits = {
+        "MAX_ARCHIVE_FILES": len(payloads),
+        "MAX_ARCHIVE_FILE_SIZE": max(sizes) - 1,
+        "MAX_ARCHIVE_UNPACKED_SIZE": sum(sizes),
+    }
+
+    outcome = _outcome(lying_zip(_members(payloads)), limits)
+
+    largest = sizes.index(max(sizes))
+    expected = f"File inside archive is too large: parts/{largest}.bin"
+    assert outcome == expected, "a member over the size limit was accepted"
+
+
+@given(payloads=_payloads(min_size=1))
+def test_rejects_archive_one_byte_over_the_total_size_limit(
+    payloads: list[bytes],
+) -> None:
+    sizes = [len(data) for data in payloads]
+    limits = {
+        "MAX_ARCHIVE_FILES": len(payloads),
+        "MAX_ARCHIVE_FILE_SIZE": max(sizes),
+        "MAX_ARCHIVE_UNPACKED_SIZE": sum(sizes) - 1,
+    }
+
+    outcome = _outcome(lying_zip(_members(payloads)), limits)
+
+    expected = "Total unpacked archive size exceeds the limit"
+    assert outcome == expected, "an archive over the total size limit was accepted"
+
+
+@given(
+    payloads=_payloads(min_size=0),
+    run_length=st.integers(min_value=256, max_value=4096),
+    position=st.integers(min_value=0, max_value=6),
+)
+def test_rejects_archive_just_over_the_compression_ratio_limit(
+    payloads: list[bytes],
+    run_length: int,
+    position: int,
+) -> None:
+    members = _members(payloads)
+    packed_name = "packed/run.txt"
+    packed = ZipMember(packed_name, b"." * run_length, compression=zipfile.ZIP_DEFLATED)
+    members.insert(min(position, len(members)), packed)
+    data = lying_zip(members)
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        info = archive.getinfo(packed_name)
+    ratio_limit = math.ceil(info.file_size / info.compress_size) - 1
+    limits = {"MAX_ARCHIVE_COMPRESSION_RATIO": ratio_limit}
+
+    outcome = _outcome(data, limits)
+
+    expected = f"Suspicious compression ratio: {packed_name}"
+    assert outcome == expected, "a member over the compression ratio was accepted"

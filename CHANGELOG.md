@@ -9,6 +9,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 ### Added
 
 - [#208](https://github.com/WhlteAdmln/audiodoc/issues/208) SonarQube Cloud analyzes pull requests and reports its quality gate result in them.
+- [#200](https://github.com/WhlteAdmln/audiodoc/issues/200) Property tests check the text budget with any separators, the row cap of `add_rows` and the ZIP size, count and compression limits.
 - [#206](https://github.com/WhlteAdmln/audiodoc/issues/206) A test checks that `install.sh --upgrade` restores the previous `.venv` when the switch to the staged environment fails.
 
 ### Changed
