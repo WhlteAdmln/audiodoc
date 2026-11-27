@@ -40,10 +40,10 @@ def test_xlsx_passes_fixed_row_and_column_caps_to_openpyxl(
         "values_only": True,
         "closed": True,
     }
-    assert {
-        **sheet.read_arguments,
-        "closed": capped_workbook.closed,
-    } == expected_arguments, "the caps must reach openpyxl and the workbook close"
+    actual_arguments = {**sheet.read_arguments, "closed": capped_workbook.closed}
+    assert actual_arguments == expected_arguments, (
+        "the caps must reach openpyxl and the workbook close"
+    )
 
 
 @pytest.mark.usefixtures("capped_workbook")
