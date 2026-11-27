@@ -6,7 +6,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from audiodoc.common.text_budget import TextBudget
+from audiodoc.common.text_budget import StopReason, TextBudget
 
 
 @given(
@@ -151,9 +151,57 @@ def test_text_budget_can_mark_source_as_incomplete_when_extraction_stops() -> No
     budget = TextBudget(5)
     budget.add("12345")
 
-    budget.mark_truncated()
+    budget.mark_truncated(StopReason.PAGE_LIMIT)
 
     expected_state = (True, True)
     assert (budget.exhausted, budget.truncated) == expected_state, (
         "a marked budget must stay full and become truncated"
     )
+
+
+def test_text_budget_has_no_stop_reason_when_text_fits() -> None:
+    budget = TextBudget(12)
+    budget.add("Окно 3")
+
+    assert budget.stop_reason is StopReason.NONE, "a fitting chunk set a stop reason"
+
+
+def test_text_budget_records_text_limit_when_a_chunk_is_cut() -> None:
+    budget = TextBudget(4)
+    budget.add("Brücke-77")
+
+    assert budget.stop_reason is StopReason.TEXT_LIMIT, "a cut chunk was not recorded"
+
+
+def test_text_budget_records_text_limit_when_a_chunk_follows_a_full_budget() -> None:
+    budget = TextBudget(3)
+    budget.add("Ёлк")
+    budget.add("z9")
+
+    assert budget.stop_reason is StopReason.TEXT_LIMIT, "a dropped chunk was missed"
+
+
+def test_text_budget_records_page_limit_when_marked() -> None:
+    budget = TextBudget(6)
+    budget.add("Лист_1")
+
+    budget.mark_truncated(StopReason.PAGE_LIMIT)
+
+    assert budget.stop_reason is StopReason.PAGE_LIMIT, "the page limit was not kept"
+
+
+def test_text_budget_keeps_the_first_stop_reason() -> None:
+    budget = TextBudget(2)
+    budget.add("Qwerty")
+
+    budget.mark_truncated(StopReason.PAGE_LIMIT)
+
+    assert budget.stop_reason is StopReason.TEXT_LIMIT, "a later reason replaced it"
+
+
+def test_text_budget_rejects_marking_without_a_stop_reason() -> None:
+    budget = TextBudget(8)
+    with pytest.raises(ValueError, match="reason must") as error:
+        budget.mark_truncated(StopReason.NONE)
+    expected_message = "reason must name the limit that stopped extraction"
+    assert str(error.value) == expected_message, "an empty stop reason was accepted"

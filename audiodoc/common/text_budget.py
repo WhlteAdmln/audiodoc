@@ -3,7 +3,18 @@
 
 The budget accounts for the separator inserted between accepted chunks and
 never allows the final joined text to exceed its configured character limit.
+It records the first reason that stopped the extraction.
 """
+
+from enum import StrEnum
+
+
+class StopReason(StrEnum):
+    """Why an extraction stopped before the end of its source."""
+
+    NONE = "none"
+    TEXT_LIMIT = "text_limit"
+    PAGE_LIMIT = "page_limit"
 
 
 class _InvalidTextBudgetLimitError(ValueError):
@@ -30,6 +41,14 @@ class _InvalidSeparatorLengthError(ValueError):
         super().__init__("separator_length must be a non-negative integer")
 
 
+class _InvalidStopReasonError(ValueError):
+    """Raised when a budget is marked truncated without a stop reason."""
+
+    def __init__(self) -> None:
+        """Initialize the validation error."""
+        super().__init__("reason must name the limit that stopped extraction")
+
+
 class TextBudget:
     """A monotonic character budget for one document extraction operation."""
 
@@ -40,7 +59,7 @@ class TextBudget:
         self.limit = limit
         self.used = 0
         self._has_content = False
-        self._truncated = False
+        self._stop_reason = StopReason.NONE
 
     @property
     def exhausted(self) -> bool:
@@ -50,11 +69,24 @@ class TextBudget:
     @property
     def truncated(self) -> bool:
         """Whether extracted content was omitted because of an output limit."""
-        return self._truncated
+        return self._stop_reason is not StopReason.NONE
 
-    def mark_truncated(self) -> None:
-        """Mark output incomplete when extraction stops while source input remains."""
-        self._truncated = True
+    @property
+    def stop_reason(self) -> StopReason:
+        """The first limit that stopped the extraction, or ``NONE``."""
+        return self._stop_reason
+
+    def mark_truncated(self, reason: StopReason) -> None:
+        """Mark output incomplete when extraction stops while source input remains.
+
+        Args:
+            reason: The limit that stopped the extraction. Only the first
+                recorded reason is kept.
+
+        """
+        if reason is StopReason.NONE:
+            raise _InvalidStopReasonError
+        self._stop(reason)
 
     def add(self, text: str, *, separator_length: int = 1) -> str:
         """Accept a chunk, returning its possibly truncated text.
@@ -80,13 +112,13 @@ class TextBudget:
         if not text:
             return ""
         if self.exhausted:
-            self._truncated = True
+            self._stop(StopReason.TEXT_LIMIT)
             return ""
 
         separator = separator_length if self._has_content else 0
         remaining = self.limit - self.used - separator
         if remaining <= 0:
-            self._truncated = True
+            self._stop(StopReason.TEXT_LIMIT)
             self.used = self.limit
             return ""
 
@@ -94,12 +126,16 @@ class TextBudget:
         self.used += separator + len(piece)
         self._has_content = self._has_content or bool(piece)
         if len(piece) < len(text):
-            self._truncated = True
+            self._stop(StopReason.TEXT_LIMIT)
         return piece
 
     def is_truncated(self) -> bool:
         """Return the current truncation state."""
-        return self._truncated
+        return self.truncated
+
+    def _stop(self, reason: StopReason) -> None:
+        if self._stop_reason is StopReason.NONE:
+            self._stop_reason = reason
 
 
 def _is_integer(value: object) -> bool:

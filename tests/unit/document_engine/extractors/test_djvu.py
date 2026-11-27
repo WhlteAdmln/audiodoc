@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from audiodoc.common.deadline import Deadline, DeadlineExceededError
-from audiodoc.common.text_budget import TextBudget
+from audiodoc.common.text_budget import StopReason, TextBudget
 from audiodoc.document_engine.extractors.base import ExtractContext
 from audiodoc.document_engine.extractors.djvu import extract_djvu
 from audiodoc.document_engine.extractors.djvu import ocr_pages as ocr_pages_module
@@ -398,6 +398,16 @@ def test_marks_truncation_when_pages_remain_after_an_exact_fit(
     extract_djvu(_DJVU, context=context)
 
     assert context.budget.truncated is True, "the omitted page was not reported"
+
+
+def test_records_page_limit_when_pages_remain_after_an_exact_fit(
+    scanned: FakeDjvuLibre, tesseract: FakeTesseract
+) -> None:
+    context = _exact_fit_context(scanned, tesseract, 3)
+
+    extract_djvu(_DJVU, context=context)
+
+    assert context.budget.stop_reason is StopReason.PAGE_LIMIT, "page limit missed"
 
 
 def test_renders_no_page_after_an_exact_fit(

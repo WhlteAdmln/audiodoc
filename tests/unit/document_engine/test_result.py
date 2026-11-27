@@ -7,7 +7,12 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 import audiodoc.document_engine.result as result_module
-from audiodoc.document_engine.result import build_result, limit_text
+from audiodoc.common.text_budget import StopReason
+from audiodoc.document_engine.result import (
+    ExtractionOutcome,
+    build_result,
+    limit_text,
+)
 
 
 def test_limit_text_cuts_text_to_the_maximum_length(
@@ -26,7 +31,11 @@ def test_build_result_preserves_response_shape(
 ) -> None:
     monkeypatch.setattr(result_module, "MAX_EXTRACTED_TEXT_LENGTH", 5)
 
-    result = build_result("txt", "\tЁжик\n", truncated=True)
+    outcome = ExtractionOutcome(
+        format="txt", text="\tЁжик\n", stop_reason=StopReason.TEXT_LIMIT
+    )
+
+    result = build_result(outcome)
 
     expected_result = {
         "format": "txt",
@@ -39,19 +48,40 @@ def test_build_result_preserves_response_shape(
 
 @given(
     text=st.text(max_size=8192),
-    truncated=st.booleans(),
+    stop_reason=st.sampled_from(StopReason),
 )
 @settings(max_examples=200)
 def test_document_text_normalization_is_idempotent(
     text: str,
-    *,
-    truncated: bool,
+    stop_reason: StopReason,
 ) -> None:
-    first = build_result("txt", text, truncated=truncated)
+    first = build_result(
+        ExtractionOutcome(format="txt", text=text, stop_reason=stop_reason)
+    )
     second = build_result(
-        first["format"],
-        first["text"],
-        truncated=first["truncated"],
+        ExtractionOutcome(
+            format=first["format"], text=first["text"], stop_reason=stop_reason
+        )
     )
 
     assert second == first, "normalizing a normalized result changed it"
+
+
+@pytest.mark.parametrize(
+    ("stop_reason", "expected_truncated"),
+    [
+        (StopReason.NONE, False),
+        (StopReason.TEXT_LIMIT, True),
+        (StopReason.PAGE_LIMIT, True),
+    ],
+)
+def test_build_result_reports_truncation_for_a_stop_reason(
+    stop_reason: StopReason,
+    *,
+    expected_truncated: bool,
+) -> None:
+    outcome = ExtractionOutcome(format="odt", text="Глава 9", stop_reason=stop_reason)
+
+    result = build_result(outcome)
+
+    assert result["truncated"] is expected_truncated, "truncated does not match"

@@ -7,6 +7,7 @@ import math
 import pymupdf
 
 from audiodoc.common.deadline import Deadline
+from audiodoc.common.text_budget import StopReason
 from audiodoc.document_engine.extractors.base import (
     ExtractContext,
     add_chunk,
@@ -113,7 +114,7 @@ def extract_pdf(
                 # Remaining pages are left unread rather than OCRed only to
                 # discover whether they contain text beyond the client limit.
                 if index + 1 < document.page_count:
-                    ctx.budget.mark_truncated()
+                    ctx.budget.mark_truncated(StopReason.PAGE_LIMIT)
                 break
 
     return "\n\n".join(result)

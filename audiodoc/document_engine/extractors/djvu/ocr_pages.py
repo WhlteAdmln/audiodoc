@@ -10,6 +10,7 @@ from audiodoc.common.subprocess_runner import (
     SubprocessTimeoutError,
     run_limited,
 )
+from audiodoc.common.text_budget import StopReason
 from audiodoc.document_engine.extractors.base import (
     ExtractContext,
     add_chunk,
@@ -188,7 +189,7 @@ def extract_ocr_pages(
         if ctx.budget.exhausted:
             # Do not render and OCR more pages just to probe beyond the limit.
             if page_number < page_count:
-                ctx.budget.mark_truncated()
+                ctx.budget.mark_truncated(StopReason.PAGE_LIMIT)
             break
 
     return "\n\n".join(result)
