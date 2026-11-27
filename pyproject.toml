@@ -8,11 +8,18 @@ name = "audiodoc"
 version = "0.3.1"
 requires-python = ">=3.11.5"
 classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: System Administrators",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Text Processing",
 ]
 dependencies = [
     "fastapi>=0.162.5,<1.0",
