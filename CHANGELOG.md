@@ -15,6 +15,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 - [#205](https://github.com/WhlteAdmln/audiodoc/issues/205) The Docker CI job starts the service with Compose, waits for the container health check and requests `/health` on the published port.
 - [#206](https://github.com/WhlteAdmln/audiodoc/issues/206) A test checks that `install.sh --upgrade` restores the previous `.venv` when the switch to the staged environment fails.
 - [#201](https://github.com/WhlteAdmln/audiodoc/issues/201) The architecture document lists the invariants of the request and document pipelines with the test file that checks each of them.
+- [#229](https://github.com/WhlteAdmln/audiodoc/issues/229) A test checks that every subclass of `AppError` has a non-empty code and an HTTP error status.
 
 ### Changed
 
