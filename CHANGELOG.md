@@ -16,6 +16,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 - [#206](https://github.com/WhlteAdmln/audiodoc/issues/206) A test checks that `install.sh --upgrade` restores the previous `.venv` when the switch to the staged environment fails.
 - [#201](https://github.com/WhlteAdmln/audiodoc/issues/201) The architecture document lists the invariants of the request and document pipelines with the test file that checks each of them.
 - [#229](https://github.com/WhlteAdmln/audiodoc/issues/229) A test checks that every subclass of `AppError` has a non-empty code and an HTTP error status.
+- [#228](https://github.com/WhlteAdmln/audiodoc/issues/228) A test checks that the document pipeline inspects the input, detects the format, validates ZIP containers and extracts the text in this order.
 
 ### Changed
 

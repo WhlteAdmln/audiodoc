@@ -43,6 +43,7 @@ from tests.support.builders import (
     create_pptx,
     create_xlsx,
 )
+from tests.support.document_payloads import RecordingPayload
 from tests.support.extractor_matrix import MATRIX, Builder
 from tests.support.hostile_documents import (
     ZipEntry,
@@ -769,6 +770,38 @@ def test_validates_zip_before_calling_extractor(
     outcome = (events, result["format"], result["text"], result["truncated"])
     expected = (["validated", "extracted"], "docx", "word", False)
     assert outcome == expected, "the archive was not validated before extraction"
+
+
+def test_runs_document_pipeline_steps_in_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[str] = []
+    monkeypatch.setattr(
+        pipeline_module,
+        "detect_format",
+        lambda _data, _name: events.append("detected format") or "odt",
+    )
+    monkeypatch.setattr(
+        pipeline_module,
+        "validate_zip_archive",
+        lambda _data: events.append("validated zip"),
+    )
+    monkeypatch.setitem(
+        pipeline_module.REGISTRY,
+        "odt",
+        lambda _data, **_kwargs: events.append("extracted text") or "Отчёт за Q3",
+    )
+    payload = RecordingPayload(b"PK\x03\x04 office payload", events)
+
+    pipeline_module.process_document_sync(payload, "quarterly.odt")
+
+    expected = [
+        "inspected input",
+        "detected format",
+        "validated zip",
+        "extracted text",
+    ]
+    assert events == expected, "the document pipeline steps ran out of order"
 
 
 def test_rejects_empty_document() -> None:
