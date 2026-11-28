@@ -14,6 +14,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 - [#200](https://github.com/WhlteAdmln/audiodoc/issues/200) Property tests check the text budget with any separators, the row cap of `add_rows` and the ZIP size, count and compression limits.
 - [#205](https://github.com/WhlteAdmln/audiodoc/issues/205) The Docker CI job starts the service with Compose, waits for the container health check and requests `/health` on the published port.
 - [#206](https://github.com/WhlteAdmln/audiodoc/issues/206) A test checks that `install.sh --upgrade` restores the previous `.venv` when the switch to the staged environment fails.
+- [#201](https://github.com/WhlteAdmln/audiodoc/issues/201) The architecture document lists the invariants of the request and document pipelines with the test file that checks each of them.
 
 ### Changed
 

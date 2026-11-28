@@ -154,3 +154,22 @@ audiodoc/
 ├── requirements-dev.txt
 └── requirements-lock.txt
 ```
+
+## 9. Инварианты
+
+Каждое правило ниже должно выполняться для любого запроса; его проверяет тестовый файл, указанный после правила. Изменение, которое нарушает правило, ломает этот тест.
+
+- Конвейер документа проверяет входные данные, определяет формат, проверяет ZIP-контейнер и только после этого вызывает экстрактор и собирает результат: `tests/unit/document_engine/test_pipeline.py`.
+- Размер всего тела запроса ограничен до разбора multipart: `tests/unit/api/test_middleware.py`.
+- Загрузка никогда не читается и не сохраняется сверх лимита размера файла: `tests/unit/common/test_limited_upload.py`.
+- Документ, превышающий лимит размера на один байт, отклоняется со статусом 413: `tests/unit/document_engine/test_pipeline.py`.
+- Число элементов ZIP, размер элемента, общий размер и степень сжатия ограничены: `tests/unit/document_engine/guards/test_zip_archive.py`.
+- Извлечённый текст никогда не превышает бюджет символов, а обрезанный текст помечается как усечённый: `tests/unit/common/test_text_budget.py`.
+- Клиентский `max_characters` может только уменьшить серверный бюджет; некорректное значение отклоняется: `tests/unit/document_engine/test_pipeline.py`.
+- Извлечение таблиц никогда не добавляет строк больше лимита: `tests/unit/document_engine/extractors/test_base.py`.
+- Извлечение XLSX читает только строки и столбцы в пределах фиксированных лимитов: `tests/unit/document_engine/extractors/test_xlsx.py`.
+- Истёкший дедлайн вызывает `ProcessingTimeoutError` с кодом `processing_timeout`, а не частичный результат: `tests/unit/document_engine/test_pipeline.py`.
+- Каждая типизированная ошибка возвращает свой статус, публичное сообщение и код: `tests/unit/api/test_error_handlers.py`.
+- Непредвиденное исключение возвращает общий ответ 500 без внутренних подробностей: `tests/unit/api/test_error_handlers.py`.
+- `/ready` не требует API-ключа: `tests/unit/api/test_ready.py`.
+- Каждый POST-маршрут принимает только свой Bearer-ключ, а запуск без ключей завершается ошибкой: `tests/unit/api/test_auth.py`.
