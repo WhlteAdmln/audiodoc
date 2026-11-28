@@ -11,6 +11,10 @@ from audiodoc.config import Settings
 from audiodoc.document_engine.diagnostics import NativeToolsStatus
 from audiodoc.document_engine.extractors.djvu.tools import DjvuTools
 from audiodoc.system_diagnostics import DiagnosticCheck
+from audiodoc.transcription.model_revisions import (
+    InstalledModel,
+    write_revision_marker,
+)
 
 
 def _create_model_directory(directory: Path) -> Path:
@@ -110,6 +114,42 @@ def test_whisper_model_check_accepts_configured_local_model(
     )
 
 
+def test_whisper_model_check_reports_recorded_model_revision(
+    tmp_path: Path,
+) -> None:
+    model_directory = _create_model_directory(tmp_path / "pinned-model")
+    write_revision_marker(
+        model_directory,
+        InstalledModel("small.en", "d1d751a5f8271d482d14ca55d9e2deeebbae577f"),
+    )
+    configured_settings = Settings(WHISPER_MODEL_PATH=str(model_directory))
+
+    result = doctor.check_whisper_model(configured_settings)
+
+    revision_detail = (
+        "model 'small.en', revision d1d751a5f8271d482d14ca55d9e2deeebbae577f"
+    )
+    expected = ("OK", True)
+    assert (result.status, revision_detail in result.message) == expected, (
+        f"the recorded model name and revision were not reported: {result}"
+    )
+
+
+def test_whisper_model_check_accepts_configured_model_of_unknown_revision(
+    tmp_path: Path,
+) -> None:
+    model_directory = _create_model_directory(tmp_path / "hand-placed-model")
+    configured_settings = Settings(WHISPER_MODEL_PATH=str(model_directory))
+
+    result = doctor.check_whisper_model(configured_settings)
+
+    unknown_detail = "unknown revision"
+    expected = ("OK", True)
+    assert (result.status, unknown_detail in result.message) == expected, (
+        f"a model without a marker was not accepted as unknown revision: {result}"
+    )
+
+
 def test_whisper_model_check_rejects_missing_configured_path(
     tmp_path: Path,
 ) -> None:
@@ -133,6 +173,19 @@ def test_whisper_model_check_accepts_cached_model(
     expected = ("OK", True)
     assert (result.status, cache_detail in result.message) == expected, (
         f"cached model was not accepted: {result}, calls {cached_model_calls}"
+    )
+
+
+def test_whisper_model_check_reports_unknown_revision_of_cached_model(
+    cached_model_calls: list[tuple[str, bool]],
+) -> None:
+    result = doctor.check_whisper_model(Settings(WHISPER_MODEL_SIZE="tiny"))
+
+    unknown_detail = "unknown revision"
+    expected = ("OK", True)
+    assert (result.status, unknown_detail in result.message) == expected, (
+        f"cached model was not reported as unknown revision: {result}, "
+        f"calls {cached_model_calls}"
     )
 
 

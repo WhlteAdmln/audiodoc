@@ -81,6 +81,8 @@ Typed `BackendError` exceptions are mapped to safe public messages and status co
 
 `audiodoc/transcription/model.py` provides `ModelHolder`, which loads one `faster-whisper` model. `service.py` executes model inference outside the event loop and uses a bounded `WorkQueue`. Model selection, device, compute type, thread count, language, beam size, and offline mode are configured through environment variables.
 
+`model_revisions.py` pins each supported model name to a commit of its Hugging Face repository. `audiodoc model download` downloads that revision and records the name and revision in `.audiodoc-model.json` in the model directory; `audiodoc doctor` reports them, and a model without this file is reported as an unknown revision. Changing a pinned revision is a reviewed code change.
+
 For an offline deployment, pre-download the model to a local directory and set `WHISPER_MODEL_PATH` and `WHISPER_OFFLINE=true`. `local_files_only=true` prevents an implicit model download. The machine must still have all model files and runtime dependencies installed before network egress is blocked.
 
 `temp_files.py` creates a private directory and files with restrictive permissions. Files use generated names and are deleted after processing; stale cleanup only touches files matching the service's own naming convention.
@@ -114,7 +116,7 @@ The root logger uses a consistent format with the request ID. The request ID is 
 - `config/`: environment-backed settings and project paths.
 - `document_engine/`: limits, detection, guards, OCR, extractors and pipeline.
 - `errors/`: typed errors with safe public messages.
-- `transcription/`: Whisper model, threaded recognition and temporary files.
+- `transcription/`: Whisper model, pinned model revisions, threaded recognition and temporary files.
 - Top-level modules: `main.py` (application factory and lifecycle), `__main__.py` (`python -m audiodoc`), `logging_setup.py` (logging setup with request IDs), `log_filters.py` (secret redaction in log records), `doctor.py` and `system_diagnostics.py` (installation diagnostics), `service.py` (systemd unit rendering and installation) and `env_readers.py` (shared environment readers).
 - `tests/`: contract, unit and integration checks.
 

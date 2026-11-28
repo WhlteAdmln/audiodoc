@@ -5,30 +5,12 @@ import argparse
 from pathlib import Path
 
 from audiodoc.service import SYSTEM_MODE, USER_MODE
+from audiodoc.transcription.model_revisions import MODEL_REVISIONS
 
 MAX_PORT = 65_535
 LINE_FEED = "\n"
 CARRIAGE_RETURN = "\r"
-SUPPORTED_MODEL_NAMES = (
-    "tiny",
-    "tiny.en",
-    "base",
-    "base.en",
-    "small",
-    "small.en",
-    "medium",
-    "medium.en",
-    "large",
-    "large-v1",
-    "large-v2",
-    "large-v3",
-    "large-v3-turbo",
-    "turbo",
-    "distil-small.en",
-    "distil-medium.en",
-    "distil-large-v2",
-    "distil-large-v3",
-)
+SUPPORTED_MODEL_NAMES = tuple(MODEL_REVISIONS)
 
 
 def parse_port(value: str) -> int:

@@ -9,6 +9,7 @@ from pathlib import Path
 from audiodoc.config import ConfigError, Settings, load_settings
 from audiodoc.document_engine.diagnostics import check_native_tools
 from audiodoc.system_diagnostics import DiagnosticCheck, collect_system_checks
+from audiodoc.transcription.model_revisions import read_revision_marker
 
 REQUIRED_TESSERACT_LANGUAGES = ("rus", "eng")
 CUDA_DEVICE = "cuda"
@@ -25,13 +26,22 @@ def _model_files_present(directory: Path) -> bool:
     )
 
 
+def _describe_revision(directory: Path) -> str:
+    """Describe the recorded name and revision of a model directory."""
+    installed = read_revision_marker(directory)
+    if installed is None:
+        return "unknown revision"
+    return f"model {installed.name!r}, revision {installed.revision}"
+
+
 def _check_configured_model(model_directory: Path) -> DiagnosticCheck:
     """Check a model stored at an explicitly configured path."""
     if _model_files_present(model_directory):
         return DiagnosticCheck(
             "Whisper model",
             "OK",
-            f"Model files are present: {model_directory}.",
+            f"Model files are present: {model_directory} "
+            f"({_describe_revision(model_directory)}).",
         )
     return DiagnosticCheck(
         "Whisper model",
@@ -67,7 +77,8 @@ def _check_model_cache(model_name: str, *, offline: bool) -> DiagnosticCheck:
         return DiagnosticCheck(
             "Whisper model",
             "OK",
-            f"Model {model_name!r} is available in the local cache.",
+            f"Model {model_name!r} is available in the local cache "
+            f"({_describe_revision(cached_path)}).",
         )
 
     if offline:

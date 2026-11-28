@@ -141,6 +141,8 @@ WHISPER_MODEL_PATH=/opt/audiodoc/models/whisper-small
 WHISPER_OFFLINE=true
 ```
 
+`audiodoc model download --name small --dir /opt/audiodoc/models/whisper-small` downloads a supported model at the revision pinned in the release, so two installations of the same release get the same model files. `audiodoc doctor` reports the model name and revision of the configured model; a model downloaded by an older release or placed by hand is reported as an unknown revision and still passes the check.
+
 The model directory must be readable by the service account. Do not set offline mode before the model files have been provisioned. For CPU deployments, start with `WHISPER_DEVICE=cpu` and `WHISPER_COMPUTE_TYPE=int8`; tune thread count and model size after observing actual load. GPU settings depend on the installed CUDA runtime and available device memory.
 
 ## 4. Start and stop
