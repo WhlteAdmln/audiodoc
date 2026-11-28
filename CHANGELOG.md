@@ -24,6 +24,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Fixed
 
+- [#224](https://github.com/WhlteAdmln/audiodoc/issues/224) `make install-dev` installs `uv` and `make lock` runs it from the virtual environment, so no global `uv` is needed.
 - [#207](https://github.com/WhlteAdmln/audiodoc/issues/207) An XLSX row ends at its last non-empty cell instead of carrying empty separators up to the column cap.
 - [#198](https://github.com/WhlteAdmln/audiodoc/issues/198) The package metadata declares the development status, environment, framework, audience, operating system and topic classifiers.
 

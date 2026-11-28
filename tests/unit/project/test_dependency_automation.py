@@ -159,6 +159,15 @@ def test_lock_command_writes_options_with_equal_signs() -> None:
     )
 
 
+def test_lock_command_runs_uv_from_the_virtual_environment() -> None:
+    makefile = (ROOT_DIR / "Makefile").read_text("utf-8")
+
+    venv_uv_command = "$(PYTHON_SCRIPTS_DIR)/uv pip compile"
+    assert venv_uv_command in makefile, (
+        "the lock command does not run uv from the virtual environment"
+    )
+
+
 def test_lock_command_names_the_output_file_with_an_equal_sign() -> None:
     makefile = (ROOT_DIR / "Makefile").read_text("utf-8")
 

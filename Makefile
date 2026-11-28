@@ -94,7 +94,7 @@ lock:
 		cutoff="$$($(PYTHON) -c "from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) - timedelta(days=$(LOCK_MIN_RELEASE_AGE_DAYS))).strftime('%Y-%m-%dT%H:%M:%SZ'))")"; \
 	fi; \
 	env $${cutoff:+UV_EXCLUDE_NEWER=$$cutoff} \
-		uv pip compile pyproject.toml --python-version=$(LOCK_PYTHON_VERSION) \
+		$(PYTHON_SCRIPTS_DIR)/uv pip compile pyproject.toml --python-version=$(LOCK_PYTHON_VERSION) \
 		--output-file=requirements-lock.txt
 
 audit:
