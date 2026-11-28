@@ -59,10 +59,10 @@ def read_revision_marker(directory: Path) -> InstalledModel | None:
         )
     except (OSError, ValueError):
         return None
-    if not isinstance(content, dict):
-        return None
-    name = content.get("name")
-    revision = content.get("revision")
-    if not isinstance(name, str) or not isinstance(revision, str):
-        return None
-    return InstalledModel(name, revision)
+    if (
+        isinstance(content, dict)
+        and isinstance(content.get("name"), str)
+        and isinstance(content.get("revision"), str)
+    ):
+        return InstalledModel(content["name"], content["revision"])
+    return None
