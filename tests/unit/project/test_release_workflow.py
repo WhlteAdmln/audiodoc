@@ -151,6 +151,20 @@ def test_ci_build_job_verifies_both_release_distribution_formats(fragment: str) 
     assert fragment in workflow, f"ci.yml must contain {fragment!r}"
 
 
+@pytest.mark.parametrize(
+    "request_command",
+    [
+        'curl --fail --silent --show-error "${base_url}/health"',
+        'curl --fail --silent --show-error "${base_url}/ready"',
+    ],
+)
+def test_ci_build_job_requests_the_endpoint_of_the_installed_wheel(
+    request_command: str,
+) -> None:
+    workflow = _read_project_file(".github", "workflows", "ci.yml")
+    assert request_command in workflow, f"ci.yml must run {request_command!r}"
+
+
 def test_ci_lint_job_runs_every_static_analysis_gate() -> None:
     workflow = (ROOT_DIR / ".github" / "workflows" / "ci.yml").read_text(
         encoding="utf-8"
