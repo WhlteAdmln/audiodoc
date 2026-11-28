@@ -154,3 +154,22 @@ audiodoc/
 ├── requirements-dev.txt
 └── requirements-lock.txt
 ```
+
+## 9. Invariants
+
+Each rule below must hold for every request; the test file named after it checks it. A change that breaks one of these rules breaks that test.
+
+- The document pipeline validates the input, detects the format, checks ZIP containers and only then calls the extractor and builds the result: `tests/unit/document_engine/test_pipeline.py`.
+- The whole request body is limited before multipart parsing: `tests/unit/api/test_middleware.py`.
+- An upload is never read or saved past its file-size limit: `tests/unit/common/test_limited_upload.py`.
+- A document one byte over the size limit is rejected with status 413: `tests/unit/document_engine/test_pipeline.py`.
+- ZIP member count, member size, total size and compression ratio are capped: `tests/unit/document_engine/guards/test_zip_archive.py`.
+- Extracted text never exceeds the character budget, and a cut text is marked as truncated: `tests/unit/common/test_text_budget.py`.
+- A client `max_characters` can only lower the server budget; an invalid value is rejected: `tests/unit/document_engine/test_pipeline.py`.
+- Table extraction never adds more rows than its cap: `tests/unit/document_engine/extractors/test_base.py`.
+- XLSX extraction reads only rows and columns within the fixed caps: `tests/unit/document_engine/extractors/test_xlsx.py`.
+- An expired deadline raises `ProcessingTimeoutError` with the code `processing_timeout`, never a partial result: `tests/unit/document_engine/test_pipeline.py`.
+- Every typed error returns its status, its public message and its code: `tests/unit/api/test_error_handlers.py`.
+- An unexpected exception returns a generic 500 response without private details: `tests/unit/api/test_error_handlers.py`.
+- `/ready` needs no API key: `tests/unit/api/test_ready.py`.
+- Each POST route accepts only its own Bearer key, and startup fails closed without keys: `tests/unit/api/test_auth.py`.
