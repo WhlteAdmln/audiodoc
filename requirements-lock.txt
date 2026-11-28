@@ -10,7 +10,7 @@ anyio==4.16.0
     #   httpx2
     #   starlette
     #   watchfiles
-av==18.1.0
+av==18.1.1
     # via
     #   audiodoc (pyproject.toml)
     #   faster-whisper
