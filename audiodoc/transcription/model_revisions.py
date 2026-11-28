@@ -21,8 +21,6 @@ MODEL_REVISIONS: Final = MappingProxyType(
         "large-v1": "b07c8d4be0be90092aa01a29c975077acb8d15c9",
         "large-v2": "f0fe81560cb8b68660e564f55dd99207059c092e",
         "large-v3": "edaa852ec7e145841d8ffdb056a99866b5f0a478",
-        "large-v3-turbo": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
-        "turbo": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
         "distil-small.en": "ef77d90526ccd62cde3808ee70626a01e5cf83e4",
         "distil-medium.en": "80ddfce281f77766d8943d63109199fc8145dfa5",
         "distil-large-v2": "fe9b404fc56de3f7c38606ef9ba6fd83526d05e4",
