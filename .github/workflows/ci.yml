@@ -278,7 +278,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -302,6 +302,69 @@ jobs:
           test -s dist/constraints.txt
           test -s dist/SHA256SUMS
           (cd dist && sha256sum --check --status SHA256SUMS)
+      - name: Cache Whisper tiny model
+        id: whisper-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/whisper
+          key: ${{ runner.os }}-whisper-tiny-${{ hashFiles('requirements-lock.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-whisper-tiny-
+      - name: Start the installed wheel and check the health endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          wheels=("${GITHUB_WORKSPACE}"/dist/audiodoc-*.whl)
+          constraints="${GITHUB_WORKSPACE}/dist/constraints.txt"
+          model_dir="${GITHUB_WORKSPACE}/.cache/whisper/tiny"
+          smoke_dir="${RUNNER_TEMP}/wheel-smoke"
+          venv_bin="${smoke_dir}/venv/bin"
+          service_log="${smoke_dir}/service.log"
+          service_pid=""
+
+          cleanup() {
+            result=$?
+            trap - EXIT
+            if [ -n "$service_pid" ]; then
+              kill "$service_pid" 2>/dev/null || true
+              wait "$service_pid" 2>/dev/null || true
+            fi
+            if [ "$result" -ne 0 ] && [ -f "$service_log" ]; then
+              cat "$service_log"
+            fi
+            exit "$result"
+          }
+          trap cleanup EXIT
+
+          mkdir -p "${smoke_dir}/home" "${smoke_dir}/work"
+          python -m venv "${smoke_dir}/venv"
+          "${venv_bin}/python" -m pip install --disable-pip-version-check \
+            --constraint "$constraints" "${wheels[0]}"
+
+          cd "${smoke_dir}/work"
+          export HOME="${smoke_dir}/home"
+          export AUDIODOC_HOME="${smoke_dir}/home/audiodoc"
+          if [[ ! -s "${model_dir}/config.json" || ! -s "${model_dir}/model.bin" ]]; then
+            "${venv_bin}/audiodoc" model download --name tiny --dir "$model_dir"
+          fi
+          "${venv_bin}/audiodoc" init --model tiny
+          WHISPER_MODEL_PATH="$model_dir" "${venv_bin}/audiodoc" run \
+            > "$service_log" 2>&1 &
+          service_pid=$!
+
+          base_url="http://127.0.0.1:8000"
+          attempt=0
+          while [ "$attempt" -lt 90 ]; do
+            attempt=$((attempt + 1))
+            if curl --fail --silent "${base_url}/health" >/dev/null; then
+              break
+            fi
+            kill -0 "$service_pid"
+            sleep 2
+          done
+          curl --fail --silent --show-error "${base_url}/health"
+          curl --fail --silent --show-error "${base_url}/ready"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-assets

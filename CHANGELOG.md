@@ -8,6 +8,7 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 
 ### Added
 
+- [#204](https://github.com/WhlteAdmln/audiodoc/issues/204) The CI build job starts the service from the installed wheel outside the checkout and checks that `/health` and `/ready` answer.
 - [#216](https://github.com/WhlteAdmln/audiodoc/issues/216) Renovate updates the digests of the base images in the Compose build arguments and of the `nginx` image in CI.
 - [#208](https://github.com/WhlteAdmln/audiodoc/issues/208) SonarQube Cloud analyzes pull requests and reports its quality gate result in them.
 - [#200](https://github.com/WhlteAdmln/audiodoc/issues/200) Property tests check the text budget with any separators, the row cap of `add_rows` and the ZIP size, count and compression limits.
