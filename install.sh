@@ -143,7 +143,7 @@ esac
 
 case "$MODEL" in
 tiny | tiny.en | base | base.en | small | small.en | medium | medium.en | \
-	large | large-v1 | large-v2 | large-v3 | large-v3-turbo | turbo | \
+	large | large-v1 | large-v2 | large-v3 | \
 	distil-small.en | distil-medium.en | distil-large-v2 | distil-large-v3)
 	;;
 *)

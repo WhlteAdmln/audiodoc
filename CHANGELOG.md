@@ -29,6 +29,10 @@ Each entry is one short sentence that starts with a link to its issue or pull re
 - [#207](https://github.com/WhlteAdmln/audiodoc/issues/207) An XLSX row ends at its last non-empty cell instead of carrying empty separators up to the column cap.
 - [#198](https://github.com/WhlteAdmln/audiodoc/issues/198) The package metadata declares the development status, environment, framework, audience, operating system and topic classifiers.
 
+### Removed
+
+- [#222](https://github.com/WhlteAdmln/audiodoc/issues/222) `audiodoc model download`, `audiodoc init` and the installer no longer offer the third-party `turbo` and `large-v3-turbo` models; only the Systran models are supported.
+
 ## [0.3.1] - 2026-11-26
 
 ### Added

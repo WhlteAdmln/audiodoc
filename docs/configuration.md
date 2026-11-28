@@ -37,7 +37,7 @@ The defaults below match `.env.example` and the CLI defaults. `AUDIODOC_HOST` an
 | `MAX_CONCURRENT_TRANSCRIPTIONS` | `1` | Number of active transcription jobs | `MAX_CONCURRENT_TRANSCRIPTIONS=1` |
 | `MAX_WAITING_TRANSCRIPTIONS` | `4` | Maximum transcription jobs waiting in the queue | `MAX_WAITING_TRANSCRIPTIONS=2` |
 | `MAX_WAITING_DOCUMENTS` | `4` | Maximum document jobs waiting in the queue | `MAX_WAITING_DOCUMENTS=2` |
-| `WHISPER_MODEL_SIZE` | `small` | Model identifier used when `WHISPER_MODEL_PATH` is empty | `WHISPER_MODEL_SIZE=small` |
+| `WHISPER_MODEL_SIZE` | `small` | Model identifier used when `WHISPER_MODEL_PATH` is empty; only the Systran models offered by `audiodoc model download` are supported | `WHISPER_MODEL_SIZE=small` |
 | `WHISPER_MODEL_PATH` | empty | Path to a pre-downloaded local Whisper model; takes precedence over the model size; relative paths resolve under `AUDIODOC_HOME` | `WHISPER_MODEL_PATH=/opt/audiodoc/models/small` |
 | `WHISPER_DEVICE` | `cpu` | Inference device | `WHISPER_DEVICE=cpu` |
 | `WHISPER_COMPUTE_TYPE` | `int8` | Compute type compatible with the selected device | `WHISPER_COMPUTE_TYPE=int8` |
